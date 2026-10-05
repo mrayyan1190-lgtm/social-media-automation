@@ -1,0 +1,96 @@
+<div class="page-header">
+  <div>
+    <a class="back" routerLink="/campaigns">← Campaigns</a>
+    <h1>{{ campaign()?.name ?? 'Campaign' }}</h1>
+    @if (campaign(); as c) {
+      <span class="platform-row">
+        @for (p of c.platforms; track p) { <app-platform-icon [platform]="p" [label]="true" /> }
+        @if (c.status === 'Archived') { <span class="badge muted">Archived (read-only)</span> }
+      </span>
+    }
+  </div>
+  @if (editable()) {
+    <div class="actions">
+      <button type="button" class="primary" (click)="generateContent()"><app-icon name="sparkles" [size]="16" />Generate Content</button>
+    </div>
+  }
+</div>
+
+<nav class="tabs" aria-label="Campaign">
+  <a [routerLink]="['/campaigns', campaignId()]" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Overview</a>
+  <a [routerLink]="['/campaigns', campaignId(), 'content']" routerLinkActive="active">Content</a>
+  <a [routerLink]="['/campaigns', campaignId(), 'activity']" routerLinkActive="active">Activity</a>
+</nav>
+
+<app-problem-banner [problem]="problem()" (reload)="load()" />
+
+@if (campaign(); as c) {
+  @switch (tab()) {
+    @case ('content') {
+      <app-campaign-content [orgId]="c.organizationId" [campaignId]="c.id" [platforms]="c.platforms" [editable]="editable()" [autoGenerate]="!!generate()" />
+    }
+    @case ('activity') {
+      <section class="card">
+        <ul class="timeline">
+          @for (a of activity() ?? []; track $index) {
+            <li><span>{{ a.text }}</span><span class="hint">{{ time(a.at) }}</span></li>
+          } @empty {
+            <li class="hint">{{ activity() ? 'No activity yet. Generate content to get started.' : 'Loading…' }}</li>
+          }
+        </ul>
+      </section>
+    }
+    @default {
+      @if (editing()) {
+        <section class="card">
+          <app-campaign-form [initial]="c" [brand]="brand()" [saving]="saving()" submitLabel="Save Changes" (save)="update($event)">
+            <button type="button" (click)="editing.set(false)">Cancel</button>
+          </app-campaign-form>
+        </section>
+      } @else {
+        <div class="overview-grid">
+          <section class="card">
+            <div class="card-head">
+              <h2>Campaign</h2>
+              @if (editable()) { <button type="button" class="link" (click)="editing.set(true)">Edit</button> }
+            </div>
+            <h3>Prompt</h3>
+            <p class="pre prompt-view">{{ c.description }}</p>
+            <dl class="facts-grid">
+              <dt>Platforms</dt><dd>{{ c.platforms.join(', ') || 'None selected' }}</dd>
+              @if (c.objective !== 'AUTO') { <dt>Objective</dt><dd>{{ objectiveLabels[c.objective] }}</dd> }
+              @if (c.callToAction !== 'AUTO') {
+                <dt>CTA</dt><dd>{{ ctaLabels[c.callToAction] }}@if (c.callToActionUrl) { · {{ c.callToActionUrl }} }</dd>
+              }
+              <dt>Created by</dt><dd>{{ createdByName() ?? '—' }}</dd>
+              <dt>Created</dt><dd>{{ time(c.createdAtUtc, { dateStyle: 'medium' }) }}</dd>
+            </dl>
+          </section>
+
+          <section class="card">
+            <h2>Brand context</h2>
+            <p class="hint">AI uses your brand profile automatically{{ c.toneOverride || (brand() && c.targetAudience !== brand()?.targetAudience) ? ', with changes for this campaign' : '' }}.</p>
+            <dl class="facts-grid">
+              <dt>Audience</dt><dd>{{ c.targetAudience }}</dd>
+              <dt>Tone</dt><dd>{{ c.toneOverride ?? brand()?.brandTone ?? '—' }}</dd>
+              @if (brand()?.website) { <dt>Website</dt><dd>{{ brand()?.website }}</dd> }
+            </dl>
+          </section>
+        </div>
+
+        <details class="card facts-card" [open]="facts().length > 0">
+          <summary><strong>Supporting facts</strong> <span class="hint">optional · dates, prices, features the AI may state as facts</span></summary>
+          <app-campaign-facts-editor [orgId]="c.organizationId" [campaignId]="c.id" [facts]="facts()" [readonly]="!editable()" (changed)="reloadFacts()" />
+        </details>
+
+        @if (editable()) {
+          <div class="actions end">
+            <button type="button" class="danger" (click)="archive()" [disabled]="saving()">Archive campaign</button>
+          </div>
+        }
+      }
+    }
+  }
+} @else if (!problem()) {
+  <p class="muted">Loading…</p>
+}

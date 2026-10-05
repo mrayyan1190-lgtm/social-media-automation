@@ -1,0 +1,106 @@
+import { DatePipe } from '@angular/common';
+import { Component, effect, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { ApiProblem, toApiProblem } from '../../../../core/http/api-problem';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { ProblemBannerComponent } from '../../../../shared/components/problem-banner.component';
+import { MediaApiService } from '../../../content/services/media-api.service';
+import { ReviewDetail, ReviewSummary } from '../../models/review.model';
+import { ReviewApiService } from '../../services/review-api.service';
+import { DEMO_MODE_NOTE, MODE_LABELS } from '../../../../shared/models/states';
+import { CTA_LABELS, OBJECTIVE_LABELS } from '../../../campaigns/models/campaign.model';
+
+/**
+ * Review of one exact version. Shows the submitted content (never newer edits), destination with its mode, media and
+ * alt text, campaign intent, facts, automated findings, comments and history. Buttons are hidden when the API would
+ * refuse, but the API decides.
+ */
+@Component({
+  selector: 'app-review-detail-page',
+  imports: [RouterLink, DatePipe, ProblemBannerComponent],
+  templateUrl: './review-detail.page.html',
+})
+export class ReviewDetailPage {
+  protected readonly reviewLabels: Record<string, string> = { PENDING: 'In Review', APPROVED: 'Approved', CHANGES_REQUESTED: 'Changes Requested' };
+  protected readonly objectiveLabels = OBJECTIVE_LABELS;
+  protected readonly ctaLabels = CTA_LABELS;
+  protected readonly modeLabels = MODE_LABELS;
+  protected readonly demoNote = DEMO_MODE_NOTE;
+  private readonly api = inject(ReviewApiService);
+  private readonly media = inject(MediaApiService);
+  protected readonly workspace = inject(WorkspaceService);
+
+  readonly reviewId = input.required<string>();
+
+  protected readonly detail = signal<ReviewDetail | null>(null);
+  protected readonly busy = signal(false);
+  protected readonly loading = signal(true);
+  protected readonly notice = signal<string | null>(null);
+  protected readonly problem = signal<ApiProblem | null>(null);
+  protected readonly showChangesForm = signal(false);
+  protected readonly explanation = signal('');
+  protected readonly comment = signal('');
+
+  constructor() {
+    effect(() => {
+      if (this.workspace.orgId() && this.reviewId()) void this.load();
+    });
+  }
+
+  protected imageUrl(mediaAssetId: string): string {
+    return this.media.previewUrl(this.workspace.orgId()!, mediaAssetId);
+  }
+
+  async load(): Promise<void> {
+    const orgId = this.workspace.orgId();
+    if (!orgId) return;
+    this.loading.set(true);
+    try {
+      this.detail.set(await firstValueFrom(this.api.get(orgId, this.reviewId())));
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  protected approve(): Promise<void> {
+    return this.decide((orgId, review) => firstValueFrom(this.api.approve(orgId, review)), 'Approved. Exactly this version can now be scheduled.');
+  }
+
+  protected requestChanges(): Promise<void> {
+    return this.decide((orgId, review) => firstValueFrom(this.api.requestChanges(orgId, review, this.explanation())), 'Changes requested. The creator has been notified.');
+  }
+
+  protected async addComment(): Promise<void> {
+    const orgId = this.workspace.orgId();
+    if (!orgId || !this.comment().trim()) return;
+    try {
+      await firstValueFrom(this.api.comment(orgId, this.reviewId(), this.comment()));
+      this.comment.set('');
+      await this.load();
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    }
+  }
+
+  private async decide(action: (orgId: string, review: ReviewSummary) => Promise<unknown>, message: string): Promise<void> {
+    const orgId = this.workspace.orgId();
+    const detail = this.detail();
+    if (!orgId || !detail) return;
+    this.busy.set(true);
+    this.problem.set(null);
+    this.notice.set(null);
+    try {
+      await action(orgId, detail.review);
+      this.showChangesForm.set(false);
+      this.notice.set(message);
+      await this.load();
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+}

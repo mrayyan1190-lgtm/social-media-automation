@@ -1,0 +1,59 @@
+<div class="page-header">
+  <div>
+    <h1>Brand</h1>
+    <p class="muted">Your reusable AI context. Every campaign and AI Studio prompt uses it automatically, so you never re-enter it.</p>
+  </div>
+</div>
+
+@if (!workspace.canManageBrand()) {
+  <p class="banner info">Only workspace Admins can edit the brand. You can view it.</p>
+}
+<app-problem-banner [problem]="problem()" (reload)="load()" />
+@if (saved()) {
+  <p class="banner success" role="status">Brand profile saved.</p>
+}
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else {
+  @if (!current()) {
+    <p class="banner info">This workspace has no brand profile yet. Fill in the form to create it.</p>
+  }
+  <form class="form-grid narrow" [formGroup]="form" (ngSubmit)="save()">
+    <fieldset>
+      <legend>Brand</legend>
+      <label class="wide">Business Description * <textarea rows="3" formControlName="businessDescription"></textarea></label>
+      <label class="wide">Target Audience * <span class="hint">campaigns use this audience unless changed for a campaign</span>
+        <textarea rows="2" formControlName="targetAudience"></textarea>
+      </label>
+      <label>Brand Tone *
+        <select formControlName="brandTone">
+          @for (option of toneOptions; track option) {
+            <option [value]="option">{{ option }}</option>
+          }
+        </select>
+      </label>
+      <label>Website <span class="hint">optional</span>
+        <input type="url" formControlName="website" placeholder="https://" />
+        @if (form.controls.website.hasError('httpUrl')) {
+          <span class="field-error">Enter a full address such as https://example.com.</span>
+        }
+      </label>
+    </fieldset>
+
+    <details>
+      <summary>Advanced</summary>
+      <label class="wide">Prohibited terms <span class="hint">optional; one per line; content using these words is flagged before review</span>
+        <textarea rows="2" formControlName="prohibitedTerms"></textarea>
+      </label>
+    </details>
+
+    @if (workspace.canManageBrand()) {
+      <div class="actions">
+        <button class="primary" type="submit" [disabled]="form.invalid || saving()">
+          {{ saving() ? 'Saving…' : current() ? 'Save Changes' : 'Create Brand Profile' }}
+        </button>
+      </div>
+    }
+  </form>
+}

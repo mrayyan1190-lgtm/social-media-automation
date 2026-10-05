@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Secrets and local environment
+.env
+*.env
+appsettings.*.local.json
+
+# IDE / OS
+.idea/
+Thumbs.db
+.DS_Store
+
+# Local development object storage
+.local-storage/

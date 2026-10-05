@@ -1,0 +1,49 @@
+<section class="card">
+  <h2>Supporting facts</h2>
+  <p class="hint">
+    What should AI know or include? Verifiable business facts only (dates, features, customers, prices); add a source where you have one.
+    Goals and desired outcomes ("we want customers to save 50%") belong in the brief, not here.
+  </p>
+
+  <app-problem-banner [problem]="problem()" (reload)="reload()" />
+
+  @if (facts().length === 0) {
+    <p class="muted">No facts yet.</p>
+  }
+  <ul class="facts">
+    @for (fact of facts(); track fact.id) {
+      <li>
+        @if (editingId() === fact.id) {
+          <form class="fact-form" [formGroup]="editForm" (ngSubmit)="saveEdit(fact)">
+            <label>Fact <textarea rows="2" formControlName="text"></textarea></label>
+            <label>Source / provenance <input formControlName="sourceNote" /></label>
+            <div class="actions">
+              <button class="primary" type="submit" [disabled]="editForm.invalid || busy()">Save</button>
+              <button type="button" (click)="editingId.set(null)">Cancel</button>
+            </div>
+          </form>
+        } @else {
+          <p class="fact-text">{{ fact.text }}</p>
+          <p class="hint">@if (fact.sourceNote) {Source: {{ fact.sourceNote }} · }supplied by {{ fact.suppliedByName }} · {{ fact.updatedAtUtc | date: 'medium' }}</p>
+          @if (!readonly()) {
+            <div class="actions">
+              <button type="button" (click)="startEdit(fact)" [disabled]="busy()">Edit</button>
+              <button type="button" class="danger" (click)="remove(fact)" [disabled]="busy()">Remove</button>
+            </div>
+          }
+        }
+      </li>
+    }
+  </ul>
+
+  @if (!readonly()) {
+    <form class="fact-form" [formGroup]="addForm" (ngSubmit)="add()">
+      <h3>Add a fact</h3>
+      <label>Fact * <textarea rows="2" formControlName="text" placeholder="e.g. Brightline Close is used by 40 customers"></textarea></label>
+      <label>Source / provenance (optional) <input formControlName="sourceNote" placeholder="e.g. CRM export, October 2026" /></label>
+      <div class="actions">
+        <button class="primary" type="submit" [disabled]="addForm.invalid || busy()">Add fact</button>
+      </div>
+    </form>
+  }
+</section>

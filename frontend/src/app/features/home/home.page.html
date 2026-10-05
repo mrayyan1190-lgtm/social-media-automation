@@ -1,0 +1,259 @@
+<div class="home">
+  <header class="home-header">
+    <div>
+      <h1>Welcome back, {{ firstName() }}</h1>
+      <p class="home-workspace">{{ workspace.current()?.organizationName }}</p>
+      <p class="muted">Manage your campaigns, content, approvals and publishing.</p>
+    </div>
+    @if (workspace.canManageCampaigns()) {
+      <div class="actions">
+        <a class="button" routerLink="/ai-studio"><app-icon name="sparkles" [size]="16" />Create with AI</a>
+        <a class="button primary" routerLink="/campaigns/new"><app-icon name="plus" [size]="16" />Create Campaign</a>
+      </div>
+    }
+  </header>
+
+  <app-problem-banner [problem]="problem()" />
+
+  @if (workspace.canManageCampaigns()) {
+    <section class="home-section">
+      <h2 class="section-label">Create</h2>
+      <div class="quick-grid">
+        <a class="quick-card" routerLink="/campaigns/new">
+          <span class="quick-icon"><app-icon name="megaphone" /></span>
+          <span><strong>Create Campaign</strong><span class="hint">Plan a campaign and generate platform-specific content.</span></span>
+        </a>
+        <a class="quick-card" routerLink="/ai-studio">
+          <span class="quick-icon"><app-icon name="sparkles" /></span>
+          <span><strong>AI Studio</strong><span class="hint">Start with a prompt and create content using your brand context.</span></span>
+        </a>
+        <div class="quick-card-wrap">
+          <button type="button" class="quick-card" [class.open]="createPostOpen()" (click)="createPostOpen.set(!createPostOpen())" [attr.aria-expanded]="createPostOpen()">
+            <span class="quick-icon"><app-icon name="edit" /></span>
+            <span><strong>Create Post</strong><span class="hint">Write a single social post yourself.</span></span>
+          </button>
+          @if (createPostOpen()) {
+            <div class="quick-pop" role="dialog" aria-label="Create post">
+              @if (campaigns().length) {
+                <label>Campaign
+                  <select [(ngModel)]="postCampaignId" (ngModelChange)="postPlatform = ''">
+                    <option value="">Choose…</option>
+                    @for (c of campaigns(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                  </select>
+                </label>
+                <label>Platform
+                  <select [(ngModel)]="postPlatform" [disabled]="!postCampaignId">
+                    <option value="">Choose…</option>
+                    @for (p of platformsOf(postCampaignId); track p) { <option [value]="p">{{ p }}</option> }
+                  </select>
+                </label>
+                <button type="button" class="primary" (click)="createPost()" [disabled]="!postCampaignId || !postPlatform">Write Post</button>
+                <span class="hint">Posts live in a campaign, one per platform.</span>
+              } @else {
+                <span class="hint">Posts belong to a campaign. Create one first.</span>
+                <a class="button primary" routerLink="/campaigns/new">Create Campaign</a>
+              }
+            </div>
+          }
+        </div>
+        <a class="quick-card" routerLink="/library">
+          <span class="quick-icon"><app-icon name="image" /></span>
+          <span><strong>Media Library</strong><span class="hint">Browse or upload images for your posts.</span></span>
+        </a>
+      </div>
+    </section>
+  }
+
+  <div class="overview-row">
+    <!-- Workspace -->
+    <section class="card tile">
+      <div class="card-head"><h2>Workspace</h2></div>
+      <ul class="stat-rows">
+        <li>
+          <span>Brand Profile</span>
+          @if (auth.me()?.onboarding?.brandProfileCompleted) {
+            <span class="badge delivery success">Complete</span>
+          } @else {
+            <a class="badge delivery waiting" routerLink="/brand">Incomplete</a>
+          }
+        </li>
+        <li><span>Social Accounts</span><strong>{{ connectedCount() }} connected</strong></li>
+        <li><span>Team Members</span><strong>{{ activeMembers() }}</strong></li>
+        <li><span>Campaigns</span><strong>{{ campaigns().length }}</strong></li>
+      </ul>
+      @if (workspace.isAdmin()) { <a class="tile-link" routerLink="/settings/workspace">Manage Workspace</a> }
+    </section>
+
+    <!-- Content publishing -->
+    <section class="card tile publishing">
+      <div class="card-head">
+        <h2>Content Publishing</h2>
+        <div class="segmented small" role="group" aria-label="Time range">
+          <button type="button" [class.on]="range() === 'today'" (click)="range.set('today')">Today</button>
+          <button type="button" [class.on]="range() === '7'" (click)="range.set('7')">7 Days</button>
+          <button type="button" [class.on]="range() === '30'" (click)="range.set('30')">30 Days</button>
+        </div>
+      </div>
+      @let pub = publishing();
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 42 42" role="img" [attr.aria-label]="pub.total + ' posts in this view'">
+          <circle cx="21" cy="21" r="15.915" fill="none" stroke="#eceff3" stroke-width="5" />
+          @for (s of pub.segments; track s.key) {
+            @if (s.value > 0) {
+              <circle cx="21" cy="21" r="15.915" fill="none" [attr.stroke]="s.color" stroke-width="5"
+                [attr.stroke-dasharray]="s.dash" [attr.stroke-dashoffset]="s.offset">
+                <title>{{ s.label }}: {{ s.value }}</title>
+              </circle>
+            }
+          }
+          <text x="21" y="21" class="ring-total">{{ pub.total }}</text>
+          <text x="21" y="26.5" class="ring-caption">posts</text>
+        </svg>
+        <ul class="ring-legend">
+          @for (s of pub.segments; track s.key) {
+            <li [title]="s.label + ': ' + s.value">
+              <span class="swatch" [style.background]="s.color" aria-hidden="true"></span>
+              <span class="grow">{{ s.label }}</span>
+              <strong>{{ s.value }}</strong>
+            </li>
+          }
+        </ul>
+      </div>
+      <p class="hint">Published and failed: past {{ range() === 'today' ? 'day' : range() + ' days' }}. Scheduled: next {{ range() === 'today' ? 'day' : range() + ' days' }}. Review counts are current.</p>
+      <a class="tile-link" routerLink="/publisher/planner">Open Planner</a>
+    </section>
+
+    <!-- To do -->
+    <section class="card tile">
+      <div class="card-head"><h2>To Do</h2></div>
+      @if (allClear()) {
+        <p class="all-clear"><app-icon name="checkCircle" [size]="18" />You're all caught up.</p>
+      } @else {
+        <ul class="todo">
+          @for (t of todo(); track t.label) {
+            <li>
+              <a [routerLink]="t.link" [queryParams]="t.query ?? {}" [class.zero]="t.count === 0">
+                <span [class]="'dot ' + t.tone" aria-hidden="true"></span>
+                <span class="grow">{{ t.label }}</span>
+                <strong>{{ t.count }}</strong>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  <div class="work-row">
+    @if (workspace.canManageCampaigns()) {
+      <section class="card tile">
+        <div class="card-head"><h2>Recent Campaigns</h2><a routerLink="/campaigns">View All Campaigns</a></div>
+        <ul class="rows">
+          @for (c of recentCampaigns(); track c.id) {
+            <li>
+              <div class="grow stack">
+                <a [routerLink]="['/campaigns', c.id]"><strong>{{ c.name }}</strong></a>
+                <span class="hint">{{ c.platforms.join(' · ') || 'No platforms' }} — {{ c.summary }}</span>
+              </div>
+              <span class="hint nowrap">{{ ago(c.updatedAtUtc) }}</span>
+              <a class="button small" [routerLink]="['/campaigns', c.id]">Open</a>
+            </li>
+          } @empty {
+            <li class="empty-inline">
+              <span class="hint">No campaigns yet.</span>
+              <a class="button small primary" routerLink="/campaigns/new">Create your first campaign</a>
+            </li>
+          }
+        </ul>
+      </section>
+    } @else {
+      <section class="card tile">
+        <div class="card-head"><h2>Recently Reviewed</h2><a routerLink="/publisher/approvals">Open Approvals</a></div>
+        <ul class="rows">
+          @for (r of recentlyReviewed(); track r.id) {
+            <li>
+              <app-platform-icon [platform]="r.platform" />
+              <a class="grow" [routerLink]="['/publisher/approvals', r.id]">{{ r.campaignName }} · Version {{ r.versionNumber }}</a>
+              <span [class]="'badge delivery ' + (r.status === 'APPROVED' ? 'success' : 'danger')">{{ r.status === 'APPROVED' ? 'Approved' : 'Changes Requested' }}</span>
+              <span class="hint nowrap">{{ ago(r.decidedAtUtc!) }}</span>
+            </li>
+          } @empty {
+            <li class="empty-inline"><span class="hint">Reviews you decide will appear here.</span></li>
+          }
+        </ul>
+      </section>
+    }
+
+    <section class="card tile">
+      <div class="card-head"><h2>Upcoming Publishing</h2><a routerLink="/publisher/planner">Open Planner</a></div>
+      <ul class="rows">
+        @for (j of upcoming(); track j.id) {
+          <li>
+            <app-platform-icon [platform]="j.platform" />
+            <a class="grow" [routerLink]="['/posts', j.postId]">{{ j.campaignName }}</a>
+            <span class="hint nowrap">{{ when(j.publishAtUtc) }}</span>
+            <span [class]="'badge delivery ' + deliveryTone(j.deliveryState)">{{ deliveryLabels[j.deliveryState] }}</span>
+          </li>
+        } @empty {
+          <li class="empty-inline">
+            <span class="hint">No posts scheduled yet.</span>
+            <a class="button small" routerLink="/publisher/planner">Open Planner</a>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <div class="work-row even">
+    <section class="card tile">
+      <div class="card-head">
+        <h2>Social Accounts</h2>
+        @if (workspace.isAdmin()) { <a routerLink="/social-accounts">Manage Accounts</a> }
+      </div>
+      <ul class="rows">
+        @for (c of channels(); track c.platform) {
+          <li>
+            <app-platform-icon [platform]="c.platform" [label]="true" />
+            <span class="grow hint">{{ c.name }}</span>
+            @if (c.demo) { <span class="badge mode simulated" title="Posts are not sent externally">Demo Mode</span> }
+            <span [class]="'badge delivery ' + (c.status === 'Connected' ? 'success' : c.status === 'Needs Reconnection' ? 'danger' : 'neutral')">{{ c.status }}</span>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="card tile">
+      <div class="card-head"><h2>Recent Activity</h2></div>
+      <ul class="rows">
+        @for (a of activity(); track a.id) {
+          <li><span class="grow">{{ a.text }}</span><span class="hint nowrap">{{ ago(a.at) }}</span></li>
+        } @empty {
+          <li class="empty-inline"><span class="hint">Activity will appear here as your team starts working.</span></li>
+        }
+      </ul>
+    </section>
+  </div>
+</div>
+
+@if (showGetStarted()) {
+  <aside class="get-started" [class.collapsed]="!getStartedOpen()" aria-label="Get Started">
+    <button type="button" class="gs-head" (click)="getStartedOpen.set(!getStartedOpen())" [attr.aria-expanded]="getStartedOpen()">
+      <strong>Get Started</strong>
+      <span class="hint">{{ doneCount() }} of {{ steps().length }} completed</span>
+      <app-icon class="chevron" [class.open]="getStartedOpen()" name="chevron" [size]="14" />
+    </button>
+    <div class="progress"><span [style.width.%]="(doneCount() / steps().length) * 100"></span></div>
+    @if (getStartedOpen()) {
+      <ol class="gs-steps">
+        @for (s of steps(); track s.key) {
+          <li [class.done]="s.done" [class.next]="s === nextStep()">
+            <span class="step-mark" aria-hidden="true">{{ s.done ? '✓' : '○' }}</span>
+            <span class="grow">{{ s.label }}</span>
+            @if (s === nextStep() && s.cta) { <a class="button small primary" [routerLink]="s.cta.link">{{ s.cta.label }}</a> }
+          </li>
+        }
+      </ol>
+      <button type="button" class="link gs-hide" (click)="hideGetStarted()">Hide for now</button>
+    }
+  </aside>
+}

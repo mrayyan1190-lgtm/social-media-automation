@@ -1,0 +1,147 @@
+<div class="page-header">
+  <div>
+    <h1>Review: {{ detail()?.campaign?.name }}</h1>
+    @if (detail(); as d) {
+      <span class="badge platform">{{ d.review.platform }}</span>
+      <span class="badge version">Version {{ d.version.versionNumber }}</span>
+      <span class="badge state">{{ reviewLabels[d.review.status] }}</span>
+      <span class="hint">submitted by {{ d.review.submittedByName }} · {{ d.review.submittedAtUtc | date: 'medium' }}</span>
+    }
+  </div>
+  <a routerLink="/publisher/approvals">Back to Approvals</a>
+</div>
+@if (loading() && !detail()) { <p class="muted">Loading review…</p> }
+
+<app-problem-banner [problem]="problem()" (reload)="load()" />
+@if (notice()) { <p class="banner success" role="status">{{ notice() }}</p> }
+
+@if (detail(); as d) {
+  @if (!d.isCurrentVersion) {
+    <p class="banner info">The post has a newer version since this was submitted. This review shows exactly what was submitted.</p>
+  }
+  @if (d.review.submissionNote) { <p class="banner info">Note from {{ d.review.submittedByName }}: {{ d.review.submissionNote }}</p> }
+
+  <div class="editor-layout">
+    <div class="form-grid">
+      <section class="card">
+        <h2>Exact submitted content</h2>
+        <dl class="facts-grid">
+          <dt>Platform</dt><dd>{{ d.review.platform }}</dd>
+          <dt>Destination</dt>
+          <dd>
+            @if (d.destination; as dest) {
+              {{ dest.displayName }} <span [class]="'badge mode ' + dest.executionMode.toLowerCase()">{{ modeLabels[dest.executionMode] }}</span>
+              @if (dest.executionMode === 'SIMULATED') { <span class="hint">{{ demoNote }}</span> }
+            } @else { <span class="field-error">none</span> }
+          </dd>
+        </dl>
+        <article class="post-preview">
+          @if (d.version.hook) { <p class="card-hook">{{ d.version.hook }}</p> }
+          <p class="pre">{{ d.version.body }}</p>
+          @if (d.version.callToAction) { <p><strong>CTA:</strong> {{ d.version.callToAction }}</p> }
+          @if (d.version.destinationUrl) { <p><strong>Link:</strong> {{ d.version.destinationUrl }}</p> }
+          @if (d.version.hashtags.length) { <p class="hint">{{ d.version.hashtags.join(' ') }}</p> }
+          @if (d.version.media; as m) {
+            <figure class="image-preview">
+              <img [src]="imageUrl(m.id)" [alt]="d.version.altText || 'Post image'" />
+              <figcaption class="hint">{{ m.originalFileName }} · {{ m.width }}×{{ m.height }}</figcaption>
+            </figure>
+            <p><strong>Alt text:</strong> {{ d.version.altText || '(none)' }}</p>
+          }
+        </article>
+        <p class="hint">Version {{ d.version.versionNumber }} · last edited by {{ d.version.createdByName }}</p>
+      </section>
+
+      <section class="card">
+        <h2>Supporting context</h2>
+        <dl class="facts-grid">
+          @if (d.campaign.objective !== 'AUTO') { <dt>Objective</dt><dd>{{ objectiveLabels[d.campaign.objective] }}</dd> }
+          <dt>Prompt</dt><dd>{{ d.campaign.description }}</dd>
+          <dt>Audience</dt><dd>{{ d.campaign.targetAudience }}</dd>
+          @if (d.campaign.callToAction !== 'NONE' && d.campaign.callToAction !== 'AUTO') { <dt>Campaign CTA</dt><dd>{{ ctaLabels[d.campaign.callToAction] }} {{ d.campaign.callToActionUrl }}</dd> }
+        </dl>
+        <h3>Supporting facts</h3>
+        <ul class="facts">
+          @for (f of d.facts; track f.id) { <li><p class="fact-text">{{ f.text }}</p><p class="hint">Source: {{ f.sourceNote }}</p></li> }
+          @empty { <li class="hint">No facts were supplied. Any factual claim in the post is unsupported.</li> }
+        </ul>
+      </section>
+    </div>
+
+    <aside class="side-column">
+      @if (d.review.status === 'PENDING') {
+        <section class="card">
+          <h2>Decision</h2>
+          @if (d.canDecide) {
+            <div class="actions">
+              <button class="primary" type="button" (click)="approve()" [disabled]="busy()">Approve Version {{ d.version.versionNumber }}</button>
+              <button type="button" (click)="showChangesForm.set(!showChangesForm())" [disabled]="busy()">Request Changes</button>
+            </div>
+            @if (showChangesForm()) {
+              <label>Feedback * <span class="hint">required; tell the creator what to change</span>
+                <textarea rows="3" [value]="explanation()" (input)="explanation.set($any($event.target).value)"></textarea>
+              </label>
+              <div class="actions">
+                <button type="button" class="danger" (click)="requestChanges()" [disabled]="busy() || !explanation().trim()">Send Feedback</button>
+              </div>
+            }
+          } @else {
+            <p class="banner info">{{ d.cannotDecideReason }}</p>
+          }
+        </section>
+      } @else {
+        <section class="card">
+          <h2>Decision</h2>
+          <p><strong>{{ reviewLabels[d.review.status] }}</strong> by {{ d.review.decidedByName }} · {{ d.review.decidedAtUtc | date: 'medium' }}</p>
+          @if (d.review.decisionComment) { <p class="pre">{{ d.review.decisionComment }}</p> }
+        </section>
+      }
+
+      <section class="card evaluation">
+        <h2>Automated checks</h2>
+        @if (d.evaluation; as e) {
+          @if (e.brandAlignment !== null) {
+            <dl class="scores">
+              <div><dt>Brand</dt><dd>{{ e.brandAlignment }}/5</dd></div>
+              <div><dt>Audience</dt><dd>{{ e.audienceRelevance }}/5</dd></div>
+              <div><dt>Clarity</dt><dd>{{ e.clarity }}/5</dd></div>
+              <div><dt>Fit</dt><dd>{{ e.platformFit }}/5</dd></div>
+              <div><dt>CTA</dt><dd>{{ e.ctaRelevance }}/5</dd></div>
+            </dl>
+          }
+          <ul class="issues">
+            @for (issue of e.issues; track $index) {
+              <li [class]="'issue ' + issue.severity.toLowerCase()"><span class="badge">{{ issue.severity }}</span> <span class="hint">{{ issue.category }}</span><div>{{ issue.message }}</div></li>
+            } @empty { <li class="hint">No issues found.</li> }
+          </ul>
+          <p class="hint">Suggestions only. You decide.</p>
+        } @else {
+          <p class="hint">No AI suggestions for this version (written manually). Basic content checks passed at submission.</p>
+        }
+      </section>
+
+      <section class="card">
+        <h2>Comments</h2>
+        <ul class="facts">
+          @for (c of d.comments; track c.id) { <li><p class="fact-text">{{ c.body }}</p><p class="hint">{{ c.authorName }} · {{ c.createdAtUtc | date: 'short' }}</p></li> }
+          @empty { <li class="hint">No comments yet.</li> }
+        </ul>
+        <label>Add a comment <textarea rows="2" [value]="comment()" (input)="comment.set($any($event.target).value)"></textarea></label>
+        <div class="actions"><button type="button" (click)="addComment()" [disabled]="!comment().trim()">Comment</button></div>
+      </section>
+
+      <section class="card">
+        <h2>Review history</h2>
+        <ol class="versions">
+          @for (h of d.history; track h.id) {
+            <li [class.current]="h.id === d.review.id">
+              <a [routerLink]="['/publisher/approvals', h.id]">Version {{ h.versionNumber }} · {{ reviewLabels[h.status] }}</a>
+              <span class="hint">{{ h.submittedAtUtc | date: 'short' }}{{ h.decidedByName ? ' · ' + h.decidedByName : '' }}</span>
+              @if (h.decisionComment) { <span class="hint">“{{ h.decisionComment }}”</span> }
+            </li>
+          }
+        </ol>
+      </section>
+    </aside>
+  </div>
+}

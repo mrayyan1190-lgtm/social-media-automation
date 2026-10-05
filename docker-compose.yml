@@ -1,0 +1,17 @@
+# Local development infrastructure. Reads .env at the repository root (copy .env.example).
+# Blob storage emulation (Azurite) is added with TASKS.md Phase 8.
+name: social-media-automation
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env (copy .env.example)}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+
+volumes:
+  sqlserver-data:

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SocialMediaAutomation.Api\SocialMediaAutomation.Api.csproj" />
+    <!-- Reuses the JPEG/PNG header builders from ImageProbeTests. -->
+    <ProjectReference Include="..\SocialMediaAutomation.Application.Tests\SocialMediaAutomation.Application.Tests.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain must stay free of EF Core, ASP.NET Core, HTTP, provider and storage SDKs (see ArchitectureTests). -->
+
+</Project>

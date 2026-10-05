@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Reads project files from backend/src; deliberately references no production project. -->
+
+</Project>
