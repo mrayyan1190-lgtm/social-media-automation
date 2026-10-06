@@ -4,6 +4,10 @@ namespace SocialMediaAutomation.Domain.Constants;
 public static class ErrorCodes
 {
     public const string Unauthorized = "UNAUTHORIZED";
+    /// <summary>An unexpected server failure; the response carries only a generic message and the correlation id.</summary>
+    public const string InternalError = "INTERNAL_ERROR";
+    /// <summary>The request itself was not acceptable (unknown route, wrong method or media type).</summary>
+    public const string RequestInvalid = "REQUEST_INVALID";
     public const string Forbidden = "FORBIDDEN";
     public const string WorkspaceSuspended = "WORKSPACE_SUSPENDED";
     public const string AccountDisabled = "ACCOUNT_DISABLED";

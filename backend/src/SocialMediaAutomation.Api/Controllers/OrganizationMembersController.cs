@@ -24,6 +24,15 @@ public sealed class OrganizationMembersController(OrganizationMemberService memb
         return StatusCode(StatusCodes.Status201Created, added);
     }
 
+    /// <summary>Admin only. Creates a new login with the Creator role; the Admin hands the credentials over (no email in the MVP).</summary>
+    [HttpPost("creators")]
+    public async Task<ActionResult<MemberDto>> CreateCreator(Guid orgId, CreateCreatorRequest request, CancellationToken cancellationToken)
+    {
+        var created = await members.CreateCreatorAsync(new CreateCreatorCommand(orgId, request.FullName, request.Email, request.Password), cancellationToken);
+        Response.Headers.ETag = RowVersionHeaders.ToETag(created.RowVersion);
+        return StatusCode(StatusCodes.Status201Created, created);
+    }
+
     /// <summary>Admin only. Requires If-Match. The last active Admin cannot be deactivated.</summary>
     [HttpPost("{memberId:guid}/deactivate")]
     public async Task<MemberDto> Deactivate(Guid orgId, Guid memberId, CancellationToken cancellationToken)

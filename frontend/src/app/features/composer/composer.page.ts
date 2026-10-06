@@ -1,53 +1,59 @@
 import { DatePipe, Location } from '@angular/common';
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
-import { Member, OrganizationApiService } from '../../core/services/organization-api.service';
+import { ToastService } from '../../core/services/toast.service';
+import { TopbarActionService } from '../../core/services/topbar-action.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { IconComponent } from '../../shared/components/icon.component';
 import { PlatformIconComponent } from '../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
-import { DEMO_MODE_NOTE, customerStatus, statusTone } from '../../shared/models/states';
 import { ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
-import { CampaignSummary, SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
-import { CampaignApiService } from '../campaigns/services/campaign-api.service';
-import { ContentEvaluation, REWRITE_ACTIONS, RewriteAction } from '../content/models/ai.model';
-import { MediaAsset, MediaLibraryItem, PLATFORM_TEXT_LIMITS, Post, PostContent, PostVersion, postText } from '../content/models/post.model';
+import { SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
+import { RewriteAction } from '../content/models/ai.model';
+import { MediaAsset, PLATFORM_TEXT_LIMITS, Post, PostContent, PostListItem, PostVersion, postText } from '../content/models/post.model';
 import { AiApiService } from '../content/services/ai-api.service';
 import { MediaApiService } from '../content/services/media-api.service';
 import { PostApiService } from '../content/services/post-api.service';
-import { PublicationPanelComponent } from '../publications/components/publication-panel.component';
-import { PublicationJob } from '../publications/models/publication.model';
 import { SocialAccount } from '../social-accounts/models/social-account.model';
 import { SocialAccountApiService } from '../social-accounts/services/social-account-api.service';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+/** Quick additions to the "Write with AI" description. */
+const AI_PRESETS = [
+  { label: 'Product launch', icon: 'rocket', text: 'Announce a product launch' },
+  { label: 'Professional LinkedIn tone', icon: 'user', text: 'Use a professional LinkedIn tone' },
+  { label: 'Customer pain point', icon: 'bulb', text: 'Start from a customer pain point' },
+  { label: 'Engaging hook', icon: 'chat', text: 'Open with an engaging hook' },
+  { label: 'Short promotional post', icon: 'doc', text: 'Keep it a short promotional post' },
+  { label: 'Thought leadership', icon: 'chart', text: 'Write it as a thought leadership post' },
+] as const;
+
 /**
- * Composer: where a real post is prepared. A new post (/composer, optionally ?campaignId=) is created on Save Draft;
- * an existing one (/composer/{id}) is edited by saving a new immutable version. Review, approval and publishing all
- * apply to the exact current version; the server enforces every rule, the page only guides.
+ * Composer: where a real post is prepared. A new post (/composer, optionally ?campaignId=) is created on Save Draft or
+ * by Generate with AI; an existing one (/composer/{id}) is edited by saving a new immutable version. Review, approval
+ * and publishing all apply to the exact current version; the server enforces every rule, the page only guides.
  */
 @Component({
   selector: 'app-composer-page',
-  imports: [FormsModule, RouterLink, DatePipe, IconComponent, PlatformIconComponent, ProblemBannerComponent, PublicationPanelComponent],
+  imports: [FormsModule, RouterLink, DatePipe, PlatformIconComponent, ProblemBannerComponent],
   templateUrl: './composer.page.html',
+  styleUrl: './composer.page.css',
 })
 export class ComposerPage {
+  private readonly router = inject(Router);
   private readonly postsApi = inject(PostApiService);
   private readonly ai = inject(AiApiService);
   private readonly media = inject(MediaApiService);
-  private readonly campaignsApi = inject(CampaignApiService);
   private readonly accountsApi = inject(SocialAccountApiService);
   private readonly reviewsApi = inject(ReviewApiService);
-  private readonly organizations = inject(OrganizationApiService);
-  private readonly auth = inject(AuthService);
   private readonly location = inject(Location);
   protected readonly workspace = inject(WorkspaceService);
+  private readonly toast = inject(ToastService);
+  private readonly topbar = inject(TopbarActionService);
   private destroyed = false;
 
   /** Route parameter (existing post) and query parameter (campaign to file a new post in). */
@@ -55,25 +61,16 @@ export class ComposerPage {
   readonly campaignId = input<string>();
 
   protected readonly platforms = SOCIAL_PLATFORMS;
-  protected readonly aiActions = REWRITE_ACTIONS;
-  protected readonly demoNote = DEMO_MODE_NOTE;
-  protected readonly tone = statusTone;
-  protected readonly reviewLabels: Record<string, string> = { PENDING: 'In Review', APPROVED: 'Approved', CHANGES_REQUESTED: 'Changes Requested' };
-  protected readonly sourceLabels: Record<string, string> = { Manual: 'Edited', AiGeneration: 'AI generated', AiRewrite: 'AI edit', AiImage: 'AI image' };
+  protected readonly aiPresets = AI_PRESETS;
 
   // Loaded data
   protected readonly post = signal<Post | null>(null);
-  protected readonly versions = signal<PostVersion[]>([]);
   protected readonly accounts = signal<SocialAccount[]>([]);
-  protected readonly campaigns = signal<CampaignSummary[]>([]);
   protected readonly reviews = signal<ReviewSummary[]>([]);
-  protected readonly members = signal<Member[]>([]);
-  protected readonly evaluations = signal<ContentEvaluation[]>([]);
-  protected readonly jobs = signal<PublicationJob[]>([]);
-  protected readonly library = signal<MediaLibraryItem[] | null>(null);
-  protected readonly imageAvailable = signal(false);
+  /** Latest drafts (and posts sent back with changes requested), excluding the one being edited. */
+  protected readonly drafts = signal<PostListItem[]>([]);
 
-  // Editor state
+  // Editor state. Link and alt text have no field here but are kept unchanged on every save.
   protected readonly platform = signal<SocialPlatform | null>(null);
   protected readonly accountId = signal<string>('');
   protected readonly text = signal('');
@@ -81,10 +78,7 @@ export class ComposerPage {
   protected readonly image = signal<MediaAsset | null>(null);
   protected readonly altText = signal('');
   protected readonly campaign = signal<string>('');
-  protected readonly reviewerId = signal<string>('');
-  protected readonly reviewNote = signal('');
-  protected readonly imagePromptOpen = signal(false);
-  protected readonly imagePrompt = signal('');
+  protected readonly aiInstruction = signal('');
 
   // Activity
   protected readonly loading = signal(false);
@@ -104,24 +98,24 @@ export class ComposerPage {
     return o.text !== this.text() || o.link !== this.link().trim() || o.imageId !== (this.image()?.id ?? null)
       || o.altText !== this.altText().trim() || o.accountId !== this.accountId();
   });
-  protected readonly status = computed(() => customerStatus(this.state(), this.jobs().at(0)?.deliveryState ?? null));
   protected readonly limit = computed(() => (this.platform() ? PLATFORM_TEXT_LIMITS[this.platform()!] : null));
   protected readonly length = computed(() => this.text().length + (this.link().trim() ? this.link().trim().length + 2 : 0));
   protected readonly platformAccounts = computed(() => this.accounts().filter((a) => a.platform === this.platform()));
-  protected readonly selectedAccount = computed(() => this.accounts().find((a) => a.id === this.accountId()) ?? null);
-  protected readonly selectedCampaign = computed(() => this.campaigns().find((c) => c.id === this.campaign()) ?? null);
-  protected readonly reviewers = computed(() => {
-    const me = this.auth.me()?.userId;
-    const distinct = this.workspace.organization()?.requireDistinctReviewer ?? true;
-    return this.members().filter((m) => m.status === 'Active' && (m.role === 'Reviewer' || m.role === 'Admin') && !(distinct && m.userId === me));
-  });
   protected readonly latestReview = computed(() => this.reviews().at(0) ?? null);
   protected readonly changesRequested = computed(() => this.reviews().find((r) => r.status === 'CHANGES_REQUESTED') ?? null);
-  protected readonly evaluation = computed(() => this.evaluations().find((e) => e.postVersionId === this.post()?.currentVersionId) ?? null);
-  protected readonly blockingIssues = computed(() => (this.evaluation()?.issues ?? []).filter((i) => i.severity !== 'INFO'));
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.topbar.action.set(null);
+    });
+    // Submit for Review lives in the navbar while this page is open.
+    effect(() => this.topbar.action.set(this.canEdit() && this.state() !== 'APPROVED' ? {
+      label: this.busy() === 'submit' ? 'Submitting…' : 'Submit for Review',
+      disabled: !!this.busy() || !this.accountId(),
+      title: this.accountId() ? '' : 'Choose an account first',
+      run: () => void this.submitForReview(),
+    } : null));
     effect(() => {
       const orgId = this.workspace.orgId();
       if (orgId) void this.loadWorkspaceData(orgId);
@@ -166,60 +160,76 @@ export class ComposerPage {
     if (file.size > MAX_IMAGE_BYTES) return this.fail('Images must be at most 8 MB.');
     await this.run('upload', async () => {
       this.setImage(await firstValueFrom(this.media.upload(orgId, file)));
-      this.notice.set('Image added. Save Draft to keep it.');
+      this.notice.set('Image attached. Save Draft to keep it.');
     });
-  }
-
-  protected async openLibrary(): Promise<void> {
-    const orgId = this.workspace.orgId();
-    if (!orgId) return;
-    if (this.library()) return this.library.set(null);
-    await this.run('library', async () => this.library.set(await firstValueFrom(this.media.list(orgId))));
-  }
-
-  protected pick(asset: MediaAsset): void {
-    this.setImage(asset);
-    this.library.set(null);
   }
 
   protected removeImage(): void {
     this.setImage(null);
   }
 
-  /** Saves first if needed, then queues an AI image; it arrives as a new version of the post. */
-  protected async generateImage(): Promise<void> {
+  // ---- Write with AI --------------------------------------------------------------------------------
+
+  protected addPreset(text: string): void {
+    const current = this.aiInstruction().trim();
+    this.aiInstruction.set(current ? `${current.replace(/[.\s]+$/, '')}. ${text}` : text);
+  }
+
+  /**
+   * With post text: an AI edit following the description (saved as a new version). Without text: the AI writes a new
+   * draft for the chosen platform, which then opens here. On a locked post (in review) it always writes a new draft, so
+   * the submitted version is never touched. Either way nothing is published or approved.
+   */
+  protected async generateWithAi(): Promise<void> {
+    const instruction = this.aiInstruction().trim();
+    if (!instruction || this.busy()) return;
+    if (this.canEdit() && this.text().trim()) {
+      await this.aiEdit('Custom', instruction);
+      if (!this.problem()) this.aiInstruction.set('');
+      return;
+    }
     const orgId = this.workspace.orgId();
-    await this.run('image', async () => {
-      const post = await this.ensureSaved();
-      if (!orgId || !post) return;
-      const queued = await firstValueFrom(this.ai.requestImage(orgId, post.id, this.imagePrompt().trim() || null, post.rowVersion));
-      const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed, 3000);
-      await this.load(orgId, post.id);
-      if (final.status === 'FAILED') throw new Error(final.failureCode === 'AI_PROVIDER_REJECTED' ? 'The image service declined this request.' : 'The image could not be generated. Please try again.');
-      this.imagePromptOpen.set(false);
-      this.notice.set(`AI image added as version ${this.version()?.versionNumber}. Add alt text if you like, then submit for review.`);
+    const platform = this.platform();
+    await this.run('generate', async () => {
+      if (!orgId || !platform) throw new Error('Choose where to publish first.');
+      const queued = await firstValueFrom(this.ai.requestGeneration(orgId, {
+        prompt: instruction, platforms: [platform], campaignId: this.campaign() || null,
+        tone: null, length: 'MEDIUM', hashtags: 'AUTO', emojis: 'AUTO',
+      }));
+      const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed);
+      const created = final.outputs.find((o) => o.platform === platform);
+      if (final.status !== 'COMPLETED' || !created) throw new Error(this.aiFailure(final.failureCode));
+      // Keep what was chosen on screen: the attached image and account become part of the next saved version. A locked
+      // post's image belongs to that post, so only the account carries over from it.
+      const [image, accountId] = [this.canEdit() ? this.image() : null, this.accountId()];
+      await this.load(orgId, created.postId);
+      this.location.replaceState(`/${this.workspace.slug()}/composer/${created.postId}`);
+      if (image) this.setImage(image);
+      if (accountId) this.accountId.set(accountId);
+      this.aiInstruction.set('');
+      this.notice.set('AI wrote a draft. Edit it if you like, then Save Draft or Submit for Review.');
     });
   }
 
-  // ---- AI edits -------------------------------------------------------------------------------------
-
-  protected async aiEdit(action: RewriteAction): Promise<void> {
+  private async aiEdit(action: RewriteAction, instruction: string | null = null): Promise<void> {
     const orgId = this.workspace.orgId();
     await this.run(action, async () => {
       const post = await this.ensureSaved();
       if (!orgId || !post) return;
-      const queued = await firstValueFrom(this.ai.requestRewrite(orgId, post.id, action, null, post.rowVersion));
+      const queued = await firstValueFrom(this.ai.requestRewrite(orgId, post.id, action, instruction, post.rowVersion));
       const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed);
       await this.load(orgId, post.id);
-      if (final.status === 'FAILED') {
-        throw new Error(final.failureCode === 'AI_NOT_CONFIGURED' || final.failureCode === 'AI_PROVIDER_AUTH'
-          ? 'AI writing is temporarily unavailable. Please try again later.' : 'The AI edit did not complete. Please try again.');
-      }
-      this.notice.set(`AI edit saved as version ${this.version()?.versionNumber}. The previous version is kept in the history.`);
+      if (final.status === 'FAILED') throw new Error(this.aiFailure(final.failureCode));
+      this.notice.set(`AI edit saved as version ${this.version()?.versionNumber}. The previous version is kept.`);
     });
   }
 
-  // ---- Save, campaign, review -----------------------------------------------------------------------
+  private aiFailure(code: string | null): string {
+    return code === 'AI_NOT_CONFIGURED' || code === 'AI_PROVIDER_AUTH'
+      ? 'AI writing is temporarily unavailable. Please try again later.' : 'The AI could not finish. Please try again.';
+  }
+
+  // ---- Save and review ------------------------------------------------------------------------------
 
   protected async saveDraft(): Promise<void> {
     await this.run('save', async () => {
@@ -231,34 +241,26 @@ export class ComposerPage {
     });
   }
 
-  /** Campaign is a folder: moving the post creates no version and keeps any approval. */
-  protected async changeCampaign(campaignId: string): Promise<void> {
-    this.campaign.set(campaignId);
-    const orgId = this.workspace.orgId();
-    const post = this.post();
-    if (!orgId || !post || (post.campaignId ?? '') === campaignId) return;
-    await this.run('campaign', async () => {
-      const moved = await firstValueFrom(this.postsApi.moveToCampaign(orgId, post.id, campaignId || null, post.rowVersion));
-      this.post.set(moved);
-      this.notice.set(campaignId ? `Moved to ${this.selectedCampaign()?.name}.` : 'Removed from its campaign.');
-    });
-  }
-
   protected async submitForReview(): Promise<void> {
     const orgId = this.workspace.orgId();
     await this.run('submit', async () => {
       const post = await this.ensureSaved();
       if (!orgId || !post) return;
-      const review = await firstValueFrom(this.reviewsApi.submit(orgId, post.id, this.reviewNote().trim() || null, this.reviewerId() || null, post.rowVersion));
-      this.reviewNote.set('');
-      await this.load(orgId, post.id);
-      this.notice.set(`Version ${review.versionNumber} sent for review${review.assignedReviewerName ? ' to ' + review.assignedReviewerName : ''}. Editing is locked until a decision.`);
+      // No reviewer is picked: any Admin decides. An Admin goes straight to the review; a Creator gets a blank composer
+      // for the next post, since the submitted one is locked until the Admin decides.
+      const review = await firstValueFrom(this.reviewsApi.submit(orgId, post.id, null, null, post.rowVersion));
+      if (this.workspace.isAdmin()) {
+        await this.router.navigate(['/approvals', review.id]);
+        return;
+      }
+      this.toast.success(`Version ${review.versionNumber} submitted for review. You can find it in Planner.`);
+      await this.router.navigateByUrl(`/${this.workspace.slug()}/composer`);
     });
   }
 
   protected reload(): void {
     const orgId = this.workspace.orgId();
-    const postId = this.postId();
+    const postId = this.post()?.id ?? this.postId();
     this.problem.set(null);
     if (orgId && postId) void this.load(orgId, postId);
   }
@@ -281,10 +283,11 @@ export class ComposerPage {
 
     if (!current) {
       const created = await firstValueFrom(this.postsApi.create(orgId, this.platform()!, this.campaign() || null, this.content(null)));
-      this.apply(created, [created.currentVersion]);
+      this.apply(created);
       // Same page instance keeps running (e.g. an AI edit that needed the draft saved first); only the URL changes.
       this.location.replaceState(`/${this.workspace.slug()}/composer/${created.id}`);
       this.notice.set('Draft saved.');
+      void this.loadDrafts(orgId);
       return created;
     }
     const saved = await firstValueFrom(this.postsApi.saveNewVersion(orgId, current.id, this.content(current.currentVersion), current.rowVersion));
@@ -318,36 +321,34 @@ export class ComposerPage {
   }
 
   private async loadWorkspaceData(orgId: string): Promise<void> {
-    const [accounts, campaigns, members, capabilities] = await Promise.all([
-      firstValueFrom(this.accountsApi.list(orgId)).catch(() => []),
-      firstValueFrom(this.campaignsApi.list(orgId)).catch(() => []),
-      firstValueFrom(this.organizations.members(orgId)).catch(() => []),
-      firstValueFrom(this.ai.capabilities(orgId)).catch(() => null),
-    ]);
+    const accounts = await firstValueFrom(this.accountsApi.list(orgId)).catch(() => []);
     this.accounts.set(accounts);
-    this.campaigns.set(campaigns);
-    this.members.set(members);
-    this.imageAvailable.set(capabilities?.imageGeneration ?? false);
-    if (!this.reviewerId()) this.reviewerId.set(this.reviewers().find((m) => m.role === 'Reviewer')?.userId ?? this.reviewers()[0]?.userId ?? '');
     if (this.isNew() && !this.platform()) {
       const first = SOCIAL_PLATFORMS.find((p) => this.connected(p));
       if (first) this.choosePlatform(first);
     }
     this.preselectAccount();
+    await this.loadDrafts(orgId);
+  }
+
+  private async loadDrafts(orgId: string): Promise<void> {
+    const current = this.post()?.id;
+    this.drafts.set((await firstValueFrom(this.postsApi.listAll(orgId)).catch(() => []))
+      .filter((p) => (p.editorialState === 'DRAFT' || p.editorialState === 'CHANGES_REQUESTED') && p.id !== current)
+      .sort((a, b) => b.updatedAtUtc.localeCompare(a.updatedAtUtc))
+      .slice(0, 5));
   }
 
   private async load(orgId: string, postId: string): Promise<void> {
     this.loading.set(true);
     try {
-      const [post, versions, evaluations, reviews] = await Promise.all([
+      const [post, reviews] = await Promise.all([
         firstValueFrom(this.postsApi.get(orgId, postId)),
-        firstValueFrom(this.postsApi.versions(orgId, postId)),
-        firstValueFrom(this.ai.evaluations(orgId, postId)).catch(() => []),
         firstValueFrom(this.reviewsApi.list(orgId, { postId })).catch(() => []),
       ]);
-      this.evaluations.set(evaluations);
       this.reviews.set(reviews);
-      this.apply(post, versions);
+      this.apply(post);
+      void this.loadDrafts(orgId);
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
@@ -355,10 +356,9 @@ export class ComposerPage {
     }
   }
 
-  private apply(post: Post, versions: PostVersion[]): void {
+  private apply(post: Post): void {
     const v = post.currentVersion;
     this.post.set(post);
-    this.versions.set(versions);
     this.platform.set(post.platform);
     this.accountId.set(v.socialAccountId ?? '');
     this.text.set(postText(v));

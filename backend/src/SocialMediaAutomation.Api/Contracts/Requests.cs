@@ -36,3 +36,8 @@ public sealed record ChangeMemberRoleRequest([Required] OrganizationRole? Role);
 
 /// <summary>Adds an existing account (by email) to the workspace with a role.</summary>
 public sealed record AddMemberRequest([Required, EmailAddress, MaxLength(256)] string Email, [Required] OrganizationRole? Role);
+
+public sealed record CreateCreatorRequest(
+    [Required, MaxLength(200)] string FullName,
+    [Required, EmailAddress, MaxLength(256)] string Email,
+    [Required, MaxLength(256)] string Password);

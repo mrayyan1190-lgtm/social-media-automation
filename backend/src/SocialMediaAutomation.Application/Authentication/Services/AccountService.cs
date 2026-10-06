@@ -66,8 +66,10 @@ public sealed class AccountService(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var user = User.Create(Guid.NewGuid(), email, "", passwordHasher.Hash(command.Password!), now);
+        // Single-login MVP: the person who signs up writes and approves their own posts. Approval is still a human
+        // decision on one exact version; teammates (Creator / Reviewer) are frozen, so no second person exists to approve.
         var organization = Organization.Create(Guid.NewGuid(), command.WorkspaceName, industry: "", defaultLanguage: null, "UTC",
-            requireDistinctReviewer: true, now);
+            requireDistinctReviewer: false, now);
         users.Add(user);
         organizations.Add(organization);
         organizations.Add(OrganizationMember.Create(Guid.NewGuid(), organization.Id, user.Id, OrganizationRole.Admin, now));
@@ -153,9 +155,9 @@ public sealed class AccountService(
             ? memberships.SingleOrDefault(m => m.OrganizationId == id) ?? throw new BusinessException(ErrorCodes.NotFound, "Organization not found.")
             : memberships[0];
         var brandCompleted = await brandProfiles.GetByOrganizationAsync(membership.OrganizationId, cancellationToken) is not null;
-        // Onboarding requires one connected account (simulated destinations count); it never blocks the campaign API itself.
+        // Onboarding requires one real provider connection (simulated destinations do not count); it never blocks the campaign API itself.
         var connected = (await socialAccounts.ListAsync(membership.OrganizationId, null, cancellationToken))
-            .Any(a => a.ConnectionStatus == ConnectionStatus.CONNECTED);
+            .Any(a => a.ConnectionStatus == ConnectionStatus.CONNECTED && a.ExecutionMode is ExecutionMode.LIVE or ExecutionMode.TEST_ACCOUNT);
 
         // A step is only required of members whose role can complete it (e.g. Admins); invited Creators and Reviewers
         // go straight to the dashboard instead of being stuck on a page they are not allowed to submit.

@@ -30,6 +30,7 @@ if (trustForwardedHeaders)
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<BusinessExceptionHandler>();
 builder.Services.AddExceptionHandler<UnhandledExceptionRecorder>();
+builder.Services.AddExceptionHandler<UnhandledExceptionHandler>();
 builder.Services.AddScoped<SocialMediaAutomation.Application.Abstractions.ICorrelationContext, HttpCorrelationContext>();
 builder.Services
     .AddControllers()
@@ -57,6 +58,23 @@ if (requireHttps)
 }
 app.UseRequestHardening();
 app.UseExceptionHandler();
+// Error statuses produced without a body (unknown route, wrong method, failed auth challenge) still carry a code.
+app.UseStatusCodePages(async context =>
+{
+    var http = context.HttpContext;
+    if (http.Response.HasStarted || http.Response.ContentLength > 0 || !string.IsNullOrEmpty(http.Response.ContentType))
+        return;
+    var status = http.Response.StatusCode;
+    var (code, detail) = status switch
+    {
+        StatusCodes.Status401Unauthorized => (ErrorCodes.Unauthorized, "Please sign in again."),
+        StatusCodes.Status403Forbidden => (ErrorCodes.Forbidden, "You do not have permission to do this."),
+        StatusCodes.Status404NotFound => (ErrorCodes.NotFound, "The requested item could not be found."),
+        >= 500 => (ErrorCodes.InternalError, "Something went wrong on our side. Please try again in a moment."),
+        _ => (ErrorCodes.RequestInvalid, "The request could not be processed."),
+    };
+    await ProblemResponses.WriteAsync(http, code, detail, status);
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();

@@ -7,11 +7,12 @@ import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { OrganizationApiService } from '../../core/services/organization-api.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { supportedTimeZones } from '../publications/models/time-zones';
+import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 
 /** Onboarding step 1: the workspace. The creator becomes its Admin. */
 @Component({
   selector: 'app-onboarding-workspace',
-  imports: [ReactiveFormsModule],
+  imports: [ProblemBannerComponent, ReactiveFormsModule],
   template: `
     <main class="login">
       <form class="card" [formGroup]="form" (ngSubmit)="submit()">
@@ -24,9 +25,7 @@ import { supportedTimeZones } from '../publications/models/time-zones';
             @for (z of zones; track z) { <option [value]="z">{{ z }}</option> }
           </select>
         </label>
-        @if (problem(); as p) {
-          <p class="error" role="alert">{{ p.detail }}</p>
-        }
+        <app-problem-banner [problem]="problem()" />
         <button class="primary" type="submit" [disabled]="form.invalid || busy()">{{ busy() ? 'Saving…' : 'Continue' }}</button>
       </form>
     </main>

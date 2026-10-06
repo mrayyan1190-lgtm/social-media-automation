@@ -66,6 +66,11 @@ export class OrganizationApiService {
     return this.http.post<Member>(`${this.url(orgId)}/members`, { email, role });
   }
 
+  /** Admin. Creates a new login with the Creator role; the Admin hands the credentials over (no invitation email). */
+  createCreator(orgId: string, input: { fullName: string; email: string; password: string }): Observable<Member> {
+    return this.http.post<Member>(`${this.url(orgId)}/members/creators`, input);
+  }
+
   deactivate(orgId: string, member: Member): Observable<Member> {
     return this.http.post<Member>(`${this.url(orgId)}/members/${member.memberId}/deactivate`, {}, { headers: ifMatch(member.rowVersion) });
   }

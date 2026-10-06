@@ -4,11 +4,12 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { browserTimeZone, supportedTimeZones } from '../publications/models/time-zones';
+import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 
 /** Onboarding step 1: the user's name and the workspace time zone (detected from the browser, editable). */
 @Component({
   selector: 'app-onboarding-profile',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './profile-step.page.html',
   styleUrl: './profile-step.page.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.

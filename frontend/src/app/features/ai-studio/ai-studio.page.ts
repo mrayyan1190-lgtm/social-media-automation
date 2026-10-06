@@ -3,186 +3,60 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
+import { ToastService } from '../../core/services/toast.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { IconComponent } from '../../shared/components/icon.component';
 import { PlatformIconComponent } from '../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { Campaign, ContentLength, EmojiMode, HashtagMode, SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
 import { CampaignApiService } from '../campaigns/services/campaign-api.service';
-import { AiGenerationRequest, RewriteAction } from '../content/models/ai.model';
-import { Post, postText } from '../content/models/post.model';
+import { ReviewApiService } from '../approvals/services/review-api.service';
+import { AiGenerationRequest } from '../content/models/ai.model';
+import { MediaAsset, Post, PostContent, PostVersion, postText } from '../content/models/post.model';
 import { AiApiService } from '../content/services/ai-api.service';
 import { MediaApiService } from '../content/services/media-api.service';
 import { PostApiService } from '../content/services/post-api.service';
 import { BRAND_TONES, BrandProfile, BrandTone } from '../settings/models/brand-profile.model';
 import { BrandProfileApiService } from '../settings/services/brand-profile-api.service';
+import { SocialAccountApiService } from '../social-accounts/services/social-account-api.service';
 
 const EXAMPLE = 'Create launch posts for our new AI reporting dashboard. Focus on helping small businesses save reporting time and encourage people to book a demo.';
 
-const RESULT_ACTIONS: { value: RewriteAction; label: string }[] = [
-  { value: 'Rewrite', label: 'Rewrite' },
-  { value: 'Shorten', label: 'Shorten' },
-  { value: 'ImproveHook', label: 'Improve Hook' },
-  { value: 'Regenerate', label: 'Regenerate' },
-];
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+/** Quick additions to the extra instruction; clicking again removes them. */
+const PRESETS = [
+  { label: 'Product launch', icon: 'spark' },
+  { label: 'Professional LinkedIn tone', icon: 'user' },
+  { label: 'Customer pain point', icon: 'bulb' },
+  { label: 'Engaging hook', icon: 'chat' },
+  { label: 'Short promotional post', icon: 'doc' },
+  { label: 'Thought leadership', icon: 'chart' },
+] as const;
 
 interface Result {
   post: Post;
-  /** What is running for this result: an AI edit label, or 'image'. */
+  /** What is running for this result: 'image', 'attach' or 'submit'. */
   busy: string | null;
   imageFailed: boolean;
   error: string | null;
+  submitted: boolean;
+}
+
+/** The editable content of a version with some fields changed (everything else is kept as it is). */
+function contentOf(v: PostVersion, change: Partial<PostContent>): PostContent {
+  const { hook, body, callToAction, hashtags, destinationUrl, mediaAssetId, altText, socialAccountId } = v;
+  return { hook, body, callToAction, hashtags, destinationUrl, mediaAssetId, altText, socialAccountId, ...change };
 }
 
 /**
- * AI Studio: a prompt becomes one draft post per platform, written with the saved brand profile. Each draft can be
- * refined here or opened in Composer. Nothing is approved, scheduled or published from this page.
+ * AI Studio: a prompt becomes one draft post per platform, written with the saved brand profile. Each draft can be sent
+ * to review here or opened in Composer. Nothing is approved, scheduled or published from this page.
  */
 @Component({
   selector: 'app-ai-studio-page',
-  imports: [FormsModule, RouterLink, IconComponent, PlatformIconComponent, ProblemBannerComponent],
-  template: `
-    <div class="page-header">
-      <div>
-        <h1>AI Studio</h1>
-        <p class="muted">Describe what you need. AI writes a separate post for each platform using your brand profile.</p>
-      </div>
-      @if (results().length || request()) {
-        <button type="button" (click)="startOver()"><app-icon name="plus" [size]="16" />New prompt</button>
-      }
-    </div>
-    <app-problem-banner [problem]="problem()" />
-
-    @if (!request()) {
-      <section class="card studio">
-        <label class="studio-label" for="studio-prompt">What would you like to create? *</label>
-        <textarea id="studio-prompt" class="prompt" rows="5" maxlength="2000" [(ngModel)]="prompt" [placeholder]="example"></textarea>
-
-        <div class="studio-row">
-          <div class="field">
-            <span class="field-label">Platforms *</span>
-            <div class="chips">
-              @for (p of platforms; track p) {
-                <button type="button" class="chip lg" [class.on]="selected().includes(p)" [attr.aria-pressed]="selected().includes(p)" (click)="toggle(p)">
-                  <app-platform-icon [platform]="p" [label]="true" />
-                </button>
-              }
-            </div>
-          </div>
-          <div class="field">
-            <span class="field-label">Output Type</span>
-            <div class="segmented" role="group" aria-label="Output type">
-              <button type="button" [class.on]="!withImage()" (click)="withImage.set(false)">Text</button>
-              <button type="button" [class.on]="withImage()" [disabled]="!imageAvailable()" [title]="imageAvailable() ? '' : 'Image generation is not available right now'"
-                (click)="withImage.set(true)"><app-icon name="image" [size]="15" />Text + Image</button>
-            </div>
-          </div>
-        </div>
-
-        @if (withImage()) {
-          @if (customImage()) {
-            <label>Image Prompt <span class="hint">optional · describe the visual you want</span>
-              <textarea rows="2" maxlength="500" [(ngModel)]="imagePrompt" placeholder="A clean dashboard on a laptop in a bright office"></textarea>
-            </label>
-          } @else {
-            <button type="button" class="link" (click)="customImage.set(true)">Customize Image Prompt</button>
-            <p class="hint tight">The image is generated from your prompt and the written post.</p>
-          }
-        }
-
-        <div class="brand-strip">
-          @if (brand(); as b) {
-            <span class="ok-mark"><app-icon name="check" [size]="14" />Using Brand Profile</span>
-            <span><span class="hint">Audience:</span> {{ b.targetAudience }}</span>
-            <span><span class="hint">Tone:</span> {{ tone || b.brandTone }}</span>
-            <a routerLink="/brand" class="hint">Edit</a>
-          } @else if (brandLoaded()) {
-            <span class="field-error">Complete your <a routerLink="/brand">Brand profile</a> first; AI uses it for every post.</span>
-          }
-        </div>
-
-        @if (campaign(); as c) {
-          <p class="campaign-chip"><span class="color-dot" [style.background]="c.color"></span>Posts will be added to <strong>{{ c.name }}</strong></p>
-        }
-
-        <details class="advanced">
-          <summary>Advanced Options</summary>
-          <div class="advanced-grid">
-            <label>Tone
-              <select [(ngModel)]="tone">
-                <option value="">Use Brand Tone</option>
-                @for (t of tones; track t) { <option [value]="t">{{ t }}</option> }
-              </select>
-            </label>
-            <label>Length
-              <select [(ngModel)]="length"><option value="SHORT">Short</option><option value="MEDIUM">Medium</option><option value="LONG">Long</option></select>
-            </label>
-            <label>Hashtags
-              <select [(ngModel)]="hashtags"><option value="AUTO">Auto</option><option value="NONE">None</option></select>
-            </label>
-            <label>Emojis
-              <select [(ngModel)]="emojis"><option value="AUTO">Auto</option><option value="NONE">None</option></select>
-            </label>
-          </div>
-        </details>
-
-        <div class="studio-footer">
-          <span class="hint">Nothing is published automatically. Every post goes through review.</span>
-          <button type="button" class="primary" (click)="generate()" [disabled]="busy() || !prompt.trim() || !selected().length || !brand()">
-            <app-icon name="sparkles" [size]="16" />{{ busy() ? 'Starting…' : 'Generate' }}
-          </button>
-        </div>
-      </section>
-    } @else {
-      <section class="card prompt-recap">
-        <span class="hint">Prompt</span>
-        <p class="pre">{{ promptShown() }}</p>
-      </section>
-
-      @if (generating()) {
-        <section class="card generating" role="status">
-          <span class="spinner" aria-hidden="true"></span>
-          Writing {{ request()?.platforms?.join(', ') }} posts… this usually takes a few seconds.
-        </section>
-      } @else if (request()?.status === 'FAILED') {
-        <section class="banner error" role="alert">
-          {{ failureText() }}
-          <button type="button" (click)="retry()">Try again</button>
-        </section>
-      }
-
-      <div class="result-grid">
-        @for (r of results(); track r.post.id) {
-          <article class="card result-card">
-            <header class="result-head">
-              <app-platform-icon [platform]="r.post.platform" [label]="true" />
-              <span class="badge muted">Draft · v{{ r.post.currentVersion.versionNumber }}</span>
-            </header>
-            <p class="pre result-text">{{ text(r.post) }}</p>
-            @if (r.post.currentVersion.media; as m) {
-              <img class="result-image" [src]="previewUrl(m.id)" [alt]="r.post.currentVersion.altText || 'Generated image'" />
-            } @else if (r.busy === 'image') {
-              <div class="image-placeholder"><span class="spinner" aria-hidden="true"></span>Generating image…</div>
-            } @else if (r.imageFailed) {
-              <p class="hint">The image could not be generated. You can try again in Composer.</p>
-            }
-            @if (r.error) { <p class="field-error" role="alert">{{ r.error }}</p> }
-            <div class="ai-actions">
-              @for (a of actions; track a.value) {
-                <button type="button" class="chip" [disabled]="!!r.busy" (click)="refine(r, a.value)">{{ r.busy === a.label ? a.label + '…' : a.label }}</button>
-              }
-            </div>
-            <div class="result-foot">
-              <a class="button primary" [routerLink]="['/composer', r.post.id]">Create Post</a>
-            </div>
-          </article>
-        }
-      </div>
-      @if (results().length) {
-        <p class="hint">Each result is saved as a draft. “Create Post” opens it in Composer to edit, pick the account and send for review.</p>
-      }
-    }
-  `,
+  imports: [FormsModule, RouterLink, PlatformIconComponent, ProblemBannerComponent],
+  templateUrl: './ai-studio.page.html',
+  styleUrl: './ai-studio.page.css',
 })
 export class AiStudioPage {
   private readonly ai = inject(AiApiService);
@@ -190,6 +64,9 @@ export class AiStudioPage {
   private readonly media = inject(MediaApiService);
   private readonly campaignsApi = inject(CampaignApiService);
   private readonly brandApi = inject(BrandProfileApiService);
+  private readonly accountsApi = inject(SocialAccountApiService);
+  private readonly reviewsApi = inject(ReviewApiService);
+  private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   protected readonly workspace = inject(WorkspaceService);
   private destroyed = false;
@@ -201,21 +78,26 @@ export class AiStudioPage {
   protected readonly platforms = SOCIAL_PLATFORMS;
   protected readonly tones = BRAND_TONES;
   protected readonly example = EXAMPLE;
-  protected readonly actions = RESULT_ACTIONS;
+  protected readonly presets = PRESETS;
   protected readonly brand = signal<BrandProfile | null>(null);
   protected readonly brandLoaded = signal(false);
   protected readonly campaign = signal<Campaign | null>(null);
   protected readonly imageAvailable = signal(false);
   protected readonly selected = signal<SocialPlatform[]>(['LinkedIn']);
   protected readonly withImage = signal(false);
-  protected readonly customImage = signal(false);
+  protected readonly image = signal<MediaAsset | null>(null);
+  protected readonly uploading = signal(false);
+  protected readonly promptSaved = signal(false);
+  protected readonly brandOpen = signal(false);
+  protected readonly advOpen = signal(false);
   protected readonly busy = signal(false);
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly request = signal<AiGenerationRequest | null>(null);
   protected readonly results = signal<Result[]>([]);
-  protected readonly promptShown = signal('');
   protected readonly generating = computed(() => this.request()?.status === 'PENDING' || this.request()?.status === 'PROCESSING');
+  protected readonly activeChips = signal<string[]>([]);
   protected prompt = '';
+  protected extra = '';
   protected imagePrompt = '';
   protected tone: BrandTone | '' = '';
   protected length: ContentLength = 'MEDIUM';
@@ -227,6 +109,7 @@ export class AiStudioPage {
     effect(() => {
       const orgId = this.workspace.orgId();
       if (!orgId) return;
+      this.prompt = this.readSavedPrompt(orgId);
       void firstValueFrom(this.brandApi.get(orgId)).then((b) => this.brand.set(b), () => this.brand.set(null)).finally(() => this.brandLoaded.set(true));
       void firstValueFrom(this.ai.capabilities(orgId)).then((c) => this.imageAvailable.set(c.imageGeneration), () => this.imageAvailable.set(false));
     });
@@ -238,13 +121,32 @@ export class AiStudioPage {
     effect(() => {
       const orgId = this.workspace.orgId();
       const requestId = this.requestId();
-      // Only the query parameter triggers a restore; clearing the results must not reload the old request.
+      // Only the query parameter triggers a restore; a new generation must not reload the old request.
       if (orgId && requestId && !untracked(this.request)) void this.restore(orgId, requestId);
     });
   }
 
+  protected canGenerate(): boolean {
+    return !this.busy() && !this.generating() && !this.uploading() && !!this.fullPrompt() && !!this.selected().length && !!this.brand();
+  }
+
+  protected settingsHint(): string {
+    return [this.tone || 'Use Brand Tone', this.length.charAt(0) + this.length.slice(1).toLowerCase(),
+      this.hashtags === 'AUTO' ? 'Auto hashtags' : 'No hashtags', this.emojis === 'AUTO' ? 'Auto emojis' : 'No emojis'].join(' · ');
+  }
+
+  /** At least one platform stays selected. */
   protected toggle(platform: SocialPlatform): void {
-    this.selected.update((all) => (all.includes(platform) ? all.filter((p) => p !== platform) : [...all, platform]));
+    const all = this.selected();
+    if (all.includes(platform) && all.length === 1) return this.toast.error('Pick at least one platform');
+    this.selected.set(all.includes(platform) ? all.filter((p) => p !== platform) : [...all, platform]);
+  }
+
+  protected toggleChip(label: string): void {
+    const parts = this.extra.split(' · ').map((p) => p.trim()).filter(Boolean);
+    const next = parts.includes(label) ? parts.filter((p) => p !== label) : [...parts, label];
+    this.extra = next.join(' · ');
+    this.activeChips.set(next.filter((p) => this.presets.some((c) => c.label === p)));
   }
 
   protected text(post: Post): string {
@@ -262,26 +164,48 @@ export class AiStudioPage {
       : 'The posts could not be generated. Please try again.';
   }
 
-  protected startOver(): void {
-    this.request.set(null);
-    this.results.set([]);
-    this.problem.set(null);
-    void this.router.navigate([], { queryParams: { request: null }, queryParamsHandling: 'merge', replaceUrl: true });
+  /** Keeps the prompt in this browser only (it is not a post until generated). */
+  protected savePrompt(): void {
+    const orgId = this.workspace.orgId();
+    if (!orgId) return;
+    if (!this.prompt.trim()) return this.toast.error('Nothing to save yet');
+    try {
+      localStorage.setItem(`ai-studio-prompt:${orgId}`, this.prompt);
+    } catch {
+      return this.toast.error('Could not save the prompt in this browser');
+    }
+    this.promptSaved.set(true);
+    this.toast.success('Prompt saved');
+    setTimeout(() => this.promptSaved.set(false), 2000);
   }
 
-  protected retry(): void {
-    this.prompt = this.promptShown();
-    this.startOver();
+  protected async upload(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    const orgId = this.workspace.orgId();
+    if (!file || !orgId) return;
+    // Early hints only; the server inspects the bytes and applies the authoritative rules.
+    if (!['image/jpeg', 'image/png'].includes(file.type)) return this.toast.error('Choose a JPEG or PNG image.');
+    if (file.size > MAX_IMAGE_BYTES) return this.toast.error('Images must be at most 8 MB.');
+    this.uploading.set(true);
+    try {
+      this.image.set(await firstValueFrom(this.media.upload(orgId, file)));
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    } finally {
+      this.uploading.set(false);
+    }
   }
 
   protected async generate(): Promise<void> {
     const orgId = this.workspace.orgId();
-    if (!orgId) return;
+    if (!orgId || !this.canGenerate()) return;
     this.busy.set(true);
     this.problem.set(null);
     try {
       const queued = await firstValueFrom(this.ai.requestGeneration(orgId, {
-        prompt: this.prompt.trim(),
+        prompt: this.fullPrompt(),
         platforms: SOCIAL_PLATFORMS.filter((p) => this.selected().includes(p)),
         campaignId: this.campaign()?.id ?? null,
         tone: this.tone || null,
@@ -289,12 +213,11 @@ export class AiStudioPage {
         hashtags: this.hashtags,
         emojis: this.emojis,
       }));
-      this.promptShown.set(this.prompt.trim());
       this.results.set([]);
       this.request.set(queued);
       // Keeps the results reachable with Back after opening a draft in Composer.
       void this.router.navigate([], { queryParams: { request: queued.id }, queryParamsHandling: 'merge', replaceUrl: true });
-      await this.follow(orgId, queued, this.withImage());
+      await this.follow(orgId, queued, this.withImage(), this.image());
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
@@ -302,21 +225,51 @@ export class AiStudioPage {
     }
   }
 
-  /** AI edit of one draft: a new version of the same post (the previous version stays in its history). */
-  protected async refine(result: Result, action: RewriteAction): Promise<void> {
+  protected async copy(post: Post): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.text(post));
+      this.toast.success('Copied to clipboard');
+    } catch {
+      this.toast.error('Copy not available');
+    }
+  }
+
+  /**
+   * Sends the exact current version to review. An AI draft has no account yet, so the first connected account for its
+   * platform is saved first as a new version (Composer does the same); the server checks everything again.
+   */
+  protected async submit(result: Result): Promise<void> {
     const orgId = this.workspace.orgId();
     if (!orgId) return;
-    const label = this.actions.find((a) => a.value === action)?.label ?? action;
-    this.patch(result.post.id, { busy: label, error: null });
+    this.patch(result.post.id, { busy: 'submit', error: null });
     try {
-      const queued = await firstValueFrom(this.ai.requestRewrite(orgId, result.post.id, action, null, result.post.rowVersion));
-      const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed);
-      if (final.status === 'FAILED') this.patch(result.post.id, { error: 'That edit did not complete. Please try again.' });
-      await this.reloadPost(orgId, result.post.id);
+      let post = result.post;
+      if (!post.currentVersion.socialAccountId) {
+        const accounts = await firstValueFrom(this.accountsApi.list(orgId));
+        const account = accounts.find((a) => a.platform === post.platform && a.isEligibleDestination);
+        if (!account) throw new Error(this.workspace.isAdmin()
+          ? `Connect a ${post.platform} account first (Social Accounts).` : `Ask your Admin to connect a ${post.platform} account first.`);
+        post = await firstValueFrom(this.postsApi.saveNewVersion(orgId, post.id, contentOf(post.currentVersion, { socialAccountId: account.id }), post.rowVersion));
+      }
+      const review = await firstValueFrom(this.reviewsApi.submit(orgId, post.id, null, null, post.rowVersion));
+      this.patch(post.id, { post: await firstValueFrom(this.postsApi.get(orgId, post.id)), submitted: true });
+      this.toast.success(`Version ${review.versionNumber} submitted for review.`);
     } catch (error) {
-      this.patch(result.post.id, { error: toApiProblem(error).detail });
+      this.patch(result.post.id, { error: error instanceof Error ? error.message : toApiProblem(error).detail });
     } finally {
       this.patch(result.post.id, { busy: null });
+    }
+  }
+
+  private fullPrompt(): string {
+    return [this.prompt.trim(), this.extra.trim()].filter(Boolean).join('\n\n');
+  }
+
+  private readSavedPrompt(orgId: string): string {
+    try {
+      return localStorage.getItem(`ai-studio-prompt:${orgId}`) ?? '';
+    } catch {
+      return '';
     }
   }
 
@@ -325,28 +278,43 @@ export class AiStudioPage {
       const request = await firstValueFrom(this.ai.get(orgId, requestId));
       if (request.kind !== 'Generation') return;
       this.request.set(request);
-      await this.follow(orgId, request, false);
+      await this.follow(orgId, request, false, null);
     } catch {
       // An old or foreign link: just show an empty studio.
       this.request.set(null);
     }
   }
 
-  /** Waits for the drafts, shows them, and (Text + Image) asks for one image per draft. */
-  private async follow(orgId: string, queued: AiGenerationRequest, withImage: boolean): Promise<void> {
+  /**
+   * Waits for the drafts and shows them. An uploaded image is attached to each draft as a new version; otherwise
+   * (Text + Image) one image is generated per draft.
+   */
+  private async follow(orgId: string, queued: AiGenerationRequest, withImage: boolean, image: MediaAsset | null): Promise<void> {
     const final = await this.ai.waitForCompletion(orgId, queued, (r) => this.request.set(r), () => this.destroyed);
     this.request.set(final);
     if (final.status !== 'COMPLETED') return;
     const posts = await Promise.all(final.outputs.map((o) => firstValueFrom(this.postsApi.get(orgId, o.postId))));
-    this.results.set(posts.map((post) => ({ post, busy: null, imageFailed: false, error: null })));
-    if (withImage) await Promise.all(posts.map((post) => this.generateImage(orgId, post)));
+    this.results.set(posts.map((post) => ({ post, busy: null, imageFailed: false, error: null, submitted: false })));
+    if (image) await Promise.all(posts.map((post) => this.attachImage(orgId, post, image)));
+    else if (withImage) await Promise.all(posts.map((post) => this.generateImage(orgId, post)));
+  }
+
+  private async attachImage(orgId: string, post: Post, image: MediaAsset): Promise<void> {
+    this.patch(post.id, { busy: 'attach' });
+    try {
+      await firstValueFrom(this.postsApi.saveNewVersion(orgId, post.id, contentOf(post.currentVersion, { mediaAssetId: image.id, altText: null }), post.rowVersion));
+      await this.reloadPost(orgId, post.id);
+    } catch (error) {
+      this.patch(post.id, { error: toApiProblem(error).detail });
+    } finally {
+      this.patch(post.id, { busy: null });
+    }
   }
 
   private async generateImage(orgId: string, post: Post): Promise<void> {
     this.patch(post.id, { busy: 'image' });
     try {
-      const instruction = this.customImage() ? this.imagePrompt.trim() || null : null;
-      const queued = await firstValueFrom(this.ai.requestImage(orgId, post.id, instruction, post.rowVersion));
+      const queued = await firstValueFrom(this.ai.requestImage(orgId, post.id, this.imagePrompt.trim() || null, post.rowVersion));
       const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed, 3000);
       this.patch(post.id, { imageFailed: final.status === 'FAILED' });
       await this.reloadPost(orgId, post.id);

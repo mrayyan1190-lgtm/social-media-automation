@@ -18,11 +18,6 @@ export class SocialAccountApiService {
     return this.http.post<SocialAccount>(this.url(orgId), { platform, displayName, executionMode });
   }
 
-  /** A clearly labelled demo destination, used when live connection is not available on this server. */
-  createSimulated(orgId: string, platform: SocialPlatform): Observable<SocialAccount> {
-    return this.http.post<SocialAccount>(`${this.url(orgId)}/simulated`, { platform });
-  }
-
   providers(orgId: string): Observable<SocialProvider[]> {
     return this.http.get<SocialProvider[]>(`${this.connectionsUrl(orgId)}/providers`);
   }

@@ -4,11 +4,12 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiProblem, toApiProblem } from '../http/api-problem';
 import { AuthService } from './auth.service';
+import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 
 /** Self-serve sign-up: email, password and workspace name only. Sign-up creates the workspace; profile is the next step. */
 @Component({
   selector: 'app-register-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './register-page.component.html',
   styleUrl: './register-page.component.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.

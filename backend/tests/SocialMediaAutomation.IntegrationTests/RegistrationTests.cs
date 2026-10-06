@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using SocialMediaAutomation.Application.Authentication.DTOs;
 using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Organizations.DTOs;
@@ -21,6 +22,8 @@ public class RegistrationTests(ApiFactory factory)
         new { Email = email, Password = password, WorkspaceName = workspaceName };
 
     private static string NewEmail() => $"owner-{Guid.NewGuid():N}@example.com";
+
+    private sealed record StartResponse(string AuthorizationUrl);
 
     [Fact]
     public async Task Register_creates_a_signed_in_account_with_its_workspace()
@@ -98,7 +101,8 @@ public class RegistrationTests(ApiFactory factory)
         var me = await (await client.PutJsonAsync("/api/v1/me/profile",
             new { registered.OrganizationId, FullName = "Rayyan Khalil", TimeZoneId = "Asia/Karachi" }, ifMatch: null)).ReadAsync<MeDto>();
         var workspace = await (await client.GetAsync(orgUrl)).ReadAsync<OrganizationDto>();
-        Assert.Equal(("Rayyan Khalil", "Asia/Karachi", "en", true, OrganizationRole.Admin),
+        // Single-login MVP: a new workspace lets its owner approve their own posts.
+        Assert.Equal(("Rayyan Khalil", "Asia/Karachi", "en", false, OrganizationRole.Admin),
             (me.DisplayName, workspace.TimeZoneId, workspace.DefaultLanguage, workspace.RequireDistinctReviewer, workspace.MyRole));
 
         var onboarding = await (await client.GetAsync($"/api/v1/onboarding/status?organizationId={workspace.Id}")).ReadAsync<OnboardingStatusDto>();
@@ -120,9 +124,16 @@ public class RegistrationTests(ApiFactory factory)
         var campaign = await client.CreateCampaignAsync(orgUrl, new { Name = "AI Reporting Dashboard Launch", Color = "#7c3aed" });
         Assert.Equal(("#7C3AED", CampaignStatus.Active), (campaign.Color, campaign.Status));
 
-        // Social account step: a clearly labelled simulated destination completes onboarding.
-        var simulated = await (await client.PostAsJsonAsync($"{orgUrl}/social-accounts/simulated", new { Platform = "LinkedIn" })).ReadAsync<SocialAccountDto>();
-        Assert.Equal((ExecutionMode.SIMULATED, "LinkedIn (simulated)"), (simulated.ExecutionMode, simulated.DisplayName));
+        // Social account step: a simulated destination does not complete onboarding; a real provider connection does.
+        await (await client.PostAsJsonAsync($"{orgUrl}/social-accounts/simulated", new { Platform = "LinkedIn" })).ReadAsync<SocialAccountDto>();
+        var pending = await (await client.GetAsync("/api/v1/onboarding/status")).ReadAsync<OnboardingStatusDto>();
+        Assert.Equal((false, OnboardingSteps.SocialConnections), (pending.SocialAccountsConnected, pending.NextStep));
+
+        var start = await (await client.PostAsJsonAsync($"{orgUrl}/social-connections/LinkedIn/start", new { Mode = "LIVE" })).ReadAsync<StartResponse>();
+        var state = Uri.UnescapeDataString(new Uri(start.AuthorizationUrl).Query.Split("state=")[1]);
+        var callback = await factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false })
+            .GetAsync($"/api/v1/oauth/linkedin/callback?state={Uri.EscapeDataString(state)}&code=u{Guid.NewGuid():N}");
+        Assert.Contains("status=connected", callback.Headers.Location!.ToString());
         var done = await (await client.GetAsync("/api/v1/onboarding/status")).ReadAsync<OnboardingStatusDto>();
         Assert.Equal((true, OnboardingSteps.Complete), (done.SocialAccountsConnected, done.NextStep));
     }

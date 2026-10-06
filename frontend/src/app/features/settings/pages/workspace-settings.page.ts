@@ -1,69 +1,47 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { Organization, OrganizationApiService } from '../../../core/services/organization-api.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { supportedTimeZones } from '../../publications/models/time-zones';
+import { SocialConnectionsComponent } from '../../social-accounts/components/social-connections.component';
 
-/** Workspace name, default content language, time zone and the distinct-reviewer policy. Admins edit; others read. */
+/** Offered content languages; a saved tag outside this list is still shown and kept. */
+const LANGUAGES = [
+  { code: 'en', name: 'English' },
+  { code: 'ur', name: 'Urdu' },
+  { code: 'ar', name: 'Arabic' },
+  { code: 'es', name: 'Spanish' },
+];
+
+/**
+ * Settings: workspace name, default content language, time zone, the distinct-reviewer policy and the social accounts.
+ * Admins edit; others read. Provider sign-in returns here (via /social-accounts) with ?status=connected|failed.
+ */
 @Component({
   selector: 'app-workspace-settings-page',
-  imports: [ReactiveFormsModule, ProblemBannerComponent],
-  template: `
-    <div class="page-header"><div><h1>Workspace Settings</h1><p class="muted">Name, time zone, language and approval rules for this workspace.</p></div></div>
-    <app-problem-banner [problem]="problem()" (reload)="load()" />
-    @if (saved()) { <p class="banner success" role="status">Workspace settings saved.</p> }
-    @if (loading()) {
-      <p class="muted">Loading…</p>
-    } @else if (organization()) {
-      <form class="form-grid narrow" [formGroup]="form" (ngSubmit)="save()">
-        <fieldset [disabled]="!workspace.isAdmin()">
-          <legend>Workspace</legend>
-          <label>Workspace Name
-            <input formControlName="name" maxlength="200" />
-            @if (form.controls.name.invalid && form.controls.name.touched) { <span class="field-error">A name is required.</span> }
-          </label>
-          <label>Default Language
-            <input formControlName="defaultLanguage" placeholder="en or en-US" />
-            <span class="hint">AI drafts are written in this language unless a campaign says otherwise.</span>
-            @if (form.controls.defaultLanguage.invalid && form.controls.defaultLanguage.touched) { <span class="field-error">Use a language tag such as en or en-US.</span> }
-          </label>
-          <label>Time Zone
-            <select formControlName="timeZoneId">
-              @for (z of zones; track z) { <option [value]="z">{{ z }}</option> }
-            </select>
-            <span class="hint">Home and Planner times are shown in this zone. Scheduling starts from it.</span>
-          </label>
-        </fieldset>
-        <fieldset [disabled]="!workspace.isAdmin()">
-          <legend>Approval Settings</legend>
-          <label class="checkbox wide">
-            <input type="checkbox" formControlName="requireDistinctReviewer" />
-            Require another team member to approve content
-            <span class="hint">The person who wrote or last edited a post cannot approve it themselves.</span>
-          </label>
-        </fieldset>
-        @if (workspace.isAdmin()) {
-          <div class="actions">
-            <button class="primary" type="submit" [disabled]="busy() || form.pristine">{{ busy() ? 'Saving…' : 'Save Settings' }}</button>
-          </div>
-        } @else {
-          <p class="hint">Only Admins can change workspace settings.</p>
-        }
-      </form>
-    }
-  `,
+  imports: [ReactiveFormsModule, ProblemBannerComponent, SocialConnectionsComponent],
+  templateUrl: './workspace-settings.page.html',
+  styleUrl: './workspace-settings.page.css',
+
 })
 export class WorkspaceSettingsPage {
   private readonly api = inject(OrganizationApiService);
+  private readonly toast = inject(ToastService);
+  private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
+  protected readonly oauthStatus = this.query.get('status');
   protected readonly workspace = inject(WorkspaceService);
   protected readonly zones = supportedTimeZones();
   protected readonly organization = signal<Organization | null>(null);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
+  /** Briefly true after a save: the button turns green. */
   protected readonly saved = signal(false);
+  protected readonly savedOnce = signal(false);
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly form = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(200)]],
@@ -74,10 +52,24 @@ export class WorkspaceSettingsPage {
     requireDistinctReviewer: [true],
   });
 
+  protected readonly languages = computed(() => {
+    const current = this.organization()?.defaultLanguage;
+    return current && !LANGUAGES.some((l) => l.code === current) ? [...LANGUAGES, { code: current, name: current }] : LANGUAGES;
+  });
+
   constructor() {
+    if (this.oauthStatus === 'failed') this.toast.error(`The connection did not complete: ${this.query.get('message') ?? 'please try again.'}`);
     effect(() => {
       if (this.workspace.orgId()) void this.load();
     });
+    effect(() => (this.workspace.isAdmin() ? this.form.enable() : this.form.disable()));
+  }
+
+  protected toggleReviewer(): void {
+    const control = this.form.controls.requireDistinctReviewer;
+    if (control.disabled) return;
+    control.setValue(!control.value);
+    control.markAsDirty();
   }
 
   async load(): Promise<void> {
@@ -105,6 +97,9 @@ export class WorkspaceSettingsPage {
     try {
       this.apply(await firstValueFrom(this.api.updateSettings(orgId, this.form.getRawValue(), current.rowVersion)));
       this.saved.set(true);
+      this.savedOnce.set(true);
+      this.toast.success('Settings saved');
+      setTimeout(() => this.saved.set(false), 2000);
       await this.workspace.refreshOrganization(orgId);
     } catch (error) {
       this.problem.set(toApiProblem(error));

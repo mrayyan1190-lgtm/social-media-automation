@@ -1,0 +1,56 @@
+.br { display: flex; flex-direction: column; gap: 18px; color: #0f172a; -webkit-font-smoothing: antialiased; }
+.br button { min-height: 0; }
+.br-card { background: #fff; border: 1px solid #e9edf5; border-radius: 16px; padding: 24px 26px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 30px -18px rgba(15, 23, 42, 0.25); }
+
+/* Form */
+.br-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
+.br-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.br-field.full { grid-column: 1 / -1; }
+.br-field label { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 7px; margin: 0; font-size: 12.5px; font-weight: 600; color: #334155; letter-spacing: -0.005em; }
+.req { color: #f43f5e; font-weight: 700; }
+.tag-opt { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #a7b1c0; background: #f7f9fc;
+  border: 1px solid #eef1f7; border-radius: 6px; padding: 1px 6px; }
+.br-input, .br-textarea, .br-select select { width: 100%; height: auto; font: inherit; font-size: 13.5px; line-height: 1.6; color: #25303f; background: #fff;
+  border: 1px solid #e6ebf4; border-radius: 12px; padding: 11px 13px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+.br-input:hover, .br-textarea:hover, .br-select select:hover { border-color: #d6e0f2; }
+.br-input:focus, .br-textarea:focus, .br-select select:focus { border-color: #c7d7fa; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+.br-input::placeholder, .br-textarea::placeholder { color: #a9b3c2; }
+.br-input:disabled, .br-textarea:disabled, .br-select select:disabled { background: #fbfcfe; color: #64748b; cursor: default; }
+/* Textareas size to their content, never clipped */
+.br-textarea { display: block; resize: none; field-sizing: content; max-height: 300px; overflow-y: auto; }
+.br-textarea.desc { min-height: 112px; }
+.br-textarea.audience { min-height: 92px; }
+.br-select { position: relative; display: block; }
+.br-select select { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 34px; }
+.br-select .caret { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: #a7b1c0; pointer-events: none; }
+.br-error { font-size: 12px; color: #be123c; }
+
+/* Advanced */
+.br-adv-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; padding-top: 18px; border-top: 1px solid #f1f3f9; }
+.br-adv-pill { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 12px; font-weight: 600; color: #5b6779; background: #f7f9fc;
+  border: 1px solid #e8edf5; border-radius: 999px; padding: 6px 13px; cursor: pointer; transition: all 0.15s; }
+.br-adv-pill:hover, .br-adv-pill[aria-expanded='true'] { border-color: #c7d7fa; background: #eef4ff; color: #2563eb; }
+.br-adv-pill .cv { width: 12px; height: 12px; color: #a7b1c0; flex: none; transition: transform 0.2s, color 0.15s; }
+.br-adv-pill[aria-expanded='true'] .cv, .br-adv-pill:hover .cv { color: #2563eb; }
+.br-adv-pill[aria-expanded='true'] .cv { transform: rotate(90deg); }
+.br-adv { margin-top: 14px; padding: 16px 16px 18px; border: 1px solid #eef1f7; border-radius: 14px; background: #fbfcfe; animation: br-fade 0.22s ease both; }
+@keyframes br-fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+/* Footer */
+.br-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 20px; padding-top: 18px;
+  border-top: 1px solid #f1f3f9; }
+.br-meta { margin: 0; font-size: 12px; color: #a7b1c0; }
+.br-save { font: inherit; font-size: 13.5px; font-weight: 600; color: #fff; border: none; border-radius: 999px; padding: 10px 22px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 8px 18px -10px rgba(37, 99, 235, 0.95);
+  transition: background 0.15s, transform 0.06s; }
+.br-save svg { width: 15px; height: 15px; }
+.br-save:hover:not(:disabled) { background: linear-gradient(135deg, #2f74ea, #1d4ed8); }
+.br-save:active:not(:disabled) { transform: translateY(1px); }
+.br-save:disabled { opacity: 0.6; cursor: not-allowed; }
+.br-save.saved { background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 8px 18px -10px rgba(22, 163, 74, 0.9); }
+
+@media (max-width: 820px) {
+  .br-grid { grid-template-columns: minmax(0, 1fr); }
+  .br-card { padding: 20px 18px; }
+}

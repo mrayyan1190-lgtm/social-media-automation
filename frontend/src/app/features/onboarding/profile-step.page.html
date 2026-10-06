@@ -47,9 +47,7 @@
         </div>
       </div>
 
-      @if (problem(); as p) {
-        <p class="error" role="alert">{{ p.detail }}</p>
-      }
+      <app-problem-banner [problem]="problem()" />
 
       <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Next' }}</button>
 

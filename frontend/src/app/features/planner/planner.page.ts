@@ -4,16 +4,27 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { IconComponent } from '../../shared/components/icon.component';
 import { PlatformIconComponent } from '../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
-import { CUSTOMER_STATUSES, CustomerStatus, customerStatus, statusGroup, statusTone } from '../../shared/models/states';
+import { CUSTOMER_STATUSES, CustomerStatus, customerStatus, statusGroup } from '../../shared/models/states';
 import { SOCIAL_PLATFORMS } from '../campaigns/models/campaign.model';
 import { PostListItem } from '../content/models/post.model';
 import { PostApiService } from '../content/services/post-api.service';
 import { dayKeyInZone, formatInZone } from '../publications/models/time-zones';
 
 type DateRange = '' | 'today' | 'next7' | 'last7' | 'month';
+
+/** Calendar/list colour per customer status (design palette). */
+const PALETTE: Record<CustomerStatus, string> = {
+  Draft: 'st-draft',
+  'In Review': 'st-review',
+  'Changes Requested': 'st-failed',
+  Approved: 'st-published',
+  Scheduled: 'st-scheduled',
+  Published: 'st-published',
+  'Demo (not sent)': 'st-draft',
+  Failed: 'st-failed',
+};
 
 interface Row extends PostListItem {
   status: CustomerStatus;
@@ -27,121 +38,9 @@ interface Row extends PostListItem {
  */
 @Component({
   selector: 'app-planner-page',
-  imports: [FormsModule, RouterLink, IconComponent, PlatformIconComponent, ProblemBannerComponent],
-  template: `
-    <div class="page-header">
-      <div>
-        <h1>Planner</h1>
-        <p class="muted">Track every post from draft to published. Times in {{ workspace.timeZone() }}.</p>
-      </div>
-      <div class="actions">
-        <div class="segmented" role="group" aria-label="View">
-          <button type="button" [class.on]="layout() === 'calendar'" (click)="layout.set('calendar')"><app-icon name="calendar" [size]="15" />Calendar</button>
-          <button type="button" [class.on]="layout() === 'list'" (click)="layout.set('list')"><app-icon name="list" [size]="15" />List</button>
-        </div>
-        @if (workspace.canManageCampaigns()) {
-          <a class="button primary" routerLink="/composer"><app-icon name="plus" [size]="16" />Create Post</a>
-        }
-      </div>
-    </div>
-
-    <div class="filter-bar">
-      <select aria-label="Platform" [ngModel]="platform()" (ngModelChange)="platform.set($event)">
-        <option value="">All platforms</option>
-        @for (p of platforms; track p) { <option [value]="p">{{ p }}</option> }
-      </select>
-      <select aria-label="Campaign" [ngModel]="campaign()" (ngModelChange)="campaign.set($event)">
-        <option value="">All campaigns</option>
-        <option value="none">No campaign</option>
-        @for (c of campaigns(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-      </select>
-      <select aria-label="Status" [ngModel]="status()" (ngModelChange)="status.set($event)">
-        <option value="">All statuses</option>
-        @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
-      </select>
-      @if (layout() === 'list') {
-        <select aria-label="Date" [ngModel]="range()" (ngModelChange)="range.set($event)">
-          <option value="">Any date</option>
-          <option value="today">Today</option>
-          <option value="next7">Next 7 days</option>
-          <option value="last7">Last 7 days</option>
-          <option value="month">This month</option>
-        </select>
-      }
-      @if (filtersActive()) { <button type="button" class="link" (click)="clear()">Clear</button> }
-    </div>
-
-    <app-problem-banner [problem]="problem()" />
-
-    @if (loading() && !rows().length) {
-      <p class="muted">Loading…</p>
-    } @else if (!rows().length) {
-      <section class="empty-state">
-        <app-icon name="calendar" [size]="26" />
-        <h2>No posts yet</h2>
-        <p class="muted">Write a post in Composer or let AI Studio draft one.</p>
-        @if (workspace.canManageCampaigns()) {
-          <div class="actions">
-            <a class="button primary" routerLink="/composer">Create Post</a>
-            <a class="button" routerLink="/ai-studio">Create with AI</a>
-          </div>
-        }
-      </section>
-    } @else if (layout() === 'calendar') {
-      <section class="calendar card flush-top">
-        <div class="calendar-head">
-          <button type="button" aria-label="Previous month" (click)="shiftMonth(-1)">‹</button>
-          <h2>{{ monthLabel() }}</h2>
-          <button type="button" aria-label="Next month" (click)="shiftMonth(1)">›</button>
-          <button type="button" class="small" (click)="month.set(thisMonth)">Today</button>
-        </div>
-        <div class="calendar-grid">
-          @for (d of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; track d) { <div class="dow">{{ d }}</div> }
-          @for (week of weeks(); track $index) {
-            @for (day of week; track day.date) {
-              <div class="day-cell" [class.out]="!day.inMonth" [class.today]="day.today">
-                <span class="day-num">{{ day.day }}</span>
-                @for (p of day.posts.slice(0, 3); track p.id) {
-                  <a [class]="'cal-item ' + tone(p.status)" [routerLink]="['/composer', p.id]" [title]="title(p) + ' · ' + p.status">
-                    <app-platform-icon [platform]="p.platform" />
-                    <span class="cal-time">{{ time(p.publishAt, { timeStyle: 'short' }) }}</span>
-                    <span>{{ p.campaignName || title(p) }}</span>
-                  </a>
-                }
-                @if (day.posts.length > 3) { <span class="hint more">+{{ day.posts.length - 3 }} more</span> }
-              </div>
-            }
-          }
-        </div>
-        <p class="hint tight">Scheduled, published and failed posts appear on their date. Drafts and posts in review are in the List view.</p>
-      </section>
-    } @else {
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr><th>Post</th><th>Platform</th><th>Campaign</th><th>Status</th><th>Scheduled / Published</th><th>Updated</th></tr>
-          </thead>
-          <tbody>
-            @for (r of filtered(); track r.id) {
-              <tr class="clickable" [routerLink]="['/composer', r.id]">
-                <td class="post-cell"><a [routerLink]="['/composer', r.id]">{{ title(r) }}</a></td>
-                <td><app-platform-icon [platform]="r.platform" [label]="true" /></td>
-                <td>
-                  @if (r.campaignName) { <span class="nowrap"><span class="color-dot sm" [style.background]="r.campaignColor"></span>{{ r.campaignName }}</span> }
-                  @else { <span class="hint">—</span> }
-                </td>
-                <td><span [class]="'badge delivery ' + tone(r.status)">{{ r.status }}</span></td>
-                <td class="nowrap">{{ time(r.publishAt) }}</td>
-                <td class="nowrap hint">{{ time(r.updatedAtUtc, { dateStyle: 'medium' }) }}</td>
-              </tr>
-            } @empty {
-              <tr><td colspan="6" class="empty">No posts match these filters.</td></tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  `,
+  imports: [FormsModule, RouterLink, PlatformIconComponent, ProblemBannerComponent],
+  templateUrl: './planner.page.html',
+  styleUrl: './planner.page.css',
 })
 export class PlannerPage {
   private readonly postsApi = inject(PostApiService);
@@ -153,7 +52,6 @@ export class PlannerPage {
 
   protected readonly platforms = SOCIAL_PLATFORMS;
   protected readonly statuses = CUSTOMER_STATUSES;
-  protected readonly tone = statusTone;
   protected readonly thisMonth = new Date().toISOString().slice(0, 7);
   protected readonly loading = signal(true);
   protected readonly problem = signal<ApiProblem | null>(null);
@@ -191,11 +89,40 @@ export class PlannerPage {
     });
   });
 
-  /** Month grid (weeks of yyyy-MM-dd days, Monday first) with the posts publishing on each day. */
-  protected readonly weeks = computed(() => {
+  /** "Drafts", "Scheduled posts"… when opened from a Publisher shortcut (or filtered by status). */
+  protected readonly listTitle = computed(() => {
+    const status = this.status();
+    if (!status) return 'All posts';
+    return status === 'Draft' ? 'Drafts' : status === 'Failed' ? 'Failed posts' : `${status} posts`;
+  });
+
+  /** List order: most recently updated first. */
+  protected readonly listRows = computed(() => [...this.filtered()].sort((a, b) => b.updatedAtUtc.localeCompare(a.updatedAtUtc)));
+
+  /** Six-week month grid (yyyy-MM-dd days, Monday first) with the posts publishing on each day. */
+  protected readonly days = computed(() => {
     const [year, month] = this.month().split('-').map(Number);
     const first = new Date(Date.UTC(year, month - 1, 1));
     const start = new Date(first.getTime() - ((first.getUTCDay() + 6) % 7) * 864e5);
+    const byDay = this.byDay();
+    const today = dayKeyInZone(new Date().toISOString(), this.workspace.timeZone());
+    return Array.from({ length: 42 }, (_, i) => {
+      const date = new Date(start.getTime() + i * 864e5).toISOString().slice(0, 10);
+      const inMonth = date.slice(0, 7) === this.month();
+      return { date, day: Number(date.slice(8)), inMonth, today: date === today, posts: inMonth ? byDay.get(date) ?? [] : [] };
+    });
+  });
+
+  protected readonly monthCount = computed(() =>
+    [...this.byDay().entries()].filter(([day]) => day.startsWith(this.month())).reduce((n, [, posts]) => n + posts.length, 0));
+
+  protected readonly monthName = computed(() => {
+    const [year, month] = this.month().split('-').map(Number);
+    return new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
+  });
+
+  /** Filtered posts with a publishing time, by day in the workspace time zone. */
+  private readonly byDay = computed(() => {
     const zone = this.workspace.timeZone();
     const byDay = new Map<string, Row[]>();
     for (const r of this.filtered()) {
@@ -204,16 +131,7 @@ export class PlannerPage {
       byDay.set(key, [...(byDay.get(key) ?? []), r]);
     }
     for (const posts of byDay.values()) posts.sort((a, b) => a.publishAt!.localeCompare(b.publishAt!));
-    const today = dayKeyInZone(new Date().toISOString(), zone);
-    return Array.from({ length: 6 }, (_, w) => Array.from({ length: 7 }, (_, d) => {
-      const date = new Date(start.getTime() + (w * 7 + d) * 864e5).toISOString().slice(0, 10);
-      return { date, day: Number(date.slice(8)), inMonth: date.slice(0, 7) === this.month(), today: date === today, posts: byDay.get(date) ?? [] };
-    })).filter((week) => week.some((day) => day.inMonth));
-  });
-
-  protected readonly monthLabel = computed(() => {
-    const [year, month] = this.month().split('-').map(Number);
-    return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
+    return byDay;
   });
 
   constructor() {
@@ -229,6 +147,10 @@ export class PlannerPage {
         this.layout.set(list ? 'list' : 'calendar');
       });
     });
+  }
+
+  protected palette(status: CustomerStatus): string {
+    return PALETTE[status];
   }
 
   protected title(r: PostListItem): string {

@@ -1,262 +1,206 @@
-<ng-template #platformIcon let-platform>
-  @switch (platform) {
-    @case ('LinkedIn') { <span class="acc-ic li"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 1 1 .02 5 2.5 2.5 0 0 1-.02-5ZM3.2 9.7h3.6v11.1H3.2V9.7Zm5.9 0h3.45v1.52h.05a3.78 3.78 0 0 1 3.4-1.87c3.64 0 4.3 2.4 4.3 5.5v5.95h-3.6v-5.27c0-1.26-.02-2.88-1.76-2.88-1.76 0-2.03 1.37-2.03 2.79v5.36H9.1V9.7Z"/></svg></span> }
-    @case ('Facebook') { <span class="acc-ic fb"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 21.9V14h2.7l.5-3.2h-3.2V8.7c0-.9.3-1.7 1.7-1.7h1.6V4.2S15.6 4 14.4 4c-2.5 0-4.2 1.5-4.2 4.3v2.5H7.3V14h2.9v7.9a10 10 0 1 0 3.3 0Z"/></svg></span> }
-    @case ('Instagram') { <span class="acc-ic ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3.6" y="3.6" width="16.8" height="16.8" rx="5"/><circle cx="12" cy="12" r="3.9"/><circle cx="17" cy="7" r="1.15" fill="currentColor" stroke="none"/></svg></span> }
-  }
-</ng-template>
+<main class="page">
+  <app-problem-banner [problem]="problem()" />
 
-<header>
-  <div class="bar">
-    <a class="brand" routerLink="/home">
-      <span class="brand-mark" aria-hidden="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
-      </span>
-      <span class="brand-name">SocialMedia<span> Engine</span></span>
-    </a>
-    <div class="bar-right">
-      <a class="btn btn-sm" routerLink="/notifications">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>
-        Updates
-        @if (unread() > 0) { <span class="badge">{{ unread() > 9 ? '9+' : unread() }}</span> }
+  <!-- KPI cards -->
+  <div class="row kpi-row">
+    @for (k of kpis(); track k.label) {
+      <a [class]="'card kpi acc-' + k.accent" [routerLink]="k.link" [queryParams]="k.query ?? null">
+        <div class="kpi-top">
+          <span class="kpi-ic">
+            @switch (k.icon) {
+              @case ('check') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> }
+              @case ('calendar') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> }
+              @case ('clock') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> }
+              @default { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg> }
+            }
+          </span>
+          <span class="kpi-lbl">{{ k.label }}</span>
+          <span [class]="'delta ' + k.dir">
+            @if (k.dir === 'up') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg> }
+            @if (k.dir === 'down') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg> }
+            {{ k.delta }}
+          </span>
+        </div>
+        <div class="kpi-num">{{ k.value }}<small>{{ k.unit }}</small></div>
+        <div class="kpi-sub">
+          <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          {{ k.sub }}
+        </div>
       </a>
-      <a class="avatar" routerLink="/profile" [attr.aria-label]="'Profile of ' + auth.me()?.displayName">{{ initials() }}</a>
-    </div>
-  </div>
-</header>
-
-<main class="wrap">
-
-  <!-- page head -->
-  <div class="page-head">
-    <div>
-      <div class="eyebrow"><i></i> {{ workspace.current()?.organizationName }} workspace</div>
-      <h1>Welcome back{{ firstName() ? ', ' + firstName() : '' }}</h1>
-      <p>Here's what's happening across your campaigns and publishing.</p>
-    </div>
-    @if (workspace.canManageCampaigns()) {
-      <div class="head-actions">
-        <a class="btn" routerLink="/ai-studio">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 6-6"/><path d="M8.5 5.5 9 4l.5 1.5L11 6l-1.5.5L9 8l-.5-1.5L7 6z"/><path d="M18.5 15.5 19 14l.5 1.5L21 16l-1.5.5L19 18l-.5-1.5L17 16z"/><path d="m3 21 9-9"/><path d="M14.5 3.5 15 2l.5 1.5L17 4l-1.5.5L15 6l-.5-1.5L13 4z"/></svg>
-          Create with AI
-        </a>
-        <a class="btn btn-primary" routerLink="/campaigns" [queryParams]="{ create: 1 }">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          Create Campaign
-        </a>
-      </div>
     }
   </div>
 
-  @if (problem(); as p) { <p class="error" role="alert">{{ p.detail }}</p> }
-
-  <!-- quick create -->
-  @if (workspace.canManageCampaigns()) {
-    <div class="sec">Create</div>
-    <div class="grid g4">
-      <a class="card tile" routerLink="/campaigns" [queryParams]="{ create: 1 }">
-        <span class="tile-ic ic-blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></span>
-        <strong>Create Campaign</strong>
-        <p>Group related posts into a campaign folder.</p>
-      </a>
-      <a class="card tile" routerLink="/ai-studio">
-        <span class="tile-ic ic-violet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11.02 2.6a.55.55 0 0 1 1.05 0l1.4 4.55a2.2 2.2 0 0 0 1.46 1.46l4.55 1.4a.55.55 0 0 1 0 1.05l-4.55 1.4a2.2 2.2 0 0 0-1.46 1.46l-1.4 4.55a.55.55 0 0 1-1.05 0l-1.4-4.55a2.2 2.2 0 0 0-1.46-1.46l-4.55-1.4a.55.55 0 0 1 0-1.05l4.55-1.4A2.2 2.2 0 0 0 9.62 7.15z"/><path d="M18.8 16.4 19.4 18l1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/></svg></span>
-        <strong>AI Studio</strong>
-        <p>Start from a prompt using your brand context.</p>
-      </a>
-      <a class="card tile" routerLink="/composer">
-        <span class="tile-ic ic-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5H5.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2V12"/><path d="M17.9 2.9a1.8 1.8 0 0 1 2.55 2.55l-7.6 7.6a2 2 0 0 1-.86.5l-2.42.71a.5.5 0 0 1-.62-.62l.7-2.42a2 2 0 0 1 .51-.86z"/></svg></span>
-        <strong>Create Post</strong>
-        <p>Write a single social post yourself.</p>
-      </a>
-      <a class="card tile" routerLink="/library">
-        <span class="tile-ic ic-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2.6"/><circle cx="8.8" cy="9.8" r="1.5"/><path d="m20.5 15.5-4.1-4.1a2 2 0 0 0-2.83 0L4.8 19.5"/></svg></span>
-        <strong>Media Library</strong>
-        <p>Browse or upload images for your posts.</p>
-      </a>
-    </div>
-  }
-
-  <!-- main row -->
-  <div class="grid g-main">
-
-    <!-- workspace -->
-    <section class="card">
-      <div class="card-head"><h3>Workspace</h3></div>
-      <div class="rows">
-        <div class="row">
-          <span class="row-label">Brand Profile</span>
-          @if (auth.me()?.onboarding?.brandProfileCompleted) {
-            <span class="chip chip-green">Complete</span>
-          } @else {
-            <a class="chip chip-grey" routerLink="/brand">Incomplete</a>
-          }
-        </div>
-        <div class="row"><span class="row-label">Social Accounts</span><span class="row-value">{{ connectedCount() }} connected</span></div>
-        <div class="row"><span class="row-label">Team Members</span><span class="row-value">{{ activeMembers() }}</span></div>
-        <div class="row"><span class="row-label">Campaigns</span><span class="row-value">{{ campaigns().length }}</span></div>
-      </div>
-      <div class="card-foot">
-        <a class="card-link" [routerLink]="workspace.isAdmin() ? '/settings/workspace' : '/brand'">Manage Workspace →</a>
-      </div>
-    </section>
-
-    <!-- content publishing -->
-    @let pub = publishing();
+  <!-- Chart + publishing -->
+  <div class="row hero">
     <section class="card">
       <div class="card-head">
-        <h3>Content Publishing</h3>
-        <span class="pill-select">
-          <select aria-label="Time range" [ngModel]="range()" (ngModelChange)="range.set($event)">
-            <option value="today">Today</option>
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-          </select>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </span>
-      </div>
-
-      <div class="pub">
-        <div class="donut">
-          @if (pub.total) {
-            <svg viewBox="0 0 120 120" role="img" [attr.aria-label]="pub.total + ' posts in this view'">
-              <circle cx="60" cy="60" r="46" fill="none" stroke="#e4e8f0" stroke-width="13"/>
-              @for (s of pub.segments; track s.key) {
-                @if (s.value > 0) {
-                  <circle cx="60" cy="60" r="46" fill="none" pathLength="100" [attr.stroke]="s.color" stroke-width="13"
-                    [attr.stroke-dasharray]="s.dash" [attr.stroke-dashoffset]="s.offset"><title>{{ s.label }}: {{ s.value }}</title></circle>
-                }
-              }
-            </svg>
-          } @else {
-            <svg viewBox="0 0 120 120" aria-hidden="true">
-              <circle cx="60" cy="60" r="46" fill="none" stroke="#e4e8f0" stroke-width="13" stroke-dasharray="64 8" stroke-linecap="round"/>
-            </svg>
-          }
-          <div class="donut-mid"><strong>{{ pub.total }}</strong><span>posts</span></div>
-        </div>
-
-        <div class="legend">
-          @for (s of pub.segments; track s.key) {
-            <div class="leg"><i [style.background]="s.color"></i><span>{{ s.label }}</span><b>{{ s.value }}</b></div>
+        <span class="label">Posting activity</span>
+        <div class="seg" role="group" aria-label="Range">
+          @for (r of [7, 30, 90]; track r) {
+            <button type="button" [class.active]="chartRange() === r" (click)="chartRange.set($any(r)); hover.set(null)">{{ r }}D</button>
           }
         </div>
       </div>
 
-      <div class="card-foot"><a class="card-link" routerLink="/planner">Open Planner →</a></div>
-    </section>
-
-    <!-- to do -->
-    <section class="card">
-      <div class="card-head">
-        <h3>To Do</h3>
-        <span class="pill-select">
-          <select aria-label="Time range" [ngModel]="todoRange()" (ngModelChange)="todoRange.set($event)">
-            <option value="today">Today</option>
-            <option value="week">This week</option>
-          </select>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </span>
+      @let c = chart();
+      <div class="chart-legend">
+        <span class="it"><span class="sw" style="background:#3b82f6"></span>Published <b>{{ c.totalPublished }}</b></span>
+        <span class="it"><span class="sw" style="background:#8b5cf6"></span>Drafted <b>{{ c.totalDrafted }}</b></span>
       </div>
 
-      <div class="todo">
-        @for (t of todo(); track t.label) {
-          <a class="todo-row" [routerLink]="t.link" [queryParams]="t.query ?? {}">
-            @switch (t.tone) {
-              @case ('green') { <span class="todo-ic ic-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 7 1.8 1.8L8.8 5.3"/><path d="m3.5 17 1.8 1.8 3.5-3.5"/><path d="M12.5 7.5h8M12.5 16.5h8"/></svg></span> }
-              @case ('amber') { <span class="todo-ic ic-amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 1 1-4.3-7.4"/><path d="M12 7.6v4.6l2.9 1.7"/><path d="M19.8 3.4v3.4M19.8 9.1v.1"/></svg></span> }
-              @default { <span class="todo-ic ic-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h7"/><path d="M14.5 3.5 19 8v3.2"/><circle cx="17.8" cy="17.3" r="3.9"/><path d="m16.4 15.9 2.8 2.8m0-2.8-2.8 2.8"/></svg></span> }
-            }
-            <span>{{ t.label }}</span><b>{{ t.count }}</b>
-          </a>
-        }
-      </div>
-
-      <div class="card-foot"><a class="card-link" routerLink="/approvals">Open Approvals →</a></div>
-    </section>
-  </div>
-
-  <!-- campaigns / publishing -->
-  <div class="grid g2">
-    <section class="card">
-      <div class="card-head"><h3>Recent Campaigns</h3><a class="card-link" routerLink="/campaigns">View all</a></div>
-      @if (recentCampaigns().length) {
-        <div class="rows">
-          @for (c of recentCampaigns(); track c.id) {
-            <a class="acc" [routerLink]="['/campaigns', c.id]">
-              <span class="acc-ic" [style.background]="c.color">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-              </span>
-              <span class="acc-txt"><strong>{{ c.name }}</strong><span>{{ c.postCount }} {{ c.postCount === 1 ? 'post' : 'posts' }} — {{ c.summary }}</span></span>
-              <time>{{ ago(c.updatedAtUtc) }}</time>
-            </a>
+      <div class="chart-wrap">
+        <svg [attr.viewBox]="'0 0 ' + cw + ' ' + ch" role="img" aria-label="Posts published and drafted per day">
+          <defs>
+            <linearGradient id="pg0" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity=".30"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></linearGradient>
+            <linearGradient id="pg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8b5cf6" stop-opacity=".30"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/></linearGradient>
+          </defs>
+          @for (g of c.grid; track g.y) {
+            <line class="gridline" [attr.x1]="40" [attr.y1]="g.y" [attr.x2]="cw - 16" [attr.y2]="g.y" />
+            <text class="axis-txt" [attr.x]="30" [attr.y]="g.y + 3.5" text-anchor="end">{{ g.label }}</text>
           }
-        </div>
-      } @else {
-        <div class="empty">
-          <p>No campaigns yet.</p>
-          @if (workspace.canManageCampaigns()) {
-            <a class="btn btn-primary btn-sm" routerLink="/campaigns" [queryParams]="{ create: 1 }">Create your first campaign</a>
+          @for (l of c.labels; track l.x) {
+            <text class="axis-txt" [attr.x]="l.x" [attr.y]="ch - 10" text-anchor="middle">{{ l.text }}</text>
           }
-        </div>
-      }
-    </section>
-
-    <section class="card">
-      <div class="card-head"><h3>Upcoming Publishing</h3><a class="card-link" routerLink="/planner">Open planner</a></div>
-      @if (upcoming().length) {
-        <div class="rows">
-          @for (j of upcoming(); track j.id) {
-            <a class="acc" [routerLink]="['/composer', j.postId]">
-              <ng-container *ngTemplateOutlet="platformIcon; context: { $implicit: j.platform }" />
-              <span class="acc-txt"><strong>{{ j.campaignName || j.platform + ' post' }}</strong><span>{{ when(j.publishAtUtc) }} · {{ j.destinationName }}</span></span>
-              <span class="chip chip-blue">{{ deliveryLabels[j.deliveryState] }}</span>
-            </a>
+          <path [attr.d]="c.draftArea" fill="url(#pg1)" />
+          <path class="series-line" [attr.d]="c.draftLine" stroke="#8b5cf6" />
+          <path [attr.d]="c.pubArea" fill="url(#pg0)" />
+          <path class="series-line" [attr.d]="c.pubLine" stroke="#3b82f6" />
+          @if (tip(); as t) {
+            <line class="crosshair" [attr.x1]="t.x" [attr.x2]="t.x" [attr.y1]="16" [attr.y2]="16 + c.innerH" />
+            <circle [attr.cx]="t.x" [attr.cy]="t.yPub" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5" />
+            <circle [attr.cx]="t.x" [attr.cy]="t.yDraft" r="4.5" fill="#fff" stroke="#8b5cf6" stroke-width="2.5" />
           }
-        </div>
-      } @else {
-        <div class="empty">
-          <p>No posts scheduled yet.</p>
-          <a class="btn btn-sm" routerLink="/planner">Schedule a post</a>
-        </div>
-      }
-    </section>
-  </div>
-
-  <!-- accounts / activity -->
-  <div class="grid g2">
-    <section class="card">
-      <div class="card-head"><h3>Social Accounts</h3><a class="card-link" routerLink="/social-accounts">Manage</a></div>
-      <div class="rows">
-        @for (c of channels(); track c.platform) {
-          <div class="acc">
-            <ng-container *ngTemplateOutlet="platformIcon; context: { $implicit: c.platform }" />
-            <span class="acc-txt"><strong>{{ c.platform }}</strong><span>{{ c.name || 'Not connected' }}</span></span>
-            @if (c.demo) { <span class="chip chip-blue" title="Posts are not sent externally">Demo Mode</span> }
-            @if (c.status === 'Connected') {
-              <span class="chip chip-green">Connected</span>
-            } @else if (workspace.isAdmin()) {
-              <a class="btn btn-sm" routerLink="/social-accounts">{{ c.status === 'Needs Reconnection' ? 'Reconnect' : 'Connect' }}</a>
-            } @else {
-              <span class="chip chip-grey">{{ c.status }}</span>
-            }
+          <rect [attr.x]="40" [attr.y]="16" [attr.width]="c.innerW" [attr.height]="c.innerH" fill="transparent"
+            (mousemove)="onChartMove($event)" (mouseleave)="hover.set(null)" />
+        </svg>
+        @if (tip(); as t) {
+          <div class="perf-tip" [style.left.%]="t.left">
+            <div class="d">{{ t.date }}</div>
+            <div class="r"><span class="sw" style="background:#3b82f6"></span>Published<span class="n">{{ t.published }}</span></div>
+            <div class="r"><span class="sw" style="background:#8b5cf6"></span>Drafted<span class="n">{{ t.drafted }}</span></div>
           </div>
         }
       </div>
+
+      <div class="card-foot">
+        <a class="link" routerLink="/planner" [queryParams]="{ view: 'list' }">Open all posts <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></a>
+      </div>
     </section>
 
     <section class="card">
-      <div class="card-head"><h3>Recent Activity</h3><a class="card-link" routerLink="/notifications">View all</a></div>
-      @if (activity().length) {
-        <div class="rows">
-          @for (a of activity(); track a.id) {
-            <div class="act"><span class="act-dot"></span><p>@if (a.actor) { <b>{{ a.actor }}</b> } {{ a.text }}</p><time>{{ ago(a.at) }}</time></div>
+      <div class="card-head">
+        <span class="label">Content Publishing</span>
+        <div class="seg" role="group" aria-label="Range">
+          <button type="button" [class.active]="pubRange() === 7" (click)="pubRange.set(7)">7D</button>
+          <button type="button" [class.active]="pubRange() === 30" (click)="pubRange.set(30)">30D</button>
+        </div>
+      </div>
+
+      @let pub = publishing();
+      <div class="card-body">
+        <div class="pub-total"><span class="num">{{ pub.total }}</span><span class="cap">posts in range</span></div>
+        <div class="stack">
+          @for (s of pub.segments; track s.key) {
+            @if (s.value) { <span [style.background]="s.color" [style.width.%]="s.width"></span> }
           }
         </div>
-      } @else {
-        <div class="empty"><p>Activity will appear here as your team starts working.</p></div>
-      }
+        <div class="stack-legend">
+          @for (s of pub.segments; track s.key) {
+            <div class="lrow" [class.zero]="!s.value"><span class="sw" [style.background]="s.color"></span><span class="lt">{{ s.label }}</span><span class="lv">{{ s.value }}</span></div>
+          }
+        </div>
+
+        <div class="sub-label">Platforms</div>
+        <div class="pchips">
+          @for (p of pub.platforms; track p.platform) {
+            <span class="pchip">
+              @switch (p.platform) {
+                @case ('LinkedIn') { <span class="pdot in">in</span> }
+                @case ('Facebook') { <span class="pdot fb round">f</span> }
+                @default { <span class="pdot ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></span> }
+              }
+              {{ p.platform }}<b>{{ p.count }}</b>
+            </span>
+          }
+        </div>
+
+        @let m = month();
+        <div class="sub-label goal">This month</div>
+        <div class="goal-row"><span><b>{{ m.done }}</b> of {{ m.planned }} planned posts published</span><span>{{ m.pct }}%</span></div>
+        <div class="goal-track"><span class="goal-fill" [style.width.%]="m.pct"></span></div>
+      </div>
+
+      <div class="card-foot">
+        <a class="link" routerLink="/planner">Open planner <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></a>
+      </div>
     </section>
   </div>
 
+  <!-- To do / upcoming / activity -->
+  <div class="row feed">
+    <section class="card">
+      <div class="card-head">
+        <span class="label">To Do</span>
+        @if (workspace.isAdmin()) { <a class="link" routerLink="/approvals">Open <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></a> }
+      </div>
+      <div class="card-body">
+        @for (t of todo(); track t.label) {
+          <a class="todo" [class.zero]="!t.count" [routerLink]="t.link" [queryParams]="t.query ?? null">
+            <span [class]="'tile ' + t.tile">
+              @switch (t.icon) {
+                @case ('clock') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> }
+                @case ('check') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg> }
+                @case ('alert') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg> }
+                @default { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M10 13l4 4M14 13l-4 4"/></svg> }
+              }
+            </span>
+            <span class="t">{{ t.label }}</span><span class="n">{{ t.count }}</span>
+          </a>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <span class="label">Upcoming Publishing</span>
+        <a class="link" routerLink="/planner">Planner <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="card-body">
+        @for (u of upcoming(); track u.job.id) {
+          <a class="up-row" [routerLink]="['/composer', u.job.postId]">
+            @switch (u.job.platform) {
+              @case ('LinkedIn') { <span class="up-badge in">in</span> }
+              @case ('Facebook') { <span class="up-badge fb round">f</span> }
+              @default { <span class="up-badge ig"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg></span> }
+            }
+            <div class="up-txt">
+              <div class="up-title">{{ jobTitle(u.job) }}</div>
+              <div class="up-time">{{ when(u.job.publishAtUtc) }}</div>
+            </div>
+            @if (u.flag) { <span class="up-flag" title="Needs attention"></span> }
+          </a>
+        } @empty {
+          <p class="empty">Nothing scheduled yet.</p>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <span class="label">Recent Activity</span>
+        <a class="link" routerLink="/notifications">View all <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="card-body">
+        @for (a of activity(); track a.id) {
+          <div class="arow">
+            <span class="ava">{{ initial(a.actor) }}</span>
+            <span class="atxt">@if (a.actor) { <b>{{ a.actor }}</b> } {{ a.text }}</span>
+            <span class="atime">{{ ago(a.at) }}</span>
+          </div>
+        } @empty {
+          <p class="empty">No activity yet.</p>
+        }
+      </div>
+    </section>
+  </div>
 </main>

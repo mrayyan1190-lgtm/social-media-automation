@@ -1,0 +1,75 @@
+<div class="ap">
+  <nav class="ap-tabs" aria-label="Approvals">
+    @if (workspace.canReview()) {
+      <button type="button" [class.active]="tab() === 'pending'" (click)="tab.set('pending')">Pending my review @if (count('pending')) { <span class="cnt">{{ count('pending') }}</span> }</button>
+    }
+    <button type="button" [class.active]="tab() === 'mine'" (click)="tab.set('mine')">Submitted by me @if (count('mine')) { <span class="cnt">{{ count('mine') }}</span> }</button>
+    <button type="button" [class.active]="tab() === 'changes'" (click)="tab.set('changes')">Changes requested @if (count('changes')) { <span class="cnt">{{ count('changes') }}</span> }</button>
+    <button type="button" [class.active]="tab() === 'approved'" (click)="tab.set('approved')">Approved @if (ready().length) { <span class="cnt">{{ ready().length }}</span> }</button>
+  </nav>
+
+  <app-problem-banner [problem]="problem()" />
+
+  @if (loading()) {
+    <div class="ap-card"><div class="ap-empty"><span class="txt">Loading…</span></div></div>
+  } @else if (tab() === 'approved') {
+    <!-- Approved and still the post's current version: schedule or publish it here. -->
+    <div class="ap-stack">
+      @for (item of ready(); track item.review.id) {
+        <section class="ap-card ap-acard">
+          <div class="ap-acard-head">
+            <app-platform-icon [platform]="item.review.platform" />
+            <div class="ap-txt">
+              <a class="ap-title" [routerLink]="['/approvals', item.review.id]" [title]="item.review.excerpt">{{ item.review.excerpt }}</a>
+              <div class="ap-meta">
+                <span class="ap-vpill">v{{ item.review.versionNumber }}</span>
+                {{ item.review.submittedByName }} <span class="sep">·</span> {{ time(item.review.decidedAtUtc ?? item.review.submittedAtUtc) }}
+              </div>
+            </div>
+            <span class="ap-chip ap-approved"><span class="dot"></span>Approved</span>
+          </div>
+          <app-publication-panel [post]="item.post" />
+        </section>
+      } @empty {
+        <div class="ap-card">
+          <div class="ap-empty">
+            <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+            <span class="txt">No approved posts waiting to be scheduled or published.</span>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="ap-card">
+      @for (r of shown(); track r.id) {
+        <div class="ap-row">
+          <app-platform-icon [platform]="r.platform" />
+          <div class="ap-txt">
+            <a class="ap-title" [routerLink]="['/approvals', r.id]" [title]="r.excerpt">{{ r.excerpt }}</a>
+            <div class="ap-meta">
+              <span class="ap-vpill">v{{ r.versionNumber }}</span>
+              @if (tab() !== 'pending') { {{ r.submittedByName }} <span class="sep">·</span> }
+              {{ time(r.submittedAtUtc) }}
+              @if (r.campaignName) { <span class="sep">·</span> <span class="color-dot sm" [style.background]="r.campaignColor"></span>{{ r.campaignName }} }
+              @if (r.assignedReviewerName) { <span class="sep">·</span> Reviewer: {{ r.assignedReviewerName }} }
+            </div>
+            @if (r.decisionComment) { <div class="ap-quote">“{{ r.decisionComment }}”</div> }
+          </div>
+          <span [class]="'ap-chip ' + statusText[r.status].tone"><span class="dot"></span>{{ statusText[r.status].label }}</span>
+          @if (tab() === 'pending') {
+            <a class="ap-btn" [routerLink]="['/approvals', r.id]">Review</a>
+          } @else if (r.status === 'CHANGES_REQUESTED' && workspace.canManageCampaigns()) {
+            <a class="ap-btn ghost" [routerLink]="['/composer', r.postId]">Edit</a>
+          } @else {
+            <a class="ap-btn ghost" [routerLink]="['/approvals', r.id]">Open</a>
+          }
+        </div>
+      } @empty {
+        <div class="ap-empty">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
+          <span class="txt">{{ emptyText() }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -8,11 +8,12 @@ public static class RolePermissions
     private static readonly Dictionary<OrganizationRole, HashSet<Permission>> Grants = new()
     {
         [OrganizationRole.Admin] = [.. Enum.GetValues<Permission>()],
-        // Creators author content, submit it and schedule approved versions; they never decide reviews.
+        // Creators author content and submit it for review; they never decide reviews, schedule or publish (MVP: the Admin
+        // approves and publishes).
         [OrganizationRole.Creator] =
         [
             Permission.ViewOrganization, Permission.ViewMembers, Permission.ViewBrandProfile, Permission.ViewCampaigns,
-            Permission.ManageCampaigns, Permission.CommentOnReviews, Permission.ViewSocialAccounts, Permission.SchedulePublication,
+            Permission.ManageCampaigns, Permission.CommentOnReviews, Permission.ViewSocialAccounts,
         ],
         // Reviewers inspect exact versions and decide; they do not author or edit content (PRD §7.3).
         [OrganizationRole.Reviewer] =

@@ -1,5 +1,6 @@
 using SocialMediaAutomation.Application.Abstractions;
 using SocialMediaAutomation.Application.Audit.Services;
+using SocialMediaAutomation.Application.Authentication.Services;
 using SocialMediaAutomation.Application.Common;
 using SocialMediaAutomation.Application.Common.Authorization;
 using SocialMediaAutomation.Application.Organizations.Commands;
@@ -16,6 +17,7 @@ public sealed class OrganizationMemberService(
     OrganizationAuthorizer authorizer,
     IOrganizationRepository organizations,
     IUserRepository users,
+    IPasswordHasher passwordHasher,
     ActivityRecorder activity,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
@@ -67,6 +69,33 @@ public sealed class OrganizationMemberService(
         activity.Notify(access.OrganizationId, [user.Id], NotificationType.TEAM_INVITATION, "Added to a workspace",
             $"You were added as {command.Role}.", ActivityRecorder.OrganizationResource, access.OrganizationId);
 
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return await GetDtoAsync(access, member.Id, cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates a new account with the Creator role in this workspace, in one transaction. The full name completes the
+    /// profile, so the Creator signs in straight to Home. The email must not belong to an existing account.
+    /// </summary>
+    public async Task<MemberDto> CreateCreatorAsync(CreateCreatorCommand command, CancellationToken cancellationToken)
+    {
+        var access = await authorizer.AuthorizeAsync(command.OrganizationId, Permission.ManageMembers, cancellationToken);
+        var fullName = Guard.Required(command.FullName, "Full name", User.DisplayNameMaxLength);
+        var email = Guard.Required(command.Email, "Email", 256);
+        if ((command.Password ?? "").Length < AccountService.MinPasswordLength)
+            throw Guard.Invalid("Password", $"must be at least {AccountService.MinPasswordLength} characters");
+        if (await users.FindByNormalizedEmailAsync(User.NormalizeEmail(email), cancellationToken) is not null)
+            throw new BusinessException(ErrorCodes.EmailAlreadyRegistered, "An account with this email already exists.");
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var user = User.Create(Guid.NewGuid(), email, fullName, passwordHasher.Hash(command.Password!), now);
+        var member = OrganizationMember.Create(Guid.NewGuid(), access.OrganizationId, user.Id, OrganizationRole.Creator, now);
+        users.Add(user);
+        organizations.Add(member);
+        activity.Audit(access.OrganizationId, access.UserId, AuditActions.MemberAdded, ActivityRecorder.OrganizationResource, access.OrganizationId,
+            new Dictionary<string, string?> { ["memberUserId"] = user.Id.ToString(), ["role"] = nameof(OrganizationRole.Creator), ["accountCreated"] = "true" });
+
+        // A concurrent creation with the same email hits the unique NormalizedEmail index and surfaces as a conflict.
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return await GetDtoAsync(access, member.Id, cancellationToken);
     }

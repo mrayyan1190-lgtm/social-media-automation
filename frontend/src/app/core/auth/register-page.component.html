@@ -54,7 +54,6 @@
       </div>
     </div>
 
-    <div class="badge"><span>✨</span> Free to get started</div>
     <div class="copy">
       <h1>Start publishing in minutes.</h1>
       <p>Create a workspace, invite your reviewers, and ship approved posts to LinkedIn, Facebook and Instagram.</p>
@@ -110,9 +109,7 @@
         <label class="terms"><input type="checkbox" formControlName="terms" /> <span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span></label>
         @if (form.controls.terms.touched && form.controls.terms.invalid) { <span class="field-error">Please accept the terms to continue.</span> }
 
-        @if (problem(); as p) {
-          <p class="error" role="alert">{{ p.detail }}</p>
-        }
+        <app-problem-banner [problem]="problem()" />
 
         <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Creating…' : 'Create Account' }}</button>
 

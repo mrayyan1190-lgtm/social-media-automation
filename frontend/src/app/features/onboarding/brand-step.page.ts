@@ -7,11 +7,12 @@ import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { httpUrlValidator } from '../../shared/validators/http-url.validator';
 import { BRAND_TONES, BrandTone } from '../settings/models/brand-profile.model';
 import { BrandProfileApiService } from '../settings/services/brand-profile-api.service';
+import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 
 /** Onboarding step 2: the four brand inputs. Advanced brand settings stay in Settings for later. */
 @Component({
   selector: 'app-onboarding-brand',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './brand-step.page.html',
   styleUrl: './brand-step.page.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.

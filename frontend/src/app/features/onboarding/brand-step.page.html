@@ -66,9 +66,7 @@
         @if (form.controls.website.hasError('httpUrl')) { <span class="field-error">Enter a full address such as https://example.com.</span> }
       </div>
 
-      @if (problem(); as p) {
-        <p class="error" role="alert">{{ p.detail }}</p>
-      }
+      <app-problem-banner [problem]="problem()" />
 
       <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Continue' }}</button>
 

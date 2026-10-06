@@ -11,4 +11,6 @@ public sealed record ChangeMemberRoleCommand(Guid OrganizationId, Guid MemberId,
 
 public sealed record AddMemberCommand(Guid OrganizationId, string Email, OrganizationRole Role);
 
+public sealed record CreateCreatorCommand(Guid OrganizationId, string FullName, string Email, string Password);
+
 public sealed record DeactivateMemberCommand(Guid OrganizationId, Guid MemberId, byte[]? ExpectedRowVersion);

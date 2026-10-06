@@ -1,23 +1,26 @@
-import { Component, input, output } from '@angular/core';
+import { Component, effect, inject, input, output } from '@angular/core';
 import { ApiProblem } from '../../core/http/api-problem';
+import { ToastService } from '../../core/services/toast.service';
 import { ErrorCodes } from '../models/error-codes';
 
-/** Shows an API problem; for a concurrency conflict it offers to reload the latest server state. */
+/**
+ * Shows an API problem as a popup at the top of the page (pages keep using this component as before). For a
+ * concurrency conflict the popup offers to reload the latest server state.
+ */
 @Component({
   selector: 'app-problem-banner',
-  template: `
-    @if (problem(); as p) {
-      <div class="banner error" role="alert">
-        <span>{{ p.detail }}</span>
-        @if (p.code === conflict) {
-          <button type="button" (click)="reload.emit()">Reload latest</button>
-        }
-      </div>
-    }
-  `,
+  template: ``,
 })
 export class ProblemBannerComponent {
   readonly problem = input<ApiProblem | null>(null);
   readonly reload = output<void>();
-  protected readonly conflict = ErrorCodes.ConcurrencyConflict;
+  private readonly toasts = inject(ToastService);
+
+  constructor() {
+    effect(() => {
+      const p = this.problem();
+      if (!p) return;
+      this.toasts.error(p.detail, p.code === ErrorCodes.ConcurrencyConflict ? { label: 'Reload latest', run: () => this.reload.emit() } : undefined);
+    });
+  }
 }

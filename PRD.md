@@ -251,7 +251,8 @@ A user should be able to:
 2. Create a workspace (business name, industry, IANA timezone; language defaults to English) or select one;
    the creator becomes its Admin
 3. Configure one brand profile
-4. Optionally connect available social destinations or add simulated ones (this never blocks campaigns)
+4. Connect at least one social destination through the real provider sign-in (OAuth); onboarding offers no simulated
+   shortcut and needs provider app credentials on the server (this never blocks the campaign API)
 5. Use seeded Creator and Reviewer demo accounts
 
 The backend reports onboarding progress and the next step (workspace, brand profile, campaigns) so the frontend never
@@ -602,9 +603,15 @@ The workspace has:
 
 `RequireDistinctReviewer`
 
-For the manager demonstration this should be enabled.
-
 When enabled, the submitter or last meaningful human editor of the version cannot approve that same version.
+
+**One-week MVP decision (Admin and Creator only):** the person who signs up is the workspace Admin. The Admin creates
+Creator logins on the Members page (full name, email, password; no invitation email) and hands the credentials over.
+Creators use only Home, AI Studio, Composer and Planner: they generate, write and edit drafts and submit them for
+review, but cannot approve, schedule, publish, connect accounts or manage members. The Admin approves or requests
+changes and schedules or publishes. The Reviewer role is not offered in the web app. New workspaces start with
+`RequireDistinctReviewer` disabled so an Admin may also approve their own posts; the approval-settings switch is
+hidden. Human approval of an exact version is still required before any publication job.
 
 ---
 

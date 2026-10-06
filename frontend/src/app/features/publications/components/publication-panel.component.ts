@@ -11,34 +11,30 @@ import { PublicationJobComponent } from './publication-job.component';
 import { ScheduleDialogComponent } from './schedule-dialog.component';
 
 /**
- * Schedule / Publish Now for the approved current version of one post, plus that post's publication jobs.
- * Both actions only create a durable job; the outcome appears later as the job's delivery state.
+ * Schedule / Publish Now for the approved current version of one post, plus that post's publication jobs. Both actions
+ * only create a durable job; the outcome appears later as the job's delivery state. Styled by the Approvals page (ap-*).
  */
 @Component({
   selector: 'app-publication-panel',
   imports: [ProblemBannerComponent, PublicationJobComponent, ScheduleDialogComponent],
   template: `
-    <section class="card">
-      <h2>Publishing</h2>
-      @if (success(); as message) { <p class="banner success" role="status">{{ message }}</p> }
-      <app-problem-banner [problem]="problem()" (reload)="reload()" />
-      @if (canSchedule()) {
-        <p class="hint">Version {{ post().currentVersion.versionNumber }} is approved. Schedule it or publish it now; it goes out even if you close the browser.</p>
-        <div class="actions">
-          <button class="primary" type="button" [disabled]="busy()" (click)="openSchedule()">Schedule</button>
-          <button type="button" [disabled]="busy()" (click)="publishNow()">{{ busy() ? 'Working…' : 'Publish Now' }}</button>
-        </div>
-      } @else if (post().editorialState !== 'APPROVED') {
-        <p class="hint">Only approved content can be scheduled or published. Submit this post for review first.</p>
+    @if (canSchedule()) {
+      <div class="ap-actions">
+        <button class="ap-btn" type="button" [disabled]="busy()" (click)="openSchedule()">Schedule</button>
+        <button class="ap-btn ghost" type="button" [disabled]="busy()" (click)="publishNow()">{{ busy() ? 'Working…' : 'Publish Now' }}</button>
+      </div>
+    } @else if (post().editorialState !== 'APPROVED') {
+      <p class="ap-note">Only approved content can be scheduled or published. Submit this post for review first.</p>
+    } @else {
+      <p class="ap-note">Version {{ post().currentVersion.versionNumber }} is approved. The Admin schedules or publishes it.</p>
+    }
+    @if (success(); as message) { <p class="ap-banner ok" role="status">{{ message }}</p> }
+    <app-problem-banner [problem]="problem()" (reload)="reload()" />
+    @if (!loading()) {
+      @for (j of jobs(); track j.id) {
+        <app-publication-job [job]="j" [busy]="busy()" (cancel)="cancel($event)" />
       }
-      @if (loading()) {
-        <p class="hint">Loading…</p>
-      } @else {
-        @for (j of jobs(); track j.id) {
-          <app-publication-job [job]="j" [busy]="busy()" (reschedule)="openReschedule($event)" (cancel)="cancel($event)" />
-        } @empty { <p class="hint">Not scheduled yet.</p> }
-      }
-    </section>
+    }
     <app-schedule-dialog [submit]="submitSchedule" />
   `,
 })
@@ -56,9 +52,9 @@ export class PublicationPanelComponent {
   protected readonly busy = signal(false);
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly success = signal<string | null>(null);
-  private readonly rescheduling = signal<PublicationJob | null>(null);
 
-  protected readonly canSchedule = computed(() => this.workspace.canManageCampaigns() && this.post().editorialState === 'APPROVED');
+  /** Admins schedule and publish; Creators only see the status (the API enforces it too). */
+  protected readonly canSchedule = computed(() => this.workspace.isAdmin() && this.post().editorialState === 'APPROVED');
 
   private poll?: ReturnType<typeof setTimeout>;
 
@@ -72,23 +68,16 @@ export class PublicationPanelComponent {
   }
 
   protected openSchedule(): void {
-    this.rescheduling.set(null);
     this.dialog().open(`Schedule version ${this.post().currentVersion.versionNumber}`, 'Schedule', this.workspace.timeZone());
-  }
-
-  protected openReschedule(job: PublicationJob): void {
-    this.rescheduling.set(job);
-    this.dialog().open(job.deliveryState === 'SCHEDULED' ? 'Change schedule' : 'Schedule again', 'Save', this.workspace.timeZone(), job);
   }
 
   /** Called by the dialog; returns a problem to show there, or null when the job was saved. */
   protected readonly submitSchedule = async (when: LocalSchedule): Promise<ApiProblem | null> => {
     const orgId = this.workspace.orgId();
     if (!orgId) return null;
-    const job = this.rescheduling();
     const post = this.post();
     try {
-      const saved = await firstValueFrom(job ? this.api.reschedule(orgId, job, when) : this.api.schedule(orgId, post.id, post.currentVersionId, when, post.rowVersion));
+      const saved = await firstValueFrom(this.api.schedule(orgId, post.id, post.currentVersionId, when, post.rowVersion));
       this.success.set(`Scheduled for ${formatInZone(saved.publishAtUtc, this.workspace.timeZone())} (${this.workspace.timeZone()}).`);
       this.problem.set(null);
       await this.load(orgId, post.id);

@@ -1,0 +1,76 @@
+<div class="ws">
+  <app-problem-banner [problem]="problem()" (reload)="load()" />
+  @if (oauthStatus === 'connected') { <p class="banner success" role="status">Account connected.</p> }
+
+  <form class="ws-card" [formGroup]="form" (ngSubmit)="save()">
+    <!-- Workspace -->
+    <div class="ws-section">
+      <div class="ws-head">
+        <span class="label">Workspace</span>
+        <span class="note">Time zone and language apply to AI drafts and the Planner.</span>
+      </div>
+      @if (loading()) {
+        <p class="note">Loading…</p>
+      } @else {
+        <div class="ws-grid">
+          <div class="ws-field">
+            <label for="ws-name">Workspace name</label>
+            <input class="ws-input" id="ws-name" formControlName="name" maxlength="200" placeholder="Workspace name" />
+            @if (form.controls.name.invalid && form.controls.name.touched) { <span class="ws-error">A name is required.</span> }
+          </div>
+          <div class="ws-field">
+            <label for="ws-lang">Default language</label>
+            <span class="ws-select">
+              <select id="ws-lang" formControlName="defaultLanguage">
+                @for (l of languages(); track l.code) { <option [value]="l.code">{{ l.name }} ({{ l.code }})</option> }
+              </select>
+              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </span>
+          </div>
+          <div class="ws-field">
+            <label for="ws-tz">Time zone</label>
+            <span class="ws-select">
+              <select id="ws-tz" formControlName="timeZoneId">
+                @for (z of zones; track z) { <option [value]="z">{{ z }}</option> }
+              </select>
+              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </span>
+            <span class="help">Scheduling and Planner times use this zone.</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Approvals -->
+    <div class="ws-section">
+      <div class="ws-head"><span class="label">Approvals</span></div>
+      <div class="ws-toggle" role="switch" tabindex="0" [class.on]="form.controls.requireDistinctReviewer.value"
+        [class.locked]="form.controls.requireDistinctReviewer.disabled" [attr.aria-checked]="form.controls.requireDistinctReviewer.value"
+        (click)="toggleReviewer()" (keydown.enter)="toggleReviewer(); $event.preventDefault()" (keydown.space)="toggleReviewer(); $event.preventDefault()">
+        <div class="toggle-txt">
+          <div class="tt">Require a second approver</div>
+          <div class="td">The person who wrote or last edited a post cannot approve it themselves.</div>
+        </div>
+        <span class="switch" aria-hidden="true"></span>
+      </div>
+    </div>
+
+    <!-- Social accounts -->
+    @if (workspace.orgId(); as orgId) {
+      <div class="ws-section" id="accounts">
+        <app-social-connections [orgId]="orgId" [allowDisconnect]="true" [canManage]="workspace.isAdmin()" />
+      </div>
+    }
+
+    <!-- Footer -->
+    <div class="ws-foot">
+      <span class="meta">{{ !workspace.isAdmin() ? 'Only Admins can change workspace settings.' : savedOnce() ? 'Saved just now · applies to everyone in this workspace.' : 'Changes apply to everyone in this workspace.' }}</span>
+      @if (workspace.isAdmin()) {
+        <button class="ws-save" [class.saved]="saved()" type="submit" [disabled]="busy() || loading() || form.pristine">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h7"/></svg>
+          {{ busy() ? 'Saving…' : saved() ? 'Saved' : 'Save changes' }}
+        </button>
+      }
+    </div>
+  </form>
+</div>

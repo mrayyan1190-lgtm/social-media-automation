@@ -42,15 +42,19 @@ export const routes: Routes = [
       // Composer: a new post (/composer?campaignId=…) or an existing one (/composer/{postId}). Read-only for reviewers.
       { path: 'composer', loadComponent: composer },
       { path: 'composer/:postId', loadComponent: composer },
-      { path: 'campaigns', loadChildren: () => import('./features/campaigns/campaigns.routes').then((m) => m.CAMPAIGN_ROUTES) },
-      { path: 'approvals', loadComponent: () => import('./features/approvals/approvals.page').then((m) => m.ApprovalsPage) },
-      { path: 'approvals/:reviewId', loadComponent: () => import('./features/approvals/pages/review-detail/review-detail.page').then((m) => m.ReviewDetailPage) },
+      // Creator (MVP): Home, AI Studio, Composer, Planner, Notifications and Profile only. Every other page is Admin-only
+      // here as well as hidden in the sidebar; the API enforces the same permissions.
+      { path: 'campaigns', canActivate: [workspaceAdminGuard], loadChildren: () => import('./features/campaigns/campaigns.routes').then((m) => m.CAMPAIGN_ROUTES) },
+      { path: 'approvals', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/approvals/approvals.page').then((m) => m.ApprovalsPage) },
+      { path: 'approvals/:reviewId', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/approvals/pages/review-detail/review-detail.page').then((m) => m.ReviewDetailPage) },
       { path: 'planner', loadComponent: () => import('./features/planner/planner.page').then((m) => m.PlannerPage) },
-      { path: 'library', loadComponent: () => import('./features/library/library.page').then((m) => m.LibraryPage) },
-      { path: 'brand', loadComponent: () => import('./features/settings/pages/brand-settings/brand-settings.page').then((m) => m.BrandSettingsPage) },
-      // Everyone sees connection status; only Admins get connect/disconnect actions (the API enforces it too).
-      { path: 'social-accounts', loadComponent: () => import('./features/settings/pages/social-connections.page').then((m) => m.SocialConnectionsPage) },
-      { path: 'team', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/settings/pages/team.page').then((m) => m.TeamPage) },
+      { path: 'library', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/library/library.page').then((m) => m.LibraryPage) },
+      { path: 'brand', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/settings/pages/brand-settings/brand-settings.page').then((m) => m.BrandSettingsPage) },
+      // Social accounts live in Settings; the provider sign-in still returns to /social-accounts?status=… (query kept).
+      { path: 'social-accounts', pathMatch: 'full', redirectTo: 'settings/workspace' },
+      // Members: the Admin creates Creator logins (no invitation email in the MVP).
+      { path: 'members', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/settings/pages/team.page').then((m) => m.TeamPage) },
+      { path: 'team', redirectTo: 'members' },
       { path: 'settings', canActivate: [workspaceAdminGuard], loadChildren: () => import('./features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES) },
       { path: 'notifications', loadComponent: () => import('./features/account/notifications.page').then((m) => m.NotificationsPage) },
       { path: 'profile', loadComponent: () => import('./features/account/profile.page').then((m) => m.ProfilePage) },

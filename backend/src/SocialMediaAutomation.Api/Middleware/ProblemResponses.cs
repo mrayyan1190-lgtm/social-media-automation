@@ -11,6 +11,7 @@ internal static class ProblemResponses
         ErrorCodes.Unauthorized or ErrorCodes.InvalidCredentials => StatusCodes.Status401Unauthorized,
         ErrorCodes.Forbidden or ErrorCodes.DistinctReviewerRequired or ErrorCodes.WorkspaceSuspended or ErrorCodes.AccountDisabled => StatusCodes.Status403Forbidden,
         ErrorCodes.NotFound or ErrorCodes.TenantMismatch => StatusCodes.Status404NotFound,
+        ErrorCodes.InternalError => StatusCodes.Status500InternalServerError,
         ErrorCodes.ConcurrencyConflict or ErrorCodes.InvalidStateTransition or ErrorCodes.AlreadyExists or ErrorCodes.AiNotConfigured
             or ErrorCodes.SubmissionBlocked or ErrorCodes.ApprovalStale or ErrorCodes.ProviderNotConfigured
             or ErrorCodes.SocialAccountNotReady or ErrorCodes.ApprovalRequired or ErrorCodes.IdempotencyConflict
@@ -40,9 +41,11 @@ internal static class ProblemResponses
         return problem;
     }
 
-    public static Task WriteAsync(HttpContext context, string code, string detail)
+    public static Task WriteAsync(HttpContext context, string code, string detail, int? status = null)
     {
         var problem = Create(code, detail);
+        if (status is { } explicitStatus)
+            problem.Status = explicitStatus;
         problem.Extensions["correlationId"] = context.TraceIdentifier;
         context.Response.StatusCode = problem.Status!.Value;
         return context.Response.WriteAsJsonAsync(problem, options: null, contentType: "application/problem+json");

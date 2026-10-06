@@ -27,8 +27,8 @@
     </div>
 
     <form novalidate>
-      @if (oauthFailed(); as message) {
-        <p class="error" role="alert">The connection did not complete: {{ message }}</p>
+      @if (oauthResult(); as message) {
+        @if (!anyConnected()) { <p class="error" role="alert">{{ message }}</p> }
       }
       @if (orgId) {
         <app-social-connections [orgId]="orgId" [compact]="true" (connectedChange)="anyConnected.set($event)" />

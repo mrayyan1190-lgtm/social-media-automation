@@ -1,0 +1,148 @@
+<div class="pl">
+  <!-- Filters -->
+  <div class="pl-filters">
+    <span class="pl-select">
+      <select aria-label="Platform" [ngModel]="platform()" (ngModelChange)="platform.set($event)">
+        <option value="">All platforms</option>
+        @for (p of platforms; track p) { <option [value]="p">{{ p }}</option> }
+      </select>
+      <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </span>
+    <span class="pl-select">
+      <select aria-label="Campaign" [ngModel]="campaign()" (ngModelChange)="campaign.set($event)">
+        <option value="">All campaigns</option>
+        <option value="none">No campaign</option>
+        @for (c of campaigns(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+      </select>
+      <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </span>
+    <span class="pl-select">
+      <select aria-label="Status" [ngModel]="status()" (ngModelChange)="status.set($event)">
+        <option value="">All statuses</option>
+        @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+      </select>
+      <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </span>
+    @if (layout() === 'list') {
+      <span class="pl-select">
+        <select aria-label="Date" [ngModel]="range()" (ngModelChange)="range.set($event)">
+          <option value="">Any date</option>
+          <option value="today">Today</option>
+          <option value="next7">Next 7 days</option>
+          <option value="last7">Last 7 days</option>
+          <option value="month">This month</option>
+        </select>
+        <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </span>
+    }
+    @if (filtersActive()) { <button type="button" class="pl-clear" (click)="clear()">Clear</button> }
+
+    <span class="spacer"></span>
+    <span class="pl-count">{{ filtered().length }} {{ filtered().length === 1 ? 'post' : 'posts' }} shown</span>
+
+    <div class="pl-seg" role="group" aria-label="View">
+      <button type="button" [class.active]="layout() === 'calendar'" (click)="layout.set('calendar')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar
+      </button>
+      <button type="button" [class.active]="layout() === 'list'" (click)="layout.set('list')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>List
+      </button>
+    </div>
+  </div>
+
+  <app-problem-banner [problem]="problem()" />
+
+  @if (layout() === 'calendar') {
+    <section class="pl-card">
+      <div class="pl-cal-head">
+        <button type="button" class="pl-nav" aria-label="Previous month" (click)="shiftMonth(-1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div class="pl-cal-title">{{ monthName() }} <span>{{ month().slice(0, 4) }}</span></div>
+        <button type="button" class="pl-nav" aria-label="Next month" (click)="shiftMonth(1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button type="button" class="pl-today" (click)="month.set(thisMonth)">Today</button>
+        <span class="spacer"></span>
+        <span class="pl-footnote">{{ loading() ? 'Loading…' : monthCount() + (monthCount() === 1 ? ' post' : ' posts') + ' this month' }}</span>
+      </div>
+
+      <div class="pl-cal">
+        <div class="pl-weekdays">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span class="we">Sat</span><span class="we">Sun</span>
+        </div>
+        <div class="pl-grid">
+          @for (day of days(); track day.date) {
+            <div class="pl-cell" [class.other]="!day.inMonth" [class.today]="day.today">
+              <div class="pl-daynum">{{ day.day }}</div>
+              @for (p of day.posts.slice(0, 3); track p.id) {
+                <a [class]="'pl-evt ' + palette(p.status)" [routerLink]="['/composer', p.id]"
+                  [title]="title(p) + ' · ' + p.platform + ' · ' + p.status + ' · ' + time(p.publishAt, { timeStyle: 'short' })">
+                  <app-platform-icon [platform]="p.platform" />
+                  <span class="time">{{ time(p.publishAt, { timeStyle: 'short' }) }}</span>
+                  <span class="ttl">{{ title(p) }}</span>
+                </a>
+              }
+              @if (day.posts.length > 3) {
+                <button type="button" class="pl-more-link" (click)="layout.set('list')">+{{ day.posts.length - 3 }} more</button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="pl-cal-foot">
+        <div class="pl-legend">
+          <span class="item"><span class="dot scheduled"></span>Scheduled</span>
+          <span class="item"><span class="dot published"></span>Published</span>
+          <span class="item"><span class="dot failed"></span>Failed</span>
+          <span class="item"><span class="dot draft"></span>Draft</span>
+          <span class="item"><span class="dot review"></span>In review</span>
+        </div>
+        <span class="pl-footnote">Scheduled, published and failed posts appear on their date. Drafts and posts in review are in the List view. All times in {{ workspace.timeZone() }}.</span>
+      </div>
+    </section>
+  } @else {
+    <section class="pl-card">
+      <div class="pl-list-head">
+        <h2>{{ listTitle() }}</h2>
+        <span class="muted">{{ filtered().length }} {{ filtered().length === 1 ? 'post' : 'posts' }}</span>
+      </div>
+      <div class="pl-list">
+        <div class="pl-row head">
+          <span>Post</span><span>Platform</span><span class="hcamp">Campaign</span><span>Status</span>
+          <span class="hwhen">Scheduled / Published</span><span class="hupd">Updated</span><span></span>
+        </div>
+        @for (r of listRows(); track r.id) {
+          <div class="pl-row" role="link" tabindex="0" [routerLink]="['/composer', r.id]">
+            <span class="ltitle" [title]="title(r)">{{ title(r) }}</span>
+            <span class="lplatform"><app-platform-icon [platform]="r.platform" /><span class="pname">{{ r.platform }}</span></span>
+            <span class="lcamp" [class.dash]="!r.campaignName" [title]="r.campaignName ?? ''">{{ r.campaignName || '—' }}</span>
+            <span [class]="'pl-status ' + palette(r.status)"><span class="dot"></span>{{ r.status }}</span>
+            <span class="lwhen" [class.dash]="!r.publishAt">{{ time(r.publishAt) }}</span>
+            <span class="lupd">{{ time(r.updatedAtUtc, { dateStyle: 'medium' }) }}</span>
+            <details class="pl-more" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
+              <summary aria-label="More options">
+                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+              </summary>
+              <div class="pl-menu">
+                <a [routerLink]="['/composer', r.id]">Open in Composer</a>
+                @if (r.campaignId && workspace.isAdmin()) { <a [routerLink]="['/campaigns', r.campaignId]">Open campaign</a> }
+                @if (r.status === 'In Review' && workspace.isAdmin()) { <a routerLink="/approvals">Go to Approvals</a> }
+              </div>
+            </details>
+          </div>
+        } @empty {
+          <div class="pl-empty">
+            @if (loading()) { Loading… }
+            @else if (rows().length) { No posts match these filters. }
+            @else {
+              No posts yet.
+              @if (workspace.canManageCampaigns()) { <a routerLink="/composer">Write a post</a> or <a routerLink="/ai-studio">create one with AI</a>. }
+            }
+          </div>
+        }
+      </div>
+    </section>
+  }
+</div>

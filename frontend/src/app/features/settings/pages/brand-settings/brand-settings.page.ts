@@ -3,9 +3,10 @@ import { Component, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../../core/http/api-problem';
+import { ToastService } from '../../../../core/services/toast.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../../../shared/components/problem-banner.component';
-import { fromList, toList } from '../../../../shared/utilities/list-text';
+import { toList } from '../../../../shared/utilities/list-text';
 import { httpUrlValidator } from '../../../../shared/validators/http-url.validator';
 import { BRAND_TONES, BrandProfile, BrandProfileInput, BrandTone } from '../../models/brand-profile.model';
 import { BrandProfileApiService } from '../../services/brand-profile-api.service';
@@ -14,15 +15,19 @@ import { BrandProfileApiService } from '../../services/brand-profile-api.service
   selector: 'app-brand-settings-page',
   imports: [ReactiveFormsModule, ProblemBannerComponent],
   templateUrl: './brand-settings.page.html',
+  styleUrl: './brand-settings.page.css',
 })
 export class BrandSettingsPage {
   private readonly api = inject(BrandProfileApiService);
   protected readonly workspace = inject(WorkspaceService);
+  private readonly toast = inject(ToastService);
 
   protected readonly toneOptions = BRAND_TONES;
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
+  /** Briefly true after a save: the button turns green. */
   protected readonly saved = signal(false);
+  protected readonly advOpen = signal(false);
   protected readonly problem = signal<ApiProblem | null>(null);
   /** Null until a profile exists; sent as If-Match on every update. */
   protected readonly current = signal<BrandProfile | null>(null);
@@ -72,6 +77,8 @@ export class BrandSettingsPage {
     try {
       this.apply(await firstValueFrom(this.api.save(orgId, this.toInput(), this.current()?.rowVersion ?? null)));
       this.saved.set(true);
+      this.toast.success('Brand profile saved');
+      setTimeout(() => this.saved.set(false), 2000);
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
@@ -81,7 +88,7 @@ export class BrandSettingsPage {
 
   private apply(profile: BrandProfile): void {
     this.current.set(profile);
-    this.form.reset({ ...profile, website: profile.website ?? '', prohibitedTerms: fromList(profile.prohibitedTerms) });
+    this.form.reset({ ...profile, website: profile.website ?? '', prohibitedTerms: profile.prohibitedTerms.join(', ') });
   }
 
   private toInput(): BrandProfileInput {

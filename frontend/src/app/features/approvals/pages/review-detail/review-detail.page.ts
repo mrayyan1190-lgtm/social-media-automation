@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, effect, inject, input, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../../core/http/api-problem';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
@@ -25,6 +25,7 @@ export class ReviewDetailPage {
   protected readonly reviewLabels: Record<string, string> = { PENDING: 'In Review', APPROVED: 'Approved', CHANGES_REQUESTED: 'Changes Requested' };
   protected readonly tones: Record<string, string> = { PENDING: 'waiting', APPROVED: 'success', CHANGES_REQUESTED: 'danger' };
   protected readonly demoNote = DEMO_MODE_NOTE;
+  private readonly router = inject(Router);
   private readonly api = inject(ReviewApiService);
   private readonly media = inject(MediaApiService);
   protected readonly workspace = inject(WorkspaceService);
@@ -97,6 +98,15 @@ export class ReviewDetailPage {
     try {
       await action(orgId, detail.review);
       this.showChangesForm.set(false);
+      // After approval, go to Approvals → Approved to schedule or publish; after changes were requested, to the post to edit it.
+      if (message.startsWith('Approved')) {
+        await this.router.navigate(['/approvals'], { queryParams: { tab: 'approved' } });
+        return;
+      }
+      if (this.workspace.canManageCampaigns()) {
+        await this.router.navigate(['/composer', detail.review.postId]);
+        return;
+      }
       this.notice.set(message);
       await this.load();
     } catch (error) {

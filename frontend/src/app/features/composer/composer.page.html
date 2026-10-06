@@ -1,240 +1,153 @@
-<div class="page-header">
-  <div>
-    <h1>
-      Composer
-      @if (post()) {
-        <span [class]="'badge delivery ' + tone(status())">{{ status() }}</span>
-        <span class="badge version">Version {{ version()?.versionNumber }}</span>
-      }
-    </h1>
-    <p class="muted">{{ isNew() ? 'Write the post, add an image, then send it for review.' : 'Saving an edit creates a new version; earlier versions are kept.' }}</p>
-  </div>
-  @if (canEdit()) {
-    <div class="actions">
-      <button type="button" class="primary" (click)="saveDraft()" [disabled]="!!busy() || !dirty()">{{ busy() === 'save' ? 'Saving…' : 'Save Draft' }}</button>
-    </div>
+<div class="cmp">
+  <app-problem-banner [problem]="problem()" (reload)="reload()" />
+  @if (notice(); as n) { <p class="banner success" role="status">{{ n }}</p> }
+  @if (state() === 'IN_REVIEW') {
+    <p class="banner info">
+      Version {{ version()?.versionNumber }} is waiting for review, so editing is locked.
+      @if (workspace.isAdmin() && latestReview(); as r) { <a [routerLink]="['/approvals', r.id]">Open review</a> }
+      @else if (workspace.canManageCampaigns()) { <a routerLink="/composer">Write a new post</a> }
+    </p>
+  } @else if (state() === 'CHANGES_REQUESTED' && changesRequested()) {
+    <p class="banner error">Changes requested by {{ changesRequested()?.decidedByName }}: “{{ changesRequested()?.decisionComment }}” Edit the post, save it, then submit it again.</p>
+  } @else if (state() === 'APPROVED') {
+    <p class="banner success">
+      Version {{ version()?.versionNumber }} is approved. Any edit creates a new version that needs review again.
+      @if (workspace.isAdmin()) { Schedule or publish it in <a routerLink="/approvals" [queryParams]="{ tab: 'approved' }">Approvals → Approved</a>. }
+      @else { The Admin schedules or publishes it. }
+    </p>
   }
-</div>
 
-<app-problem-banner [problem]="problem()" (reload)="reload()" />
-@if (notice(); as n) { <p class="banner success" role="status">{{ n }}</p> }
-@if (state() === 'IN_REVIEW') {
-  <p class="banner info">Version {{ version()?.versionNumber }} is waiting for review, so editing is locked.</p>
-} @else if (state() === 'CHANGES_REQUESTED' && changesRequested()) {
-  <p class="banner error">Changes requested by {{ changesRequested()?.decidedByName }}: “{{ changesRequested()?.decisionComment }}” Edit the post and save to create a new version, then submit it again.</p>
-} @else if (post() && !workspace.canManageCampaigns()) {
-  <p class="banner info">You can view this post; Creators and Admins edit it.</p>
-}
+  <!-- Post -->
+  <section class="cmp-card">
+    <textarea class="cmp-post" placeholder="What do you want to share?" aria-label="Post"
+      [ngModel]="text()" (ngModelChange)="text.set($event)" [disabled]="!canEdit()"></textarea>
 
-<div class="composer">
-  <div class="composer-main">
-    <section class="card">
-      <h2>Publish To</h2>
-      <div class="platform-tabs">
-        @for (p of platforms; track p) {
-          <button type="button" class="platform-tab" [class.on]="platform() === p" [attr.aria-pressed]="platform() === p"
-            [disabled]="!canEdit() || (!isNew() && platform() !== p)" (click)="choosePlatform(p)">
-            <app-platform-icon [platform]="p" [label]="true" />
-            <span class="hint">{{ connected(p) ? 'Connected' : 'Not connected' }}</span>
+    @if (image(); as img) {
+      <div class="cmp-attachment">
+        <img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" />
+        <span>{{ img.originalFileName }}<span class="cmp-soft"> · {{ img.width }}×{{ img.height }}</span></span>
+        @if (canEdit()) { <button type="button" aria-label="Remove image" (click)="removeImage()">&times;</button> }
+      </div>
+    } @else if (platform() === 'Instagram') {
+      <p class="cmp-hint">Instagram needs one JPEG image: attach it with the paperclip below.</p>
+    }
+
+    @if (workspace.canManageCampaigns()) {
+      <!-- Composer: paperclip, prompt, send -->
+      <div class="cmp-composer">
+        <div class="cmp-composer-row">
+          @if (canEdit()) {
+            <label class="cmp-icon-btn" [attr.data-tip]="busy() === 'upload' ? 'Uploading…' : 'Upload image'" aria-label="Upload image">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.19 9.19a1.83 1.83 0 0 1-2.59-2.59l8.48-8.48"/></svg>
+              <input type="file" accept="image/jpeg,image/png" hidden (change)="upload($event)" [disabled]="!!busy()" />
+            </label>
+          }
+          <input class="cmp-prompt" type="text" maxlength="500" aria-label="Describe what you want to create"
+            [placeholder]="canEdit() ? 'Describe what you want to create...' : 'This post is locked for review. Describe a new post to create...'"
+            [ngModel]="aiInstruction()" (ngModelChange)="aiInstruction.set($event)" (keydown.enter)="generateWithAi()" />
+          <button type="button" class="cmp-send" [class.is-idle]="!aiInstruction().trim()" [class.is-loading]="busy() === 'generate' || busy() === 'Custom'"
+            data-tip="Generate post" aria-label="Generate post" (click)="generateWithAi()" [disabled]="!!busy() || !aiInstruction().trim() || !platform()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="cmp-chips">
+        @for (c of aiPresets; track c.label) {
+          <button type="button" class="cmp-chip" (click)="addPreset(c.text)" [disabled]="!!busy()">
+            @switch (c.icon) {
+              @case ('rocket') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg> }
+              @case ('user') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> }
+              @case ('bulb') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2z"/></svg> }
+              @case ('chat') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> }
+              @case ('doc') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> }
+              @default { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> }
+            }
+            {{ c.label }}
           </button>
         }
       </div>
-      @if (platform(); as p) {
+    }
+
+    <!-- Publish to / account -->
+    <div class="cmp-publish">
+      <div class="cmp-pub-left">
+        <span class="cmp-microlabel">Publish to</span>
+        <div class="cmp-platforms">
+          @for (p of platforms; track p) {
+            <button type="button" class="cmp-plat" [class.active]="platform() === p" [attr.aria-pressed]="platform() === p"
+              [disabled]="!canEdit() || (!isNew() && platform() !== p)" (click)="choosePlatform(p)">
+              <app-platform-icon [platform]="p" />{{ p }}
+            </button>
+          }
+        </div>
         @if (platformAccounts().length) {
-          <label class="account-select">Account
-            <select [ngModel]="accountId()" (ngModelChange)="accountId.set($event)" [disabled]="!canEdit()">
-              <option value="">Choose a {{ p }} account…</option>
+          <span class="cmp-account">
+            @if (platform(); as p) { <app-platform-icon [platform]="p" /> }
+            <select aria-label="Account" [ngModel]="accountId()" (ngModelChange)="accountId.set($event)" [disabled]="!canEdit()">
+              <option value="">Choose a {{ platform() }} account…</option>
               @for (a of platformAccounts(); track a.id) {
                 <option [value]="a.id" [disabled]="!a.isEligibleDestination">
                   {{ a.displayName }}{{ a.executionMode === 'SIMULATED' ? ' (Demo)' : '' }}{{ a.isEligibleDestination ? '' : ' — needs reconnection' }}
                 </option>
               }
             </select>
-          </label>
-          @if (selectedAccount()?.executionMode === 'SIMULATED') { <p class="hint tight">{{ demoNote }}</p> }
+            <svg class="cmp-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
         } @else {
-          <p class="hint tight">No connected {{ p }} account yet. You can write a draft now; <a routerLink="/social-accounts">connect an account</a> before sending it for review.</p>
+          <span class="cmp-hint">
+            No connected {{ platform() ?? '' }} account yet.
+            @if (workspace.isAdmin()) { <a routerLink="/social-accounts">Connect an account</a> } @else { Ask your Admin to connect one. }
+          </span>
         }
-      } @else {
-        <p class="hint tight">Choose a platform for this post.</p>
-      }
-    </section>
-
-    <section class="card">
-      <div class="card-head">
-        <h2>Post Content</h2>
-        @if (limit(); as max) { <span class="hint" [class.field-error]="length() > max">{{ length() }} / {{ max }}</span> }
       </div>
-      <textarea class="post-input" rows="11" placeholder="Write your post…" aria-label="Post content"
-        [ngModel]="text()" (ngModelChange)="text.set($event)" [disabled]="!canEdit()"></textarea>
-      <label class="inline-field">
-        <app-icon name="link" [size]="15" />
-        <input type="url" placeholder="Link (optional) https://…" aria-label="Link" maxlength="2048"
-          [ngModel]="link()" (ngModelChange)="link.set($event)" [disabled]="!canEdit()" />
-      </label>
-      @if (canEdit()) {
-        <div class="ai-bar">
-          <span class="ai-label"><app-icon name="sparkles" [size]="14" />AI</span>
-          @for (a of aiActions; track a.value) {
-            <button type="button" class="chip" [disabled]="!!busy() || !text().trim() || !platform()" (click)="aiEdit(a.value)">
-              {{ busy() === a.value ? a.label + '…' : a.label }}
-            </button>
-          }
-        </div>
-      }
-    </section>
 
-    <section class="card">
-      <div class="card-head">
-        <h2>Media</h2>
-        @if (platform() === 'Instagram') { <span class="hint">Instagram needs one JPEG image</span> }
-      </div>
-      @if (image(); as img) {
-        <figure class="media-preview">
-          <img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" />
-          <figcaption class="hint">{{ img.originalFileName }} · {{ img.width }}×{{ img.height }}{{ img.sourceType === 'AiGenerated' ? ' · AI image' : '' }}</figcaption>
-        </figure>
-        <label>Alt text <span class="hint">optional · describes the image for screen readers</span>
-          <input maxlength="1000" [ngModel]="altText()" (ngModelChange)="altText.set($event)" [disabled]="!canEdit()" />
-        </label>
-      } @else if (busy() === 'image') {
-        <div class="image-placeholder"><span class="spinner" aria-hidden="true"></span>Generating image…</div>
-      } @else {
-        <p class="hint tight">No image yet.</p>
-      }
-      @if (canEdit()) {
-        <div class="actions media-actions">
-          <label class="button">
-            <app-icon name="upload" [size]="15" />{{ busy() === 'upload' ? 'Uploading…' : image() ? 'Replace' : 'Upload Image' }}
-            <input type="file" accept="image/jpeg,image/png" hidden (change)="upload($event)" [disabled]="!!busy()" />
-          </label>
-          @if (imageAvailable()) {
-            <button type="button" (click)="imagePromptOpen.set(!imagePromptOpen())" [disabled]="!!busy()">
-              <app-icon name="sparkles" [size]="15" />{{ image() ? 'Generate Another' : 'Generate Image' }}
-            </button>
-          }
-          <button type="button" (click)="openLibrary()" [disabled]="!!busy() && busy() !== 'library'"><app-icon name="image" [size]="15" />Select from Library</button>
-          @if (image()) { <button type="button" class="link danger" (click)="removeImage()">Remove</button> }
-        </div>
-        @if (imagePromptOpen()) {
-          <div class="inline-form">
-            <input placeholder="Describe the image (optional) — leave empty to use the post" maxlength="500" aria-label="Image prompt"
-              [ngModel]="imagePrompt()" (ngModelChange)="imagePrompt.set($event)" />
-            <button type="button" class="primary" (click)="generateImage()" [disabled]="!!busy() || !text().trim() || !platform()">
-              {{ busy() === 'image' ? 'Generating…' : 'Generate' }}
-            </button>
-          </div>
-        }
-        @if (library(); as items) {
-          <div class="library-grid">
-            @for (item of items; track item.asset.id) {
-              <button type="button" class="library-item" [class.on]="image()?.id === item.asset.id" [title]="item.asset.originalFileName" (click)="pick(item.asset)">
-                <img [src]="previewUrl(item.asset.id)" [alt]="item.asset.originalFileName" loading="lazy" />
-              </button>
-            } @empty {
-              <p class="hint">No images in the library yet. Upload one above.</p>
-            }
-          </div>
-        }
-      }
-    </section>
-  </div>
-
-  <aside class="composer-side">
-    <section class="card">
-      <h2>Campaign</h2>
-      <div class="campaign-select">
-        <span class="color-dot" [style.background]="selectedCampaign()?.color ?? '#cbd5e1'" aria-hidden="true"></span>
-        <select aria-label="Campaign" [ngModel]="campaign()" (ngModelChange)="changeCampaign($event)"
-          [disabled]="!workspace.canManageCampaigns() || busy() === 'campaign'">
-          <option value="">None</option>
-          @for (c of campaigns(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-        </select>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Preview</h2>
-      <div class="preview">
-        <div class="preview-head">
-          @if (platform(); as p) { <app-platform-icon [platform]="p" /> }
-          <strong>{{ selectedAccount()?.displayName || workspace.current()?.organizationName }}</strong>
-          <span class="hint">{{ platform() ?? 'No platform' }}</span>
-        </div>
-        <p class="pre preview-text" [class.placeholder]="!text().trim()">{{ text().trim() || 'Your post will appear here.' }}</p>
-        @if (link().trim()) { <p class="preview-link">{{ link().trim() }}</p> }
-        @if (image(); as img) { <img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" /> }
-      </div>
-    </section>
-
-    @if (post(); as p) {
-      <section class="card">
-        <h2>Review &amp; Approval</h2>
-        @switch (state()) {
-          @case ('IN_REVIEW') {
-            <p class="hint tight">Waiting for {{ latestReview()?.assignedReviewerName || 'a reviewer' }}.
-              @if (latestReview(); as r) { <a [routerLink]="['/approvals', r.id]">Open review</a> }
-            </p>
-          }
-          @case ('APPROVED') {
-            <p class="hint tight">Version {{ version()?.versionNumber }} approved{{ latestReview()?.decidedByName ? ' by ' + latestReview()?.decidedByName : '' }}. Any edit creates a new version that needs review again.</p>
-          }
-          @case ('CHANGES_REQUESTED') {
-            <p class="hint tight">Edit the post and Save Draft to create a new version, then submit it again.</p>
-          }
-        }
-        @if (state() === 'DRAFT' && canEdit()) {
-          @if (blockingIssues().length) {
-            <ul class="issues compact">
-              @for (issue of blockingIssues(); track $index) {
-                <li [class]="'issue ' + issue.severity.toLowerCase()">{{ issue.message }}</li>
-              }
-            </ul>
-          }
-          <label>Reviewer
-            <select [ngModel]="reviewerId()" (ngModelChange)="reviewerId.set($event)">
-              <option value="">Any reviewer</option>
-              @for (m of reviewers(); track m.userId) { <option [value]="m.userId">{{ m.displayName }} · {{ m.role }}</option> }
-            </select>
-          </label>
-          <label>Review Note <span class="hint">optional</span>
-            <textarea rows="2" maxlength="2000" [ngModel]="reviewNote()" (ngModelChange)="reviewNote.set($event)"></textarea>
-          </label>
-          <button type="button" class="primary block" (click)="submitForReview()" [disabled]="!!busy() || !accountId()">
-            {{ busy() === 'submit' ? 'Submitting…' : 'Submit for Review' }}
+      <div class="cmp-pub-right">
+        @if (limit(); as max) { <span class="cmp-counter" [class.over]="length() > max * 0.9">{{ length() }} / {{ max }}</span> }
+        @if (canEdit()) {
+          <button type="button" class="cmp-icon-btn cmp-save" [attr.data-tip]="busy() === 'save' ? 'Saving…' : 'Save draft'" aria-label="Save draft"
+            (click)="saveDraft()" [disabled]="!!busy() || !dirty()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h7"/></svg>
           </button>
-          @if (!accountId()) { <p class="hint tight">Choose a connected account to publish to first.</p> }
         }
-        @if (reviews().length) {
-          <ol class="mini-history">
-            @for (r of reviews(); track r.id) {
-              <li>
-                <a [routerLink]="['/approvals', r.id]">Version {{ r.versionNumber }} · {{ reviewLabels[r.status] }}</a>
-                <span class="hint">{{ r.decidedByName ? 'by ' + r.decidedByName : 'submitted by ' + r.submittedByName }} · {{ (r.decidedAtUtc ?? r.submittedAtUtc) | date: 'short' }}</span>
-              </li>
-            }
-          </ol>
-        }
-      </section>
+      </div>
+    </div>
+  </section>
 
-      <app-publication-panel [post]="p" (jobsChange)="jobs.set($event)" />
-
-      <details class="card versions-card">
-        <summary><strong>Versions</strong> <span class="hint">{{ versions().length }}</span></summary>
-        <ol class="mini-history">
-          @for (v of versions(); track v.id) {
-            <li [class.current]="v.id === p.currentVersionId">
-              <span>Version {{ v.versionNumber }}{{ v.id === p.currentVersionId ? ' (current)' : '' }}</span>
-              <span class="hint">{{ sourceLabels[v.creationSource] }} · {{ v.createdByName }} · {{ v.createdAtUtc | date: 'short' }}</span>
-            </li>
-          }
-        </ol>
-      </details>
-    } @else {
-      <section class="card">
-        <h2>Review &amp; Approval</h2>
-        <p class="hint tight">Save the draft, then send it to a reviewer. Only approved posts can be scheduled or published.</p>
-      </section>
-    }
-  </aside>
+  <!-- Drafts -->
+  <section class="cmp-card cmp-drafts">
+    <div class="cmp-drafts-head">
+      <h2>Drafts</h2>
+      <a class="cmp-link" routerLink="/planner" [queryParams]="{ status: 'Draft' }">View all drafts
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></a>
+    </div>
+    <div class="cmp-table" role="table" aria-label="Drafts">
+      <div class="cmp-row head" role="row">
+        <span></span><span role="columnheader">Post Title</span><span role="columnheader">Version</span>
+        <span role="columnheader" class="cmp-date">Last Edited</span><span role="columnheader">Action</span><span class="cmp-more-col"></span>
+      </div>
+      @for (d of drafts(); track d.id) {
+        <div class="cmp-row" role="row">
+          <app-platform-icon role="cell" [platform]="d.platform" />
+          <span class="cmp-title" role="cell" [title]="d.hook || d.bodyExcerpt">{{ d.hook || d.bodyExcerpt }}</span>
+          <span role="cell"><span class="cmp-vpill">v{{ d.currentVersionNumber }}</span></span>
+          <span role="cell" class="cmp-date">{{ d.updatedAtUtc | date: 'short' }}</span>
+          <span role="cell"><a class="cmp-open" [routerLink]="['/composer', d.id]">Open Draft</a></span>
+          <details class="cmp-more cmp-more-col" role="cell">
+            <summary aria-label="More options">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+            </summary>
+            <div class="cmp-menu">
+              <a [routerLink]="['/composer', d.id]">Open Draft</a>
+              <a [routerLink]="['/planner']" [queryParams]="{ view: 'list' }">View in Planner</a>
+            </div>
+          </details>
+        </div>
+      } @empty {
+        <p class="cmp-empty">No drafts yet. Write a post above or describe one to the AI.</p>
+      }
+    </div>
+    @if (drafts().length) { <div class="cmp-foot">{{ drafts().length }} drafts</div> }
+  </section>
 </div>

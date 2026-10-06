@@ -57,7 +57,6 @@
       </div>
     </div>
 
-    <div class="badge"><span>👑</span> New Feature</div>
     <div class="copy">
       <h1>AI content, human approved.</h1>
       <p>Generate platform-ready posts, review every version with your team, and publish to LinkedIn, Facebook and Instagram.</p>
@@ -99,9 +98,7 @@
           <a class="link" href="#">Forgot Password?</a>
         </div>
 
-        @if (problem(); as p) {
-          <p class="error" role="alert">{{ p.detail }}</p>
-        }
+        <app-problem-banner [problem]="problem()" />
 
         <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Sign in' }}</button>
 

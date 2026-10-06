@@ -3,10 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiProblem, toApiProblem } from '../http/api-problem';
 import { AuthService, ONBOARDING_ROUTES } from './auth.service';
+import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 
 @Component({
   selector: 'app-login-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './login-page.component.html',
   styleUrl: './login-page.component.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.

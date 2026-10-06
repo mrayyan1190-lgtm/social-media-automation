@@ -289,7 +289,7 @@ public class PostAndMediaTests(ApiFactory factory)
         await (await adminB.GetAsync($"{OrgB}/posts/{post.Id}")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await adminB.GetAsync($"{OrgB}/posts/{post.Id}/versions")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await ReviseAsync(adminB, OrgB, post, Content("Hijack"))).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
-        await (await adminB.CreatePostAsync($\"{OrgB}/campaigns/{campaignUrl.Split('/')[^1]}\", NewPost("Facebook")))
+        await (await adminB.CreatePostAsync($"{OrgB}/campaigns/{campaignUrl.Split('/')[^1]}", NewPost("Facebook")))
             .AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
     }
 }
