@@ -30,18 +30,15 @@ public static partial class DeterministicValidator
         foreach (Match url in UrlPattern().Matches(text))
             issues.Add(Critical("URL", "The text contains a URL; only the approved destination URL may be attached.", url.Value));
 
-        var knownFacts = snapshot.Facts.Select(f => f.Id.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var factId in (variant.FactIdsUsed ?? []).Where(id => !knownFacts.Contains(id.Trim())))
-            issues.Add(Critical("FACT_REFERENCE", $"References a fact id that was not supplied: {factId}."));
-
-        // Numbers and money that appear in no supplied fact or brief field are likely invented statistics or prices.
-        var evidence = string.Join("\n", snapshot.Facts.Select(f => f.Text)
-            .Append(snapshot.Campaign.Description).Append(snapshot.Brand.BusinessDescription));
+        // Numbers and money that appear nowhere in what the user supplied are likely invented statistics or prices.
+        var source = snapshot.Rewrite?.SourceVersion;
+        var evidence = string.Join("\n", new[] { snapshot.Brief.Prompt, snapshot.Brand.BusinessDescription, source?.Hook, source?.Body, source?.CallToAction }
+            .Where(t => !string.IsNullOrWhiteSpace(t)));
         foreach (var figure in FigurePattern().Matches(text).Select(m => m.Value.Trim().TrimEnd('.', ',')).Distinct()
                      .Where(f => !evidence.Contains(f, StringComparison.OrdinalIgnoreCase)))
         {
             issues.Add(new EvaluationIssue(IssueSeverity.WARNING, "UNSUPPORTED_CLAIM",
-                $"The figure \"{figure}\" does not appear in the supplied facts or brief; verify it or remove it.", IssueSource.DETERMINISTIC, figure));
+                $"The figure \"{figure}\" does not appear in your request or brand profile; verify it or remove it.", IssueSource.DETERMINISTIC, figure));
         }
 
         if (PlatformRules.For(platform).RequiresImage && version.MediaAssetId is null)

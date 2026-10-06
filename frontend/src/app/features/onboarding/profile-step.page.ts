@@ -1,6 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ViewEncapsulation, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { browserTimeZone, supportedTimeZones } from '../publications/models/time-zones';
@@ -8,33 +8,11 @@ import { browserTimeZone, supportedTimeZones } from '../publications/models/time
 /** Onboarding step 1: the user's name and the workspace time zone (detected from the browser, editable). */
 @Component({
   selector: 'app-onboarding-profile',
-  imports: [ReactiveFormsModule],
-  template: `
-    <main class="onboarding">
-      <div class="onboarding-step">
-        <header class="onboarding-intro">
-          <p class="step-label">Step 1 of 3</p>
-          <h1>Complete your profile</h1>
-          <p class="muted">This helps us personalize your workspace and schedule posts in your local time.</p>
-        </header>
-        <form class="onboarding-form" [formGroup]="form" (ngSubmit)="submit()">
-          <label>Full Name
-            <input formControlName="fullName" autocomplete="name" placeholder="Your full name" />
-            @if (form.controls.fullName.touched && form.controls.fullName.invalid) { <span class="field-error">Full name is required.</span> }
-          </label>
-          <label>Time Zone
-            <select formControlName="timeZoneId">
-              @for (z of zones; track z) { <option [value]="z">{{ z }}</option> }
-            </select>
-          </label>
-          @if (problem(); as p) {
-            <p class="error" role="alert">{{ p.detail }}</p>
-          }
-          <button class="primary block" type="submit" [disabled]="form.invalid || busy()">{{ busy() ? 'Saving…' : 'Continue' }}</button>
-        </form>
-      </div>
-    </main>
-  `,
+  imports: [ReactiveFormsModule, RouterLink],
+  templateUrl: './profile-step.page.html',
+  styleUrl: './profile-step.page.css',
+  // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.
+  encapsulation: ViewEncapsulation.ShadowDom,
 })
 export class ProfileStepPage {
   private readonly auth = inject(AuthService);
@@ -51,6 +29,10 @@ export class ProfileStepPage {
   });
 
   protected async submit(): Promise<void> {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.problem.set(null);
     try {

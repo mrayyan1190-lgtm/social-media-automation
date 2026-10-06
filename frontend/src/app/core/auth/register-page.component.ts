@@ -1,4 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ViewEncapsulation, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiProblem, toApiProblem } from '../http/api-problem';
@@ -8,48 +9,47 @@ import { AuthService } from './auth.service';
 @Component({
   selector: 'app-register-page',
   imports: [ReactiveFormsModule, RouterLink],
-  template: `
-    <main class="login">
-      <form class="card" [formGroup]="form" (ngSubmit)="submit()">
-        <h1>Create your account</h1>
-        <label>Email
-          <input type="email" formControlName="email" autocomplete="username" placeholder="you@company.com" />
-          @if (form.controls.email.touched && form.controls.email.invalid) { <span class="field-error">Enter a valid email address.</span> }
-        </label>
-        <label>Password
-          <input type="password" formControlName="password" autocomplete="new-password" placeholder="At least 8 characters" />
-          @if (form.controls.password.touched && form.controls.password.invalid) { <span class="field-error">Use at least 8 characters.</span> }
-        </label>
-        <label>Workspace Name
-          <input formControlName="workspaceName" autocomplete="organization" placeholder="e.g. Centaiva" />
-          @if (form.controls.workspaceName.touched && form.controls.workspaceName.invalid) { <span class="field-error">Workspace name is required.</span> }
-        </label>
-        @if (problem(); as p) {
-          <p class="error" role="alert">{{ p.detail }}</p>
-        }
-        <button class="primary block" type="submit" [disabled]="form.invalid || busy()">{{ busy() ? 'Creating…' : 'Create Account' }}</button>
-        <p class="muted center">Already have an account? <a routerLink="/login">Sign in</a></p>
-      </form>
-    </main>
-  `,
+  templateUrl: './register-page.component.html',
+  styleUrl: './register-page.component.css',
+  // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.
+  encapsulation: ViewEncapsulation.ShadowDom,
 })
 export class RegisterPageComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   readonly busy = signal(false);
+  readonly showPassword = signal(false);
   readonly problem = signal<ApiProblem | null>(null);
   readonly form = inject(FormBuilder).nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     workspaceName: ['', [Validators.required, Validators.maxLength(200)]],
+    terms: [false, Validators.requiredTrue],
+  });
+
+  private readonly password = toSignal(this.form.controls.password.valueChanges, { initialValue: '' });
+  readonly strength = computed(() => {
+    const v = this.password();
+    if (!v) return 0;
+    return [v.length >= 8, /[A-Z]/.test(v) && /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+  });
+  readonly hint = computed(() => {
+    const score = this.strength();
+    if (!this.password()) return 'Use 8+ characters with a number or symbol.';
+    return score <= 1 ? 'Weak password.' : score === 2 ? 'Fair — add a number or symbol.' : score === 3 ? 'Good password.' : 'Strong password.';
   });
 
   async submit(): Promise<void> {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     this.busy.set(true);
     this.problem.set(null);
     try {
-      await this.auth.register(this.form.getRawValue());
+      const { email, password, workspaceName } = this.form.getRawValue();
+      await this.auth.register({ email, password, workspaceName });
       await this.router.navigateByUrl(await this.auth.nextOnboardingRoute());
     } catch (error) {
       this.problem.set(toApiProblem(error));

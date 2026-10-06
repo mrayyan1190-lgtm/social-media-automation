@@ -22,17 +22,10 @@ public sealed record PostVersionDto(
     DateTime CreatedAtUtc,
     MediaAssetDto? Media);
 
-public sealed record PostSummaryDto(
-    Guid Id,
-    SocialPlatform Platform,
-    EditorialState EditorialState,
-    int CurrentVersionNumber,
-    DateTime UpdatedAtUtc);
-
 public sealed record PostDto(
     Guid Id,
     Guid OrganizationId,
-    Guid CampaignId,
+    Guid? CampaignId,
     SocialPlatform Platform,
     EditorialState EditorialState,
     Guid CurrentVersionId,
@@ -43,13 +36,14 @@ public sealed record PostDto(
     PostVersionDto CurrentVersion);
 
 /// <summary>
-/// One row of the workspace-wide post list (Planner, All Posts, Drafts, Home). The latest publication job is carried
-/// separately from the editorial state so the two are never merged on the server.
+/// One row of the post list (Planner, Campaign detail, Home). The latest publication job is carried separately from the
+/// editorial state so the two are never merged on the server.
 /// </summary>
 public sealed record PostListItemDto(
     Guid Id,
-    Guid CampaignId,
-    string CampaignName,
+    Guid? CampaignId,
+    string? CampaignName,
+    string? CampaignColor,
     SocialPlatform Platform,
     EditorialState EditorialState,
     int CurrentVersionNumber,

@@ -18,7 +18,7 @@ internal sealed class PostConfiguration : IEntityTypeConfiguration<Post>
         builder.IsEnumString<Post, SocialPlatform>(p => p.Platform, "Platform");
         builder.IsEnumString<Post, EditorialState>(p => p.EditorialState, "EditorialState");
 
-        // Same-tenant campaign: (OrganizationId, CampaignId) must match a campaign of this organization.
+        // Optional same-tenant campaign folder: when set, (OrganizationId, CampaignId) must match a campaign of this organization.
         builder.HasOne<Campaign>().WithMany()
             .HasForeignKey(p => new { p.OrganizationId, p.CampaignId })
             .HasPrincipalKey(c => new { c.OrganizationId, c.Id })
@@ -43,10 +43,5 @@ internal sealed class PostConfiguration : IEntityTypeConfiguration<Post>
 
         // Target of PostVersions (OrganizationId, PostId) and later review/publication rows.
         builder.HasAlternateKey(p => new { p.OrganizationId, p.Id });
-
-        // One active post per platform per campaign; archived posts do not block a replacement.
-        builder.HasIndex(p => new { p.OrganizationId, p.CampaignId, p.Platform })
-            .IsUnique()
-            .HasFilter("[EditorialState] <> 'ARCHIVED'");
     }
 }

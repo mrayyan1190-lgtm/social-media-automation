@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { Membership } from '../auth/auth.models';
 import { AuthService } from '../auth/auth.service';
 import { Organization, OrganizationApiService } from './organization-api.service';
 
@@ -21,6 +22,11 @@ export class WorkspaceService {
     return memberships.find((m) => m.organizationId === this.selectedId()) ?? memberships.at(0) ?? null;
   });
   readonly orgId = computed(() => this.current()?.organizationId ?? null);
+  /** URL segment of the current workspace: /{slug}/home. */
+  readonly slug = computed(() => {
+    const current = this.current();
+    return current ? workspaceSlug(current, this.memberships()) : null;
+  });
   readonly canManageCampaigns = computed(() => this.current()?.role === 'Admin' || this.current()?.role === 'Creator');
   readonly canManageBrand = computed(() => this.current()?.role === 'Admin');
   readonly isAdmin = computed(() => this.current()?.role === 'Admin');
@@ -58,6 +64,21 @@ export class WorkspaceService {
       // Storage may be unavailable (private mode); the selection still works for this session.
     }
   }
+}
+
+/**
+ * URL-friendly workspace name ("Centaiva Inc" -> "centaiva-inc"). Only resolved among the user's own memberships, so it
+ * needs no global uniqueness; two memberships with the same name get an id suffix. Not an authorization input: the API
+ * still checks membership of the organization id on every request.
+ */
+export function workspaceSlug(membership: Membership, memberships: readonly Membership[]): string {
+  const base = toSlug(membership.organizationName) || membership.organizationId.slice(0, 8);
+  const clash = memberships.some((m) => m.organizationId !== membership.organizationId && toSlug(m.organizationName) === base);
+  return clash ? `${base}-${membership.organizationId.slice(0, 8)}` : base;
+}
+
+function toSlug(name: string): string {
+  return name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 function readStoredId(): string | null {

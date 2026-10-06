@@ -20,6 +20,7 @@ public record SavePostContentRequest(
 
 public sealed record CreatePostRequest(
     [Required] SocialPlatform? Platform,
+    Guid? CampaignId,
     string? Hook,
     string Body,
     string? CallToAction,
@@ -29,3 +30,6 @@ public sealed record CreatePostRequest(
     string? AltText,
     Guid? SocialAccountId = null)
     : SavePostContentRequest(Hook, Body, CallToAction, DestinationUrl, Hashtags, MediaAssetId, AltText, SocialAccountId);
+
+/// <summary>The campaign folder to file the post into; null removes it from its campaign.</summary>
+public sealed record MovePostToCampaignRequest(Guid? CampaignId);

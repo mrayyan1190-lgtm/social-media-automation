@@ -1,5 +1,4 @@
-import { CallToActionType, CampaignObjective, SocialPlatform } from '../../campaigns/models/campaign.model';
-import { CampaignFact } from '../../campaigns/models/campaign.model';
+import { SocialPlatform } from '../../campaigns/models/campaign.model';
 import { ContentEvaluation } from '../../content/models/ai.model';
 import { EditorialState, PostVersion } from '../../content/models/post.model';
 import { SocialAccount } from '../../social-accounts/models/social-account.model';
@@ -12,11 +11,16 @@ export interface ReviewSummary {
   postVersionId: string;
   versionNumber: number;
   platform: SocialPlatform;
-  campaignId: string;
-  campaignName: string;
+  campaignId: string | null;
+  campaignName: string | null;
+  campaignColor: string | null;
+  /** Hook or start of the body of the reviewed version. */
+  excerpt: string;
   status: ReviewStatus;
   submittedByUserId: string;
   submittedByName: string;
+  assignedReviewerUserId: string | null;
+  assignedReviewerName: string | null;
   submissionNote: string | null;
   submittedAtUtc: string;
   decidedByUserId: string | null;
@@ -36,16 +40,6 @@ export interface ReviewComment {
   createdAtUtc: string;
 }
 
-export interface CampaignIntent {
-  id: string;
-  name: string;
-  objective: CampaignObjective;
-  description: string;
-  targetAudience: string;
-  callToAction: CallToActionType;
-  callToActionUrl: string | null;
-}
-
 /** Everything a reviewer needs about one exact submitted version. `canDecide` is a UX hint; the API re-checks. */
 export interface ReviewDetail {
   review: ReviewSummary;
@@ -54,8 +48,6 @@ export interface ReviewDetail {
   isCurrentVersion: boolean;
   version: PostVersion;
   destination: SocialAccount | null;
-  campaign: CampaignIntent;
-  facts: CampaignFact[];
   evaluation: ContentEvaluation | null;
   comments: ReviewComment[];
   history: ReviewSummary[];

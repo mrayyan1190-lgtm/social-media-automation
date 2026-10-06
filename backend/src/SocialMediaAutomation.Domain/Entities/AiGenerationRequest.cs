@@ -19,7 +19,8 @@ public sealed class AiGenerationRequest
 
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
-    public Guid CampaignId { get; private set; }
+    /// <summary>Generation: the campaign folder the new posts go into. Rewrite/image: the post's folder at request time.</summary>
+    public Guid? CampaignId { get; private set; }
     public AiRequestKind Kind { get; private set; }
     public List<SocialPlatform> Platforms { get; private set; } = [];
 
@@ -58,13 +59,22 @@ public sealed class AiGenerationRequest
 
     public void AttachCorrelation(string? correlationId) => CorrelationId ??= CorrelationIds.Normalize(correlationId);
 
+    /// <summary>Prompt-based generation: one new draft post per platform, filed into <paramref name="campaign"/> when given.</summary>
     public static AiGenerationRequest CreateGeneration(
-        Guid id, Campaign campaign, IReadOnlyCollection<SocialPlatform> platforms, string inputSnapshot, string promptVersion,
+        Guid id, Guid organizationId, Campaign? campaign, IReadOnlyCollection<SocialPlatform> platforms, string inputSnapshot, string promptVersion,
         string schemaVersion, AiProvider provider, string model, Guid userId, DateTime utcNow)
     {
-        if (platforms.Count == 0 || platforms.Any(p => !campaign.Platforms.Contains(p)))
-            throw Guard.Invalid("Platforms", "must be a non-empty subset of the campaign's selected platforms");
-        return New(id, campaign, AiRequestKind.Generation, platforms, inputSnapshot, promptVersion, schemaVersion, provider, model, userId, utcNow);
+        if (platforms.Count == 0)
+            throw Guard.Invalid("Platforms", "must include at least one of LinkedIn, Facebook, Instagram");
+        foreach (var platform in platforms)
+            Guard.Defined(platform, "Platforms");
+        if (campaign is not null)
+        {
+            if (campaign.OrganizationId != organizationId)
+                throw new BusinessException(ErrorCodes.TenantMismatch, "The campaign belongs to another workspace.");
+            campaign.EnsureEditable();
+        }
+        return New(id, organizationId, campaign?.Id, AiRequestKind.Generation, platforms, inputSnapshot, promptVersion, schemaVersion, provider, model, userId, utcNow);
     }
 
     /// <summary>
@@ -72,10 +82,11 @@ public sealed class AiGenerationRequest
     /// a new version of the post (from the version the user was looking at), not an edit of a reviewed version.
     /// </summary>
     public static AiGenerationRequest CreateImage(
-        Guid id, Campaign campaign, Post post, Guid sourceVersionId, string? instruction, string inputSnapshot, string promptVersion,
+        Guid id, Post post, Guid sourceVersionId, string? instruction, string inputSnapshot, string promptVersion,
         AiProvider provider, string model, Guid userId, DateTime utcNow)
     {
-        var request = New(id, campaign, AiRequestKind.ImageGeneration, [post.Platform], inputSnapshot, promptVersion, "image-v1", provider, model, userId, utcNow);
+        var request = New(id, post.OrganizationId, post.CampaignId, AiRequestKind.ImageGeneration, [post.Platform], inputSnapshot, promptVersion,
+            "image-v1", provider, model, userId, utcNow);
         request.PostId = post.Id;
         request.SourceVersionId = sourceVersionId;
         request.CustomInstruction = Guard.Optional(instruction, "Image instruction", CustomInstructionMax);
@@ -83,14 +94,15 @@ public sealed class AiGenerationRequest
     }
 
     public static AiGenerationRequest CreateRewrite(
-        Guid id, Campaign campaign, Post post, Guid sourceVersionId, RewriteAction action, string? customInstruction, string inputSnapshot,
+        Guid id, Post post, Guid sourceVersionId, RewriteAction action, string? customInstruction, string inputSnapshot,
         string promptVersion, string schemaVersion, AiProvider provider, string model, Guid userId, DateTime utcNow)
     {
         var instruction = Guard.Optional(customInstruction, "Custom instruction", CustomInstructionMax);
         if (Guard.Defined(action, "Rewrite action") == Enums.RewriteAction.Custom && instruction is null)
             throw Guard.Invalid("Custom instruction", "is required for a custom rewrite");
 
-        var request = New(id, campaign, AiRequestKind.Rewrite, [post.Platform], inputSnapshot, promptVersion, schemaVersion, provider, model, userId, utcNow);
+        var request = New(id, post.OrganizationId, post.CampaignId, AiRequestKind.Rewrite, [post.Platform], inputSnapshot, promptVersion,
+            schemaVersion, provider, model, userId, utcNow);
         request.PostId = post.Id;
         request.SourceVersionId = sourceVersionId;
         request.RewriteAction = action;
@@ -140,15 +152,13 @@ public sealed class AiGenerationRequest
     }
 
     private static AiGenerationRequest New(
-        Guid id, Campaign campaign, AiRequestKind kind, IReadOnlyCollection<SocialPlatform> platforms, string inputSnapshot,
-        string promptVersion, string schemaVersion, AiProvider provider, string model, Guid userId, DateTime utcNow)
-    {
-        campaign.EnsureEditable();
-        return new AiGenerationRequest
+        Guid id, Guid organizationId, Guid? campaignId, AiRequestKind kind, IReadOnlyCollection<SocialPlatform> platforms, string inputSnapshot,
+        string promptVersion, string schemaVersion, AiProvider provider, string model, Guid userId, DateTime utcNow) =>
+        new()
         {
             Id = id,
-            OrganizationId = campaign.OrganizationId,
-            CampaignId = campaign.Id,
+            OrganizationId = organizationId,
+            CampaignId = campaignId,
             Kind = kind,
             Platforms = platforms.Distinct().Order().ToList(),
             InputSnapshot = inputSnapshot,
@@ -162,5 +172,4 @@ public sealed class AiGenerationRequest
             RequestedByUserId = userId,
             CreatedAtUtc = utcNow,
         };
-    }
 }

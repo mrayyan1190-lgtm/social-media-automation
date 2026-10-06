@@ -46,10 +46,9 @@ public class ReviewWorkflowTests(ApiFactory factory)
     private async Task<(HttpClient Creator, PostDto Post, string CampaignUrl)> DraftAsync(string platform = "LinkedIn", bool withDestination = true, string body = "Close the books in days, not weeks.")
     {
         var creator = await factory.SignInAsync(DemoData.CreatorA);
-        var campaign = await creator.CreateCampaignAsync(OrgA, "LinkedIn", "Facebook", "Instagram");
-        await creator.PostAsJsonAsync($"{OrgA}/campaigns/{campaign.Id}/facts", new { Text = "40 finance teams use Brightline Close", SourceNote = "CRM" });
+        var campaign = await creator.CreateCampaignAsync(OrgA);
         var destination = withDestination ? (await AccountAsync(creator, platform)).Id : (Guid?)null;
-        var post = await (await creator.PostAsJsonAsync($"{OrgA}/campaigns/{campaign.Id}/posts",
+        var post = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
             new { Platform = platform, Hook = "Month-end, minus the pain", Body = body, Hashtags = new[] { "FinanceOps" }, SocialAccountId = destination })).ReadAsync<PostDto>();
         return (creator, post, $"{OrgA}/campaigns/{campaign.Id}");
     }
@@ -117,8 +116,8 @@ public class ReviewWorkflowTests(ApiFactory factory)
     {
         var (creator, noDestination, campaignUrl) = await DraftAsync(withDestination: false);
         var notConfigured = await AccountAsync(creator, "Facebook", ExecutionMode.NOT_CONFIGURED);
-        var facebook = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", new { Platform = "Facebook", Body = "Hello", SocialAccountId = notConfigured.Id })).ReadAsync<PostDto>();
-        var instagram = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts",
+        var facebook = await (await creator.CreatePostAsync(campaignUrl, new { Platform = "Facebook", Body = "Hello", SocialAccountId = notConfigured.Id })).ReadAsync<PostDto>();
+        var instagram = await (await creator.CreatePostAsync(campaignUrl,
             new { Platform = "Instagram", Body = "Visual", SocialAccountId = (await AccountAsync(creator, "Instagram")).Id })).ReadAsync<PostDto>();
         var (_, prohibited, _) = await DraftAsync(body: "Results guaranteed. See https://evil.example/x");
 
@@ -150,7 +149,7 @@ public class ReviewWorkflowTests(ApiFactory factory)
         file.Headers.ContentType = new("image/jpeg");
         var image = await (await creator.PostAsync($"{OrgA}/media", new MultipartFormDataContent { { file, "file", "a.jpg" } }))
             .ReadAsync<Application.Media.DTOs.MediaAssetDto>();
-        var instagram = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", new
+        var instagram = await (await creator.CreatePostAsync(campaignUrl, new
         {
             Platform = "Instagram", Body = "Visual", MediaAssetId = image.Id, AltText = "Blue dashboard", SocialAccountId = (await AccountAsync(creator, "Instagram")).Id,
         })).ReadAsync<PostDto>();
@@ -393,23 +392,22 @@ public class ReviewWorkflowTests(ApiFactory factory)
     // ---- Review screen -------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Review_screen_shows_exact_content_intent_facts_destination_and_comments()
+    public async Task Review_screen_shows_exact_content_campaign_destination_and_comments()
     {
         var (creator, post, _) = await DraftAsync();
         var review = await SubmittedAsync(creator, post);
         var reviewer = await factory.SignInAsync(DemoData.ReviewerA);
         await reviewer.PostAsJsonAsync($"{OrgA}/review-requests/{review.Id}/comments", new { Body = "Can we cite the source?" });
-        await creator.PostAsJsonAsync($"{OrgA}/review-requests/{review.Id}/comments", new { Body = "Added in the facts." });
+        await creator.PostAsJsonAsync($"{OrgA}/review-requests/{review.Id}/comments", new { Body = "Added in the notes." });
         await (await reviewer.PostAsJsonAsync($"{OrgA}/review-requests/{review.Id}/comments", new { Body = " " }))
             .AssertErrorAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
 
         var detail = await (await reviewer.GetAsync($"{OrgA}/review-requests/{review.Id}")).ReadAsync<ReviewDetailDto>();
 
         Assert.Equal((post.CurrentVersionId, 1, "Close the books in days, not weeks."), (detail.Version.Id, detail.Version.VersionNumber, detail.Version.Body));
-        Assert.Equal((CampaignObjective.LEAD_GENERATION, "Finance leaders"), (detail.Campaign.Objective, detail.Campaign.TargetAudience));
-        Assert.Contains(detail.Facts, f => f.Text == "40 finance teams use Brightline Close");
+        Assert.NotNull(detail.Review.CampaignName);
         Assert.Equal((ExecutionMode.SIMULATED, SocialPlatform.LinkedIn), (detail.Destination!.ExecutionMode, detail.Destination.Platform));
-        Assert.Equal(["Can we cite the source?", "Added in the facts."], detail.Comments.Select(c => c.Body));
+        Assert.Equal(["Can we cite the source?", "Added in the notes."], detail.Comments.Select(c => c.Body));
         Assert.True(detail.IsCurrentVersion);
         Assert.Single(detail.History);
     }

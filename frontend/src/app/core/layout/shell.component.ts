@@ -1,5 +1,5 @@
 import { Component, effect, inject, signal } from '@angular/core';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { IsActiveMatchOptions, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, firstValueFrom } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon.component';
 import { AuthService } from '../auth/auth.service';
@@ -10,9 +10,14 @@ interface NavItem {
   label: string;
   icon: string;
   link: string;
+  /** Planner filters (e.g. ?status=Draft) for the Publisher shortcuts. */
+  query?: Record<string, string>;
   /** Hidden unless true (UX only; the API enforces every permission). */
   show?: () => boolean;
 }
+
+/** Publisher shortcuts share the Planner route; only the one whose filter matches the URL is highlighted. */
+const EXACT: IsActiveMatchOptions = { paths: 'exact', queryParams: 'exact', fragment: 'ignored', matrixParams: 'ignored' };
 
 /**
  * The customer application: a persistent left sidebar grouped like a social-management product (Home, Create, Publisher,
@@ -41,7 +46,7 @@ interface NavItem {
         <nav class="side-nav">
           @for (item of main; track item.link) {
             @if (!item.show || item.show()) {
-              <a [routerLink]="item.link" routerLinkActive="active"><app-icon [name]="item.icon" />{{ item.label }}</a>
+              <a [routerLink]="ws(item.link)" routerLinkActive="active"><app-icon [name]="item.icon" />{{ item.label }}</a>
             }
           }
 
@@ -50,32 +55,32 @@ interface NavItem {
           </button>
           @if (publisherOpen()) {
             <div class="sub-nav">
-              @for (item of publisher; track item.link) {
-                <a [routerLink]="item.link" routerLinkActive="active">{{ item.label }}</a>
+              @for (item of publisher; track item.label) {
+                <a [routerLink]="ws(item.link)" [queryParams]="item.query ?? null" routerLinkActive="active" [routerLinkActiveOptions]="exact">{{ item.label }}</a>
               }
             </div>
           }
 
           <span class="nav-heading">Assets</span>
-          <a routerLink="/library" routerLinkActive="active"><app-icon name="image" />Media Library</a>
+          <a [routerLink]="ws('/library')" routerLinkActive="active"><app-icon name="image" />Media Library</a>
 
           <span class="nav-heading">Workspace</span>
           @for (item of workspaceItems; track item.link) {
             @if (!item.show || item.show()) {
-              <a [routerLink]="item.link" routerLinkActive="active"><app-icon [name]="item.icon" />{{ item.label }}</a>
+              <a [routerLink]="ws(item.link)" routerLinkActive="active"><app-icon [name]="item.icon" />{{ item.label }}</a>
             }
           }
         </nav>
 
         <nav class="side-nav bottom" aria-label="Account">
-          <a routerLink="/notifications" routerLinkActive="active">
+          <a [routerLink]="ws('/notifications')" routerLinkActive="active">
             <app-icon name="bell" />Notifications
             @if (unread() > 0) { <span class="count">{{ unread() }}</span> }
           </a>
           @if (workspace.isAdmin()) {
-            <a routerLink="/settings/workspace" routerLinkActive="active"><app-icon name="settings" />Settings</a>
+            <a [routerLink]="ws('/settings/workspace')" routerLinkActive="active"><app-icon name="settings" />Settings</a>
           }
-          <a routerLink="/profile" routerLinkActive="active"><app-icon name="user" />{{ auth.me()?.displayName || 'Profile' }}</a>
+          <a [routerLink]="ws('/profile')" routerLinkActive="active"><app-icon name="user" />{{ auth.me()?.displayName || 'Profile' }}</a>
           <button type="button" (click)="signOut()"><app-icon name="logout" />Sign Out</button>
         </nav>
       </aside>
@@ -102,19 +107,21 @@ export class ShellComponent {
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationApiService);
 
+  protected readonly exact = EXACT;
   protected readonly main: NavItem[] = [
     { label: 'Home', icon: 'home', link: '/home' },
     { label: 'AI Studio', icon: 'sparkles', link: '/ai-studio', show: () => this.workspace.canManageCampaigns() },
+    { label: 'Composer', icon: 'edit', link: '/composer', show: () => this.workspace.canManageCampaigns() },
     { label: 'Campaigns', icon: 'megaphone', link: '/campaigns' },
   ];
   protected readonly publisher: NavItem[] = [
-    { label: 'Planner', icon: 'calendar', link: '/publisher/planner' },
-    { label: 'All Posts', icon: 'list', link: '/publisher/posts' },
-    { label: 'Approvals', icon: 'checkCircle', link: '/publisher/approvals' },
-    { label: 'Drafts', icon: 'edit', link: '/publisher/drafts' },
-    { label: 'Scheduled', icon: 'clock', link: '/publisher/scheduled' },
-    { label: 'Published', icon: 'globe', link: '/publisher/published' },
-    { label: 'Failed', icon: 'alert', link: '/publisher/failed' },
+    { label: 'Planner', icon: 'calendar', link: '/planner' },
+    { label: 'All Posts', icon: 'list', link: '/planner', query: { view: 'list' } },
+    { label: 'Approvals', icon: 'checkCircle', link: '/approvals' },
+    { label: 'Drafts', icon: 'edit', link: '/planner', query: { status: 'Draft' } },
+    { label: 'Scheduled', icon: 'clock', link: '/planner', query: { status: 'Scheduled' } },
+    { label: 'Published', icon: 'globe', link: '/planner', query: { status: 'Published' } },
+    { label: 'Failed', icon: 'alert', link: '/planner', query: { status: 'Failed' } },
   ];
   protected readonly workspaceItems: NavItem[] = [
     { label: 'Brand', icon: 'palette', link: '/brand' },
@@ -127,15 +134,21 @@ export class ShellComponent {
   protected readonly navOpen = signal(false);
   protected readonly unread = signal(0);
 
+  /** App path inside the current workspace: /home -> /{slug}/home. */
+  protected ws(path: string): string {
+    return `/${this.workspace.slug()}${path}`;
+  }
+
   protected initial(): string {
     return (this.workspace.current()?.organizationName ?? '?').trim().charAt(0).toUpperCase();
   }
 
   constructor() {
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe((e) => {
-      const url = (e as NavigationEnd).urlAfterRedirects;
-      this.inPublisher.set(url.startsWith('/publisher'));
-      if (url.startsWith('/publisher')) this.publisherOpen.set(true);
+      const section = (e as NavigationEnd).urlAfterRedirects.split('?')[0].split('/')[2];
+      const inPublisher = section === 'planner' || section === 'approvals';
+      this.inPublisher.set(inPublisher);
+      if (inPublisher) this.publisherOpen.set(true);
       this.navOpen.set(false);
       void this.refreshUnread();
     });
@@ -147,7 +160,7 @@ export class ShellComponent {
   switchWorkspace(event: Event): void {
     this.workspace.select((event.target as HTMLSelectElement).value);
     // Resources are workspace-scoped, so leave any open detail page.
-    void this.router.navigateByUrl('/home');
+    void this.router.navigateByUrl(this.ws('/home'));
   }
 
   async signOut(): Promise<void> {

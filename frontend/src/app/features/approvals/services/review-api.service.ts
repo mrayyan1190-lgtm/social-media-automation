@@ -10,8 +10,9 @@ import { ReviewComment, ReviewDetail, ReviewStatus, ReviewSummary } from '../mod
 export class ReviewApiService {
   private readonly http = inject(HttpClient);
 
-  submit(orgId: string, postId: string, note: string | null, postRowVersion: string): Observable<ReviewSummary> {
-    return this.http.post<ReviewSummary>(`${this.org(orgId)}/posts/${postId}/submit-review`, { note }, { headers: ifMatch(postRowVersion) });
+  /** Submits the post's current version; `reviewerUserId` routes it to one team reviewer (any reviewer when null). */
+  submit(orgId: string, postId: string, note: string | null, reviewerUserId: string | null, postRowVersion: string): Observable<ReviewSummary> {
+    return this.http.post<ReviewSummary>(`${this.org(orgId)}/posts/${postId}/submit-review`, { note, reviewerUserId }, { headers: ifMatch(postRowVersion) });
   }
 
   list(orgId: string, filter: { status?: ReviewStatus; postId?: string } = {}): Observable<ReviewSummary[]> {

@@ -12,7 +12,7 @@ public class PublicationLifecycleTests
 {
     private static readonly Guid Creator = Guid.NewGuid();
     private static readonly DateTime Now = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-    private readonly Campaign campaign = CampaignTests.New(SocialPlatform.LinkedIn);
+    private readonly Campaign campaign = CampaignTests.New();
 
     private PublicationJob Job(ExecutionMode mode)
     {
@@ -26,9 +26,9 @@ public class PublicationLifecycleTests
             var connection = OAuthConnection.Create(Guid.NewGuid(), campaign.OrganizationId, SocialPlatform.LinkedIn, "m", "Ada", Creator, Now);
             account = SocialAccount.CreateConnected(Guid.NewGuid(), connection, "urn:li:person:m", "Ada", mode, ["publish_text"], Creator, Now);
         }
-        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn,
+        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn,
             new PostContent("Hook", "Body", null, null, [], null, null, account.Id), null, account, PostVersionSource.Manual, Creator, Now);
-        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, Now);
+        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         post.SubmitForReview(review, Now);
         review.Approve(Guid.NewGuid(), v1, true, ApprovalPayload.From(post, v1, account, null), Now);
         post.Approve(review, Now);

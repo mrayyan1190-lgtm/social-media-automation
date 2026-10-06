@@ -1,0 +1,42 @@
+<header>
+  <div class="bar-in">
+    <a class="brand" routerLink="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
+      </span>
+      <span class="brand-name">SocialMedia<span> Engine</span></span>
+    </a>
+
+    <div class="bar-right">
+      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
+      <button class="kebab" type="button" aria-label="More options">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="progress" role="progressbar" aria-valuenow="3" aria-valuemin="1" aria-valuemax="3" aria-label="Step 3 of 3"><i></i></div>
+</header>
+
+<main class="page">
+  <div class="step">
+
+    <div class="intro">
+      <div class="eyebrow">Step 3 of 3</div>
+      <h1>Connect your social accounts</h1>
+      <p>Connect at least one account to continue. You can add the others any time from settings.</p>
+    </div>
+
+    <form novalidate>
+      @if (oauthFailed(); as message) {
+        <p class="error" role="alert">The connection did not complete: {{ message }}</p>
+      }
+      @if (orgId) {
+        <app-social-connections [orgId]="orgId" [compact]="true" (connectedChange)="anyConnected.set($event)" />
+      }
+
+      <button class="primary" type="button" (click)="finish()" [disabled]="!anyConnected() || busy()">Continue to Home</button>
+
+    </form>
+
+  </div>
+</main>

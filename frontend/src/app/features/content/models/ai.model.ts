@@ -1,20 +1,34 @@
-import { SocialPlatform } from '../../campaigns/models/campaign.model';
+import { BrandTone } from '../../settings/models/brand-profile.model';
+import { ContentLength, EmojiMode, HashtagMode, SocialPlatform } from '../../campaigns/models/campaign.model';
 
 export type AiRequestStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-export type RewriteAction = 'Shorten' | 'Expand' | 'MoreProfessional' | 'ImproveHook' | 'LessPromotional' | 'Custom';
+export type RewriteAction = 'Rewrite' | 'Regenerate' | 'Shorten' | 'Expand' | 'MoreProfessional' | 'ImproveHook' | 'LessPromotional' | 'Custom';
 
+/** Composer AI edit actions. Each one saves a new version; nothing is overwritten. */
 export const REWRITE_ACTIONS: { value: RewriteAction; label: string }[] = [
+  { value: 'Rewrite', label: 'Rewrite' },
   { value: 'Shorten', label: 'Shorten' },
   { value: 'Expand', label: 'Expand' },
-  { value: 'MoreProfessional', label: 'Make Professional' },
   { value: 'ImproveHook', label: 'Improve Hook' },
+  { value: 'MoreProfessional', label: 'More Professional' },
   { value: 'LessPromotional', label: 'Less Promotional' },
-  { value: 'Custom', label: 'Custom Rewrite' },
 ];
+
+/** AI Studio input. Brand description, audience and tone are added by the server from the brand profile. */
+export interface GenerationInput {
+  prompt: string;
+  platforms: SocialPlatform[];
+  campaignId: string | null;
+  /** Null uses the brand tone. */
+  tone: BrandTone | null;
+  length: ContentLength;
+  hashtags: HashtagMode;
+  emojis: EmojiMode;
+}
 
 export interface AiGenerationRequest {
   id: string;
-  campaignId: string;
+  campaignId: string | null;
   kind: 'Generation' | 'Rewrite' | 'ImageGeneration';
   platforms: SocialPlatform[];
   postId: string | null;

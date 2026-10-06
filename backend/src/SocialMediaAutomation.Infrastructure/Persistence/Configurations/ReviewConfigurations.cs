@@ -120,6 +120,7 @@ internal sealed class ReviewRequestConfiguration : IEntityTypeConfiguration<Revi
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasMemberReference(r => new { r.OrganizationId, r.SubmittedByUserId });
         builder.HasMemberReference(r => new { r.OrganizationId, r.DecidedByUserId });
+        builder.HasMemberReference(r => new { r.OrganizationId, r.AssignedReviewerUserId });
 
         builder.HasAlternateKey(r => new { r.OrganizationId, r.Id });
         builder.HasAlternateKey(r => new { r.OrganizationId, r.PostId, r.PostVersionId, r.Id });

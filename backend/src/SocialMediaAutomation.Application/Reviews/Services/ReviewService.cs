@@ -22,7 +22,6 @@ public sealed class ReviewService(
     OrganizationAuthorizer authorizer,
     IReviewRepository reviews,
     IPostRepository posts,
-    ICampaignRepository campaigns,
     IBrandProfileRepository brandProfiles,
     IOrganizationRepository organizations,
     ISocialAccountRepository socialAccounts,
@@ -36,32 +35,44 @@ public sealed class ReviewService(
 
     // ---- Submit ---------------------------------------------------------------------------------------------
 
-    public async Task<ReviewSummaryDto> SubmitAsync(Guid organizationId, Guid postId, string? note, byte[]? expectedPostRowVersion, CancellationToken cancellationToken)
+    /// <param name="assignedReviewerUserId">Optional: the Reviewer/Admin asked to review. Only they are notified; otherwise all deciders are.</param>
+    public async Task<ReviewSummaryDto> SubmitAsync(
+        Guid organizationId, Guid postId, string? note, Guid? assignedReviewerUserId, byte[]? expectedPostRowVersion, CancellationToken cancellationToken)
     {
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
         var post = await LoadPostAsync(access, postId, cancellationToken);
         ConcurrencyGuard.EnsureCurrent(post.RowVersion, expectedPostRowVersion);
-        var campaign = await campaigns.GetAsync(post.CampaignId, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.NotFound, "Campaign not found.");
-        campaign.EnsureEditable();
         var version = await CurrentVersionAsync(access, post, cancellationToken);
+
+        var deciders = await activity.MembersAsync(access.OrganizationId, Deciders, except: access.UserId, cancellationToken);
+        if (assignedReviewerUserId is { } reviewerId)
+        {
+            var organization = await organizations.GetAsync(access.OrganizationId, cancellationToken)
+                ?? throw new BusinessException(ErrorCodes.NotFound, "Organization not found.");
+            // The submitter may pick themselves only when the workspace allows self-approval.
+            var allowed = reviewerId == access.UserId && !organization.RequireDistinctReviewer
+                ? RolePermissions.Has(access.Role, Permission.ReviewContent)
+                : deciders.Contains(reviewerId) && (!organization.RequireDistinctReviewer || reviewerId != version.CreatedByUserId);
+            if (!allowed)
+                throw Guard.Invalid("Reviewer", "must be an active Reviewer or Admin of this workspace who did not write this version");
+        }
 
         var blockers = await SubmissionBlockersAsync(access, post, version, cancellationToken);
         if (blockers.Count > 0)
             throw new BusinessException(ErrorCodes.SubmissionBlocked, "Cannot submit for review: " + string.Join(" ", blockers));
 
-        var review = ReviewRequest.Submit(Guid.NewGuid(), post, version, access.UserId, note, Now);
+        var review = ReviewRequest.Submit(Guid.NewGuid(), post, version, access.UserId, note, assignedReviewerUserId, Now);
         post.SubmitForReview(review, Now);
         reviews.Add(review);
 
         activity.Audit(access.OrganizationId, access.UserId, AuditActions.ReviewSubmitted, ActivityRecorder.ReviewResource, review.Id, new Dictionary<string, string?>
         {
             ["postId"] = post.Id.ToString(), ["postVersionId"] = version.Id.ToString(), ["versionNumber"] = version.VersionNumber.ToString(),
-            ["platform"] = post.Platform.ToString(),
+            ["platform"] = post.Platform.ToString(), ["assignedReviewerUserId"] = assignedReviewerUserId?.ToString(),
         });
-        activity.Notify(access.OrganizationId, await activity.MembersAsync(access.OrganizationId, Deciders, except: access.UserId, cancellationToken),
+        activity.Notify(access.OrganizationId, assignedReviewerUserId is { } assigned ? [assigned] : deciders,
             NotificationType.REVIEW_REQUESTED, $"Review requested: {post.Platform} post",
-            $"Version {version.VersionNumber} of the {post.Platform} post in \"{campaign.Name}\" is waiting for review.",
+            $"Version {version.VersionNumber} of a {post.Platform} post is waiting for your review.",
             ActivityRecorder.ReviewResource, review.Id);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -185,7 +196,6 @@ public sealed class ReviewService(
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
         var review = await LoadReviewAsync(access, reviewId, cancellationToken);
         var post = await LoadPostAsync(access, review.PostId, cancellationToken);
-        var campaign = await campaigns.GetAsync(post.CampaignId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Campaign not found.");
 
         var version = (await posts.ListVersionsAsync(access.OrganizationId, post.Id, cancellationToken)).Single(v => v.Id == review.PostVersionId);
         var destination = version.SocialAccountId is { } accountId && await socialAccounts.GetAsync(accountId, cancellationToken) is { } account
@@ -200,9 +210,6 @@ public sealed class ReviewService(
             post.CurrentVersionId == review.PostVersionId,
             version,
             destination,
-            new CampaignIntentDto(campaign.Id, campaign.Name, campaign.Objective, campaign.Description, campaign.TargetAudience,
-                campaign.CallToAction, campaign.CallToActionUrl),
-            await campaigns.ListFactsAsync(access.OrganizationId, campaign.Id, cancellationToken),
             (await ai.ListEvaluationsAsync(access.OrganizationId, post.Id, cancellationToken)).FirstOrDefault(e => e.PostVersionId == review.PostVersionId),
             await reviews.ListCommentsAsync(access.OrganizationId, review.Id, cancellationToken),
             history,

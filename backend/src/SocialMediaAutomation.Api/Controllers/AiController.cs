@@ -12,7 +12,9 @@ public sealed record SaveAiSettingsRequest([Required] AiProvider? Provider, stri
 
 public sealed record ListAiModelsRequest([Required] AiProvider? Provider, string? BaseUrl, string? ApiKey);
 
-public sealed record RequestGenerationRequest(SocialPlatform[]? Platforms);
+/// <summary>AI Studio: the prompt and platforms are required; tone defaults to the brand tone and the other options to Medium/Auto.</summary>
+public sealed record RequestGenerationRequest(
+    string? Prompt, SocialPlatform[]? Platforms, Guid? CampaignId, BrandTone? Tone, ContentLength? Length, HashtagMode? Hashtags, EmojiMode? Emojis);
 
 public sealed record RequestRewriteRequest([Required] RewriteAction? Action, string? CustomInstruction);
 
@@ -44,19 +46,16 @@ public sealed class AiController(AiSettingsService settings, AiGenerationService
 
     // ---- Durable generation and rewrites --------------------------------------------------------------
 
-    /// <summary>Enqueues generation and returns 202 immediately; the AI worker does the work. Poll the request for status.</summary>
+    /// <summary>Enqueues generation and returns 202 immediately; the AI worker writes one draft post per platform. Poll the request.</summary>
     [EnableRateLimiting(RateLimitingExtensions.Ai)]
-    [HttpPost("campaigns/{campaignId:guid}/ai-generations")]
-    public async Task<ActionResult<AiGenerationRequestDto>> RequestGeneration(
-        Guid orgId, Guid campaignId, RequestGenerationRequest? request, CancellationToken cancellationToken)
+    [HttpPost("ai-generations")]
+    public async Task<ActionResult<AiGenerationRequestDto>> RequestGeneration(Guid orgId, RequestGenerationRequest request, CancellationToken cancellationToken)
     {
-        var queued = await generation.RequestGenerationAsync(orgId, campaignId, request?.Platforms, cancellationToken);
+        var queued = await generation.RequestGenerationAsync(new RequestGenerationCommand(
+            orgId, request.Prompt, request.Platforms, request.CampaignId, request.Tone, request.Length ?? ContentLength.MEDIUM,
+            request.Hashtags ?? HashtagMode.AUTO, request.Emojis ?? EmojiMode.AUTO), cancellationToken);
         return AcceptedAtAction(nameof(GetRequest), new { orgId, requestId = queued.Id }, queued);
     }
-
-    [HttpGet("campaigns/{campaignId:guid}/ai-generations")]
-    public Task<IReadOnlyList<AiGenerationRequestDto>> ListForCampaign(Guid orgId, Guid campaignId, CancellationToken cancellationToken) =>
-        generation.ListForCampaignAsync(orgId, campaignId, cancellationToken);
 
     [HttpGet("ai-generations/{requestId:guid}")]
     public Task<AiGenerationRequestDto> GetRequest(Guid orgId, Guid requestId, CancellationToken cancellationToken) =>

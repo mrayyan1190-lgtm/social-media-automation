@@ -44,7 +44,8 @@ export interface PostVersion extends PostContent {
 export interface Post {
   id: string;
   organizationId: string;
-  campaignId: string;
+  /** Campaign folder, if any. */
+  campaignId: string | null;
   platform: SocialPlatform;
   editorialState: EditorialState;
   currentVersionId: string;
@@ -56,22 +57,15 @@ export interface Post {
   currentVersion: PostVersion;
 }
 
-export interface PostSummary {
-  id: string;
-  platform: SocialPlatform;
-  editorialState: EditorialState;
-  currentVersionNumber: number;
-  updatedAtUtc: string;
-}
-
 /** Client-side mirror of the API's platform rules, for early feedback only. */
 export const PLATFORM_TEXT_LIMITS: Record<SocialPlatform, number> = { LinkedIn: 3000, Facebook: 5000, Instagram: 2200 };
 
 /** GET /posts: one row per non-archived post in the workspace, with its latest publication intent (if any). */
 export interface PostListItem {
   id: string;
-  campaignId: string;
-  campaignName: string;
+  campaignId: string | null;
+  campaignName: string | null;
+  campaignColor: string | null;
   platform: SocialPlatform;
   editorialState: EditorialState;
   currentVersionNumber: number;
@@ -91,4 +85,11 @@ export interface PostListItem {
 export interface MediaLibraryItem {
   asset: MediaAsset;
   usedByPostCount: number;
+}
+
+/** The post text as it will be published (hook, body, call to action, hashtags), without the separate link. */
+export function postText(v: Pick<PostVersion, 'hook' | 'body' | 'callToAction' | 'hashtags'>): string {
+  return [v.hook, v.body, v.callToAction, v.hashtags.length ? v.hashtags.join(' ') : null]
+    .filter((part): part is string => !!part?.trim())
+    .join('\n\n');
 }

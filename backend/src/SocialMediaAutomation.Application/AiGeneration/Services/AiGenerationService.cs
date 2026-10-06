@@ -13,6 +13,20 @@ using SocialMediaAutomation.Domain.Exceptions;
 namespace SocialMediaAutomation.Application.AiGeneration.Services;
 
 /// <summary>
+/// AI Studio input. Brand description, audience and tone come from the brand profile; <see cref="Tone"/> optionally
+/// overrides the tone. <see cref="CampaignId"/> only files the resulting drafts into a campaign folder.
+/// </summary>
+public sealed record RequestGenerationCommand(
+    Guid OrganizationId,
+    string? Prompt,
+    IReadOnlyCollection<SocialPlatform>? Platforms,
+    Guid? CampaignId,
+    BrandTone? Tone,
+    ContentLength Length = ContentLength.MEDIUM,
+    HashtagMode Hashtags = HashtagMode.AUTO,
+    EmojiMode Emojis = EmojiMode.AUTO);
+
+/// <summary>
 /// API side of AI work: validates access and inputs, freezes an input snapshot and enqueues a durable request.
 /// It never calls the LLM; the AI worker does, after the HTTP request has returned.
 /// </summary>
@@ -28,42 +42,39 @@ public sealed class AiGenerationService(
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
 {
-    /// <summary>Enqueues generation for the campaign's platforms (or a subset). Repeated clicks return the active request.</summary>
-    public async Task<AiGenerationRequestDto> RequestGenerationAsync(
-        Guid organizationId, Guid campaignId, IReadOnlyCollection<SocialPlatform>? platforms, CancellationToken cancellationToken)
+    public const int PromptMax = 2000;
+
+    /// <summary>
+    /// Enqueues prompt-based generation: the worker writes one new draft post per platform. A repeated click with the
+    /// same input while that generation is still running returns it instead of starting another.
+    /// </summary>
+    public async Task<AiGenerationRequestDto> RequestGenerationAsync(RequestGenerationCommand command, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
-        var campaign = await LoadCampaignAsync(access, campaignId, cancellationToken);
-        campaign.EnsureEditable();
-
-        if (await ai.FindActiveRequestAsync(access.OrganizationId, campaign.Id, AiRequestKind.Generation, null, cancellationToken) is { } active)
-            return await ToDtoAsync(access, active, cancellationToken);
-
-        var brandExists = await brandProfiles.GetByOrganizationAsync(access.OrganizationId, cancellationToken) is not null;
-        if (campaign.GenerationGaps(brandExists) is { Count: > 0 } gaps)
-            throw new BusinessException(ErrorCodes.CampaignNotReadyForGeneration,
-                "The campaign is not ready for generation: " + string.Join(" ", gaps.Select(g => g.Message)));
-
-        var llm = await RequireLlmAsync(access, cancellationToken);
-        var targets = platforms is { Count: > 0 } ? platforms.Distinct().ToList() : campaign.Platforms;
-        foreach (var platform in targets)
+        var access = await authorizer.AuthorizeAsync(command.OrganizationId, Permission.ManageCampaigns, cancellationToken);
+        var prompt = Guard.Required(command.Prompt, "Prompt", PromptMax);
+        var platforms = (command.Platforms ?? []).Select(p => Guard.Defined(p, "Platforms")).Distinct().Order().ToList();
+        if (platforms.Count == 0)
+            throw Guard.Invalid("Platforms", "must include at least one of LinkedIn, Facebook, Instagram");
+        Campaign? campaign = null;
+        if (command.CampaignId is { } campaignId)
         {
-            // Generation replaces drafts only; content under review or approved must be changed deliberately.
-            if (await posts.FindActivePostAsync(access.OrganizationId, campaign.Id, platform, cancellationToken) is { } existing
-                && existing.EditorialState is not (EditorialState.DRAFT or EditorialState.CHANGES_REQUESTED))
-            {
-                throw new BusinessException(ErrorCodes.InvalidStateTransition,
-                    $"The {platform} post is {existing.EditorialState}; generate only for platforms whose post is a draft.");
-            }
+            campaign = await campaigns.GetAsync(campaignId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Campaign not found.");
+            access.EnsureOwns(campaign.OrganizationId, "Campaign");
+            campaign.EnsureEditable();
         }
 
-        var snapshot = await SnapshotAsync(access, campaign, targets, rewrite: null, cancellationToken);
+        var llm = await RequireLlmAsync(access, cancellationToken);
+        var brief = await BriefAsync(access, prompt, command.Tone is { } tone ? Guard.Defined(tone, "Tone") : null,
+            Guard.Defined(command.Length, "Length"), Guard.Defined(command.Hashtags, "Hashtags"), Guard.Defined(command.Emojis, "Emojis"), cancellationToken);
+        var snapshot = JsonSerializer.Serialize(await SnapshotAsync(access, brief, platforms, rewrite: null, cancellationToken), AiVersions.Json);
+        if (await ai.FindActiveGenerationAsync(access.OrganizationId, access.UserId, campaign?.Id, snapshot, cancellationToken) is { } active)
+            return await ToDtoAsync(access, active, cancellationToken);
+
         var request = AiGenerationRequest.CreateGeneration(
-            Guid.NewGuid(), campaign, targets, JsonSerializer.Serialize(snapshot, AiVersions.Json),
+            Guid.NewGuid(), access.OrganizationId, campaign, platforms, snapshot,
             AiVersions.GenerationPrompt, AiVersions.ContentSchema, llm.Provider, llm.Model, access.UserId, Now);
         request.AttachCorrelation(correlation.CorrelationId ?? CorrelationIds.New());
         ai.Add(request);
-        campaign.MarkActive(access.UserId, Now);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return AiGenerationRequestDto.From(request, []);
     }
@@ -73,25 +84,17 @@ public sealed class AiGenerationService(
         Guid organizationId, Guid postId, RewriteAction action, string? customInstruction, byte[]? expectedRowVersion, CancellationToken cancellationToken)
     {
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
-        var post = await posts.GetAsync(postId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Post not found.");
-        access.EnsureOwns(post.OrganizationId, "Post");
-        ConcurrencyGuard.EnsureCurrent(post.RowVersion, expectedRowVersion);
-        if (post.EditorialState is EditorialState.IN_REVIEW or EditorialState.ARCHIVED)
-            throw new BusinessException(ErrorCodes.InvalidStateTransition, $"A post in {post.EditorialState} cannot be rewritten.");
-
-        var campaign = await LoadCampaignAsync(access, post.CampaignId, cancellationToken);
-        if (await ai.FindActiveRequestAsync(access.OrganizationId, campaign.Id, AiRequestKind.Rewrite, post.Id, cancellationToken) is { } active)
+        var post = await LoadEditablePostAsync(access, postId, expectedRowVersion, "rewritten", cancellationToken);
+        if (await ai.FindActiveRequestAsync(access.OrganizationId, AiRequestKind.Rewrite, post.Id, cancellationToken) is { } active)
             return await ToDtoAsync(access, active, cancellationToken);
 
         var llm = await RequireLlmAsync(access, cancellationToken);
-        var source = await posts.GetVersionAsync(access.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken)
-            ?? throw new InvalidOperationException($"Post {post.Id} has no current version row.");
-        var rewrite = new RewriteSnapshot(post.Platform, action, customInstruction?.Trim(),
-            new SourceContentSnapshot(source.VersionNumber, source.Hook, source.Body, source.CallToAction, source.Hashtags, source.MediaAssetId is not null));
-        var snapshot = await SnapshotAsync(access, campaign, [post.Platform], rewrite, cancellationToken);
+        var source = await CurrentVersionAsync(access, post, cancellationToken);
+        var rewrite = new RewriteSnapshot(post.Platform, action, customInstruction?.Trim(), SourceContent(source));
+        var snapshot = await SnapshotAsync(access, await BriefAsync(access, null, null, cancellationToken: cancellationToken), [post.Platform], rewrite, cancellationToken);
 
         var request = AiGenerationRequest.CreateRewrite(
-            Guid.NewGuid(), campaign, post, source.Id, action, customInstruction, JsonSerializer.Serialize(snapshot, AiVersions.Json),
+            Guid.NewGuid(), post, source.Id, action, customInstruction, JsonSerializer.Serialize(snapshot, AiVersions.Json),
             AiVersions.RewritePrompt, AiVersions.ContentSchema, llm.Provider, llm.Model, access.UserId, Now);
         request.AttachCorrelation(correlation.CorrelationId ?? CorrelationIds.New());
         ai.Add(request);
@@ -107,26 +110,18 @@ public sealed class AiGenerationService(
         Guid organizationId, Guid postId, string? instruction, byte[]? expectedRowVersion, CancellationToken cancellationToken)
     {
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
-        var post = await posts.GetAsync(postId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Post not found.");
-        access.EnsureOwns(post.OrganizationId, "Post");
-        ConcurrencyGuard.EnsureCurrent(post.RowVersion, expectedRowVersion);
-        if (post.EditorialState is EditorialState.IN_REVIEW or EditorialState.ARCHIVED)
-            throw new BusinessException(ErrorCodes.InvalidStateTransition, $"A post in {post.EditorialState} cannot get a new image.");
-
-        var campaign = await LoadCampaignAsync(access, post.CampaignId, cancellationToken);
-        if (await ai.FindActiveRequestAsync(access.OrganizationId, campaign.Id, AiRequestKind.ImageGeneration, post.Id, cancellationToken) is { } active)
+        var post = await LoadEditablePostAsync(access, postId, expectedRowVersion, "given a new image", cancellationToken);
+        if (await ai.FindActiveRequestAsync(access.OrganizationId, AiRequestKind.ImageGeneration, post.Id, cancellationToken) is { } active)
             return await ToDtoAsync(access, active, cancellationToken);
 
         var image = await llmConnections.ResolveImageAsync(cancellationToken)
             ?? throw new BusinessException(ErrorCodes.AiNotConfigured, "AI image generation is not available yet. Please contact support.");
-        var source = await posts.GetVersionAsync(access.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken)
-            ?? throw new InvalidOperationException($"Post {post.Id} has no current version row.");
-        var imageSnapshot = new ImageSnapshot(post.Platform, instruction?.Trim(),
-            new SourceContentSnapshot(source.VersionNumber, source.Hook, source.Body, source.CallToAction, source.Hashtags, source.MediaAssetId is not null),
-            image.Size);
-        var snapshot = await SnapshotAsync(access, campaign, [post.Platform], null, cancellationToken) with { Image = imageSnapshot };
+        var source = await CurrentVersionAsync(access, post, cancellationToken);
+        var imageSnapshot = new ImageSnapshot(post.Platform, instruction?.Trim(), SourceContent(source), image.Size);
+        var snapshot = await SnapshotAsync(access, await BriefAsync(access, null, null, cancellationToken: cancellationToken), [post.Platform], null, cancellationToken)
+            with { Image = imageSnapshot };
 
-        var request = AiGenerationRequest.CreateImage(Guid.NewGuid(), campaign, post, source.Id, instruction,
+        var request = AiGenerationRequest.CreateImage(Guid.NewGuid(), post, source.Id, instruction,
             JsonSerializer.Serialize(snapshot, AiVersions.Json), AiVersions.ImagePrompt, image.Provider, image.Model, access.UserId, Now);
         request.AttachCorrelation(correlation.CorrelationId ?? CorrelationIds.New());
         ai.Add(request);
@@ -152,13 +147,6 @@ public sealed class AiGenerationService(
         return await ToDtoAsync(access, request, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<AiGenerationRequestDto>> ListForCampaignAsync(Guid organizationId, Guid campaignId, CancellationToken cancellationToken)
-    {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
-        var campaign = await LoadCampaignAsync(access, campaignId, cancellationToken);
-        return await ai.ListRequestsForCampaignAsync(access.OrganizationId, campaign.Id, take: 10, cancellationToken);
-    }
-
     public async Task<IReadOnlyList<ContentEvaluationDto>> ListEvaluationsAsync(Guid organizationId, Guid postId, CancellationToken cancellationToken)
     {
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
@@ -169,26 +157,48 @@ public sealed class AiGenerationService(
 
     private DateTime Now => timeProvider.GetUtcNow().UtcDateTime;
 
-    private async Task<Campaign> LoadCampaignAsync(OrganizationAccess access, Guid campaignId, CancellationToken cancellationToken)
+    private async Task<Post> LoadEditablePostAsync(
+        OrganizationAccess access, Guid postId, byte[]? expectedRowVersion, string what, CancellationToken cancellationToken)
     {
-        var campaign = await campaigns.GetAsync(campaignId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Campaign not found.");
-        access.EnsureOwns(campaign.OrganizationId, "Campaign");
-        return campaign;
+        var post = await posts.GetAsync(postId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Post not found.");
+        access.EnsureOwns(post.OrganizationId, "Post");
+        ConcurrencyGuard.EnsureCurrent(post.RowVersion, expectedRowVersion);
+        if (post.EditorialState is EditorialState.IN_REVIEW or EditorialState.ARCHIVED)
+            throw new BusinessException(ErrorCodes.InvalidStateTransition, $"A post in {post.EditorialState} cannot be {what}.");
+        return post;
     }
+
+    private async Task<PostVersion> CurrentVersionAsync(OrganizationAccess access, Post post, CancellationToken cancellationToken) =>
+        await posts.GetVersionAsync(access.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken)
+        ?? throw new InvalidOperationException($"Post {post.Id} has no current version row.");
+
+    private static SourceContentSnapshot SourceContent(PostVersion source) =>
+        new(source.VersionNumber, source.Hook, source.Body, source.CallToAction, source.Hashtags, source.MediaAssetId is not null);
 
     private async Task<LlmConnection> RequireLlmAsync(OrganizationAccess access, CancellationToken cancellationToken) =>
         await llmConnections.ResolveAsync(access.OrganizationId, cancellationToken)
         ?? throw new BusinessException(ErrorCodes.AiNotConfigured, "AI content generation is not available yet. Please contact support.");
 
-    /// <summary>Freezes every input the model may see: resolved brand, campaign brief, active facts and target platforms.</summary>
-    private async Task<AiInputSnapshot> SnapshotAsync(
-        OrganizationAccess access, Campaign campaign, IReadOnlyList<SocialPlatform> platforms, RewriteSnapshot? rewrite, CancellationToken cancellationToken)
+    /// <summary>The request plus the brand's audience and tone, so the user never re-enters brand information.</summary>
+    private async Task<BriefSnapshot> BriefAsync(
+        OrganizationAccess access, string? prompt, BrandTone? tone, ContentLength length = ContentLength.MEDIUM,
+        HashtagMode hashtags = HashtagMode.AUTO, EmojiMode emojis = EmojiMode.AUTO, CancellationToken cancellationToken = default)
     {
-        var brand = await brandProfiles.GetByOrganizationAsync(access.OrganizationId, cancellationToken)
-            ?? throw new BusinessException(ErrorCodes.ValidationFailed, "Complete the brand profile before generating content.");
+        var brand = await RequireBrandAsync(access, cancellationToken);
+        return new BriefSnapshot(prompt, brand.TargetAudience, tone ?? brand.BrandTone, length, hashtags, emojis);
+    }
+
+    private async Task<BrandProfile> RequireBrandAsync(OrganizationAccess access, CancellationToken cancellationToken) =>
+        await brandProfiles.GetByOrganizationAsync(access.OrganizationId, cancellationToken)
+        ?? throw new BusinessException(ErrorCodes.ValidationFailed, "Complete the brand profile before generating content.");
+
+    /// <summary>Freezes every input the model may see: resolved brand, the request and the target platforms.</summary>
+    private async Task<AiInputSnapshot> SnapshotAsync(
+        OrganizationAccess access, BriefSnapshot brief, IReadOnlyList<SocialPlatform> platforms, RewriteSnapshot? rewrite, CancellationToken cancellationToken)
+    {
+        var brand = await RequireBrandAsync(access, cancellationToken);
         var organization = await organizations.GetAsync(access.OrganizationId, cancellationToken)
             ?? throw new BusinessException(ErrorCodes.NotFound, "Organization not found.");
-        var facts = await campaigns.ListFactsAsync(access.OrganizationId, campaign.Id, cancellationToken);
 
         return new AiInputSnapshot(
             AiVersions.Snapshot,
@@ -196,10 +206,7 @@ public sealed class AiGenerationService(
             organization.DefaultLanguage,
             new BrandSnapshot(organization.Name, organization.Industry, brand.BusinessDescription, brand.TargetAudience, brand.BrandTone,
                 brand.ProhibitedTerms, brand.UpdatedAtUtc),
-            new CampaignSnapshot(campaign.Id, campaign.Name, campaign.Objective, campaign.Description, campaign.TargetAudience,
-                campaign.CallToAction, CallToActions.Text(campaign.CallToAction), campaign.CallToActionUrl, campaign.ToneOverride ?? brand.BrandTone,
-                campaign.ContentLength, campaign.HashtagMode, campaign.EmojiMode),
-            facts.Select(f => new FactSnapshot(f.Id, f.Text, f.SourceNote)).ToList(),
+            brief,
             platforms.Order().ToList(),
             rewrite);
     }

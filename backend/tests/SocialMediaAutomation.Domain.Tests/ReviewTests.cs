@@ -12,7 +12,7 @@ public class ReviewTests
     private static readonly Guid Reviewer = Guid.NewGuid();
     private static readonly DateTime Now = DateTime.UtcNow;
 
-    private readonly Campaign campaign = CampaignTests.New(SocialPlatform.LinkedIn);
+    private readonly Campaign campaign = CampaignTests.New();
     private readonly SocialAccount account;
     private readonly SocialAccount otherAccount;
     private readonly MediaAsset image;
@@ -29,7 +29,7 @@ public class ReviewTests
             (destination ?? account).Id);
 
     private (Post Post, PostVersion V1) NewPost() =>
-        Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn, Content(), null, account, PostVersionSource.Manual, Creator, Now);
+        Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn, Content(), null, account, PostVersionSource.Manual, Creator, Now);
 
     private static ApprovalPayload Payload(Post post, PostVersion version, SocialAccount destination, MediaAsset? media = null) =>
         ApprovalPayload.From(post, version, destination, media);
@@ -37,7 +37,7 @@ public class ReviewTests
     private (Post Post, PostVersion V1, ReviewRequest Review) Submitted()
     {
         var (post, v1) = NewPost();
-        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, Now);
+        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         post.SubmitForReview(review, Now);
         return (post, v1, review);
     }
@@ -66,7 +66,7 @@ public class ReviewTests
         post.Approve(review, Now);
         var approvedBody = v1.Body;
 
-        var v2 = post.Revise(Guid.NewGuid(), v1, campaign, Content("Edited after approval."), null, account, PostVersionSource.Manual, Creator, Now)!;
+        var v2 = post.Revise(Guid.NewGuid(), v1, Content("Edited after approval."), null, account, PostVersionSource.Manual, Creator, Now)!;
 
         Assert.Equal((EditorialState.DRAFT, (Guid?)null, v2.Id), (post.EditorialState, post.ActiveApprovalId, post.CurrentVersionId));
         Assert.Equal(approvedBody, v1.Body);
@@ -84,11 +84,11 @@ public class ReviewTests
         post.RequestChanges(review, Now);
         Assert.Equal(EditorialState.CHANGES_REQUESTED, post.EditorialState);
 
-        var resubmitSameVersion = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, Now);
+        var resubmitSameVersion = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         Assert.Equal(ErrorCodes.InvalidStateTransition, Assert.Throws<BusinessException>(() => post.SubmitForReview(resubmitSameVersion, Now)).Code);
 
-        var v2 = post.Revise(Guid.NewGuid(), v1, campaign, Content("Revised."), null, account, PostVersionSource.Manual, Creator, Now)!;
-        post.SubmitForReview(ReviewRequest.Submit(Guid.NewGuid(), post, v2, Creator, null, Now), Now);
+        var v2 = post.Revise(Guid.NewGuid(), v1, Content("Revised."), null, account, PostVersionSource.Manual, Creator, Now)!;
+        post.SubmitForReview(ReviewRequest.Submit(Guid.NewGuid(), post, v2, Creator, null, null, Now), Now);
         Assert.Equal(EditorialState.IN_REVIEW, post.EditorialState);
     }
 
@@ -97,7 +97,7 @@ public class ReviewTests
     {
         var (post, v1, review) = Submitted();
 
-        Assert.Throws<BusinessException>(() => post.Revise(Guid.NewGuid(), v1, campaign, Content("x"), null, account, PostVersionSource.Manual, Creator, Now));
+        Assert.Throws<BusinessException>(() => post.Revise(Guid.NewGuid(), v1, Content("x"), null, account, PostVersionSource.Manual, Creator, Now));
         review.Approve(Reviewer, v1, true, Payload(post, v1, account), Now);
         Assert.Equal(ErrorCodes.InvalidStateTransition,
             Assert.Throws<BusinessException>(() => review.RequestChanges(Reviewer, v1, "Too late", Now)).Code);
@@ -130,7 +130,7 @@ public class ReviewTests
     public void Last_editor_cannot_approve_even_if_someone_else_submitted()
     {
         var (post, v1) = NewPost(); // created by Creator
-        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Reviewer, null, Now); // submitted by someone else
+        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Reviewer, null, null, Now); // submitted by someone else
 
         Assert.Equal(ErrorCodes.DistinctReviewerRequired,
             Assert.Throws<BusinessException>(() => review.Approve(Creator, v1, true, Payload(post, v1, account), Now)).Code);
@@ -170,7 +170,7 @@ public class ReviewTests
 
         string HashOf(PostContent content, SocialAccount destination, MediaAsset? media = null)
         {
-            var (p, v) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn, content, media, destination, PostVersionSource.Manual, Creator, Now);
+            var (p, v) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn, content, media, destination, PostVersionSource.Manual, Creator, Now);
             // Same post identity is not part of the payload, so hashes are comparable across posts.
             return Payload(p, v, destination, media).ComputeHash();
         }
@@ -200,9 +200,9 @@ public class ReviewTests
         var foreign = SocialAccount.CreateUnconnected(Guid.NewGuid(), Guid.NewGuid(), SocialPlatform.LinkedIn, "LI", ExecutionMode.SIMULATED, Creator, Now);
 
         Assert.Equal(ErrorCodes.ValidationFailed, Assert.Throws<BusinessException>(() =>
-            Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn, Content(destination: facebook), null, facebook, PostVersionSource.Manual, Creator, Now)).Code);
+            Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn, Content(destination: facebook), null, facebook, PostVersionSource.Manual, Creator, Now)).Code);
         Assert.Equal(ErrorCodes.TenantMismatch, Assert.Throws<BusinessException>(() =>
-            Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn, Content(destination: foreign), null, foreign, PostVersionSource.Manual, Creator, Now)).Code);
+            Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn, Content(destination: foreign), null, foreign, PostVersionSource.Manual, Creator, Now)).Code);
     }
 
     [Fact]

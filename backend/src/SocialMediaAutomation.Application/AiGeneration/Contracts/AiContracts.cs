@@ -7,13 +7,13 @@ namespace SocialMediaAutomation.Application.AiGeneration.Contracts;
 /// <summary>Versioned identifiers recorded on every request so outputs can be traced to the exact prompt and schemas.</summary>
 public static class AiVersions
 {
-    public const string Snapshot = "snapshot-v2";
-    public const string ContentSchema = "content-v1";
-    public const string EvaluationSchema = "evaluation-v1";
-    public const string GenerationPrompt = "generation-v3";
-    public const string RewritePrompt = "rewrite-v1";
-    public const string EvaluationPrompt = "evaluation-v1";
-    public const string ImagePrompt = "image-v1";
+    public const string Snapshot = "snapshot-v3";
+    public const string ContentSchema = "content-v2";
+    public const string EvaluationSchema = "evaluation-v2";
+    public const string GenerationPrompt = "generation-v4";
+    public const string RewritePrompt = "rewrite-v2";
+    public const string EvaluationPrompt = "evaluation-v2";
+    public const string ImagePrompt = "image-v2";
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -30,8 +30,7 @@ public sealed record AiInputSnapshot(
     Guid OrganizationId,
     string Language,
     BrandSnapshot Brand,
-    CampaignSnapshot Campaign,
-    IReadOnlyList<FactSnapshot> Facts,
+    BriefSnapshot Brief,
     IReadOnlyList<SocialPlatform> Platforms,
     RewriteSnapshot? Rewrite,
     ImageSnapshot? Image = null);
@@ -41,12 +40,12 @@ public sealed record BrandSnapshot(
     string BusinessName, string Industry, string BusinessDescription, string TargetAudience, BrandTone BrandTone,
     IReadOnlyList<string> ProhibitedTerms, DateTime BrandProfileUpdatedAtUtc);
 
-/// <summary>The resolved campaign brief: audience and tone already fall back to the brand defaults.</summary>
-public sealed record CampaignSnapshot(
-    Guid Id, string Name, CampaignObjective Objective, string Description, string TargetAudience, CallToActionType CallToAction,
-    string? CallToActionText, string? CallToActionUrl, BrandTone Tone, ContentLength ContentLength, HashtagMode HashtagMode, EmojiMode EmojiMode);
-
-public sealed record FactSnapshot(Guid Id, string Text, string? SourceNote);
+/// <summary>
+/// What the user asked for in AI Studio (Prompt is null for rewrites and images of an existing post), with the brand
+/// audience and the resolved tone (an optional override, else the brand tone) and writing options.
+/// </summary>
+public sealed record BriefSnapshot(
+    string? Prompt, string TargetAudience, BrandTone Tone, ContentLength ContentLength, HashtagMode HashtagMode, EmojiMode EmojiMode);
 
 public sealed record RewriteSnapshot(SocialPlatform Platform, RewriteAction Action, string? CustomInstruction, SourceContentSnapshot SourceVersion);
 
@@ -71,7 +70,6 @@ public sealed class GeneratedVariant
     public string? Body { get; set; }
     public string? Cta { get; set; }
     public List<string>? Hashtags { get; set; }
-    public List<string>? FactIdsUsed { get; set; }
 }
 
 public sealed class EvaluationContent
@@ -98,7 +96,6 @@ public sealed class ClaimCheck
     public string? Kind { get; set; }
     public bool Supported { get; set; }
     public bool ContradictsFacts { get; set; }
-    public List<string>? FactIds { get; set; }
 }
 
 public sealed class AiFinding

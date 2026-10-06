@@ -225,10 +225,11 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
         from j in jobs
         join o in db.Organizations on j.OrganizationId equals o.Id
         join p in db.Posts on j.PostId equals p.Id
-        join c in db.Campaigns on p.CampaignId equals c.Id
+        join c in db.Campaigns on p.CampaignId equals c.Id into folders
+        from c in folders.DefaultIfEmpty()
         join v in db.PostVersions on j.PostVersionId equals v.Id
         join a in db.SocialAccounts on j.SocialAccountId equals a.Id
-        select new PublicationListItemDto(j.Id, j.OrganizationId, o.Name, c.Id, c.Name, p.Id, v.VersionNumber, j.Platform, a.DisplayName, j.ExecutionMode,
+        select new PublicationListItemDto(j.Id, j.OrganizationId, o.Name, p.CampaignId, c == null ? null : c.Name, p.Id, v.VersionNumber, j.Platform, a.DisplayName, j.ExecutionMode,
             j.PublishAtUtc, j.DeliveryState, j.AttemptCount, j.MaxAttempts, j.LockedBy, j.LastErrorCode, j.LastErrorMessage, j.CorrelationId, j.CreatedAtUtc);
 
     // ---- Logs ----

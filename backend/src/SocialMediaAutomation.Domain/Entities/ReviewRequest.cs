@@ -21,6 +21,10 @@ public sealed class ReviewRequest
     public Guid PostVersionId { get; private set; }
     public int VersionNumber { get; private set; }
     public Guid SubmittedByUserId { get; private set; }
+
+    /// <summary>The team member asked to review. Routing only: any Reviewer/Admin may still decide (role and distinct-reviewer rules apply).</summary>
+    public Guid? AssignedReviewerUserId { get; private set; }
+
     public string? SubmissionNote { get; private set; }
     public DateTime SubmittedAtUtc { get; private set; }
     public ReviewStatus Status { get; private set; }
@@ -32,7 +36,7 @@ public sealed class ReviewRequest
     public string? ApprovedPayloadHash { get; private set; }
     public byte[] RowVersion { get; private set; } = [];
 
-    public static ReviewRequest Submit(Guid id, Post post, PostVersion version, Guid userId, string? note, DateTime utcNow)
+    public static ReviewRequest Submit(Guid id, Post post, PostVersion version, Guid userId, string? note, Guid? assignedReviewerUserId, DateTime utcNow)
     {
         if (version.PostId != post.Id || version.Id != post.CurrentVersionId)
             throw new BusinessException(ErrorCodes.ApprovalStale, "Only the post's current version can be submitted for review.");
@@ -44,6 +48,7 @@ public sealed class ReviewRequest
             PostVersionId = version.Id,
             VersionNumber = version.VersionNumber,
             SubmittedByUserId = userId,
+            AssignedReviewerUserId = assignedReviewerUserId,
             SubmissionNote = Guard.Optional(note, "Submission note", NoteMax),
             SubmittedAtUtc = utcNow,
             Status = ReviewStatus.PENDING,

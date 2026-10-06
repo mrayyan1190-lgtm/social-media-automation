@@ -52,10 +52,10 @@ export class NotificationsPage {
   }
 
   protected link(n: AppNotification): string[] | null {
-    if (n.resourceType === 'ReviewRequest') return ['/publisher/approvals', n.resourceId];
+    if (n.resourceType === 'ReviewRequest') return ['/approvals', n.resourceId];
     if (n.resourceType === 'SocialAccount') return ['/social-accounts'];
     if (n.resourceType === 'Organization') return ['/home'];
-    if (n.resourceType === 'Post') return ['/posts', n.resourceId];
+    if (n.resourceType === 'Post') return ['/composer', n.resourceId];
     return null;
   }
 

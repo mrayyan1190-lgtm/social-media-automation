@@ -8,7 +8,7 @@ namespace SocialMediaAutomation.Domain.Tests;
 public class PostTests
 {
     private static readonly Guid User = Guid.NewGuid();
-    private readonly Campaign campaign = CampaignTests.New(SocialPlatform.LinkedIn, SocialPlatform.Instagram);
+    private readonly Campaign campaign = CampaignTests.New();
 
     private static PostContent Content(string body = "Close the books faster.", Guid? mediaId = null, string? alt = null, string[]? hashtags = null) =>
         new("Month-end, minus the pain", body, "Book a demo", "https://brightline.example/demo", hashtags ?? ["FinanceOps"], mediaId, alt);
@@ -18,7 +18,7 @@ public class PostTests
             new string('a', 64), $"k/{Guid.NewGuid():N}", User, DateTime.UtcNow);
 
     private (Post Post, PostVersion V1) CreatePost(SocialPlatform platform = SocialPlatform.LinkedIn, MediaAsset? media = null) =>
-        Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, platform, Content(mediaId: media?.Id), media, null, PostVersionSource.Manual, User, DateTime.UtcNow);
+        Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, platform, Content(mediaId: media?.Id), media, null, PostVersionSource.Manual, User, DateTime.UtcNow);
 
     [Fact]
     public void Create_makes_version_1_and_points_current_version_at_it()
@@ -38,7 +38,7 @@ public class PostTests
         var (post, v1) = CreatePost();
         var before = (v1.Id, v1.Body, v1.VersionNumber);
 
-        var v2 = post.Revise(Guid.NewGuid(), v1, campaign, Content("Close the books in days."), null, null, PostVersionSource.Manual, User, DateTime.UtcNow)!;
+        var v2 = post.Revise(Guid.NewGuid(), v1, Content("Close the books in days."), null, null, PostVersionSource.Manual, User, DateTime.UtcNow)!;
 
         Assert.Equal(2, v2.VersionNumber);
         Assert.Equal(v2.Id, post.CurrentVersionId);
@@ -51,7 +51,7 @@ public class PostTests
     {
         var (post, v1) = CreatePost();
 
-        Assert.Null(post.Revise(Guid.NewGuid(), v1, campaign, Content(), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
+        Assert.Null(post.Revise(Guid.NewGuid(), v1, Content(), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
         Assert.Equal(v1.Id, post.CurrentVersionId);
     }
 
@@ -60,10 +60,10 @@ public class PostTests
     {
         var (post, v1) = CreatePost();
         var (_, otherPostV1) = CreatePost(SocialPlatform.Instagram, Image());
-        post.Revise(Guid.NewGuid(), v1, campaign, Content("v2"), null, null, PostVersionSource.Manual, User, DateTime.UtcNow);
+        post.Revise(Guid.NewGuid(), v1, Content("v2"), null, null, PostVersionSource.Manual, User, DateTime.UtcNow);
 
-        Assert.Throws<InvalidOperationException>(() => post.Revise(Guid.NewGuid(), v1, campaign, Content("stale"), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
-        Assert.Throws<InvalidOperationException>(() => post.Revise(Guid.NewGuid(), otherPostV1, campaign, Content("x"), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => post.Revise(Guid.NewGuid(), v1, Content("stale"), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => post.Revise(Guid.NewGuid(), otherPostV1, Content("x"), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class PostTests
         var second = Image();
         var (post, v1) = CreatePost(SocialPlatform.Instagram, first);
 
-        var v2 = post.Revise(Guid.NewGuid(), v1, campaign, Content(mediaId: second.Id, alt: "Dashboard screenshot"), second, null, PostVersionSource.Manual, User, DateTime.UtcNow)!;
+        var v2 = post.Revise(Guid.NewGuid(), v1, Content(mediaId: second.Id, alt: "Dashboard screenshot"), second, null, PostVersionSource.Manual, User, DateTime.UtcNow)!;
 
         Assert.Equal(first.Id, v1.MediaAssetId);
         Assert.Equal(second.Id, v2.MediaAssetId);
@@ -105,19 +105,40 @@ public class PostTests
     }
 
     [Fact]
-    public void Platform_must_be_selected_for_the_campaign() => AssertInvalid(() => CreatePost(SocialPlatform.Facebook));
+    public void Post_needs_no_campaign_and_can_be_filed_without_a_new_version()
+    {
+        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, null, SocialPlatform.Facebook, Content(), null, null,
+            PostVersionSource.Manual, User, DateTime.UtcNow);
+        Assert.Null(post.CampaignId);
+
+        post.MoveToCampaign(campaign, DateTime.UtcNow);
+
+        Assert.Equal(campaign.Id, post.CampaignId);
+        Assert.Equal(v1.Id, post.CurrentVersionId);
+    }
+
+    [Fact]
+    public void Campaign_from_another_workspace_is_rejected()
+    {
+        var foreign = CampaignTests.New();
+
+        var error = Assert.Throws<BusinessException>(() => Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, foreign,
+            SocialPlatform.LinkedIn, Content(), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
+
+        Assert.Equal(ErrorCodes.TenantMismatch, error.Code);
+    }
 
     [Fact]
     public void Alt_text_without_image_is_rejected() =>
-        AssertInvalid(() => Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn, Content(alt: "orphan"), null,
+        AssertInvalid(() => Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn, Content(alt: "orphan"), null,
             null, PostVersionSource.Manual, User, DateTime.UtcNow));
 
     [Fact]
     public void Platform_text_and_hashtag_limits_are_enforced()
     {
-        AssertInvalid(() => Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn, Content(new string('x', 2990)), null,
+        AssertInvalid(() => Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn, Content(new string('x', 2990)), null,
             null, PostVersionSource.Manual, User, DateTime.UtcNow));
-        AssertInvalid(() => Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn,
+        AssertInvalid(() => Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn,
             Content(hashtags: Enumerable.Range(0, 31).Select(i => $"tag{i}").ToArray()), null, null, PostVersionSource.Manual, User, DateTime.UtcNow));
     }
 

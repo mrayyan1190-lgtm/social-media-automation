@@ -24,34 +24,24 @@ public sealed class PostService(
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
 {
-    /// <summary>All posts of the workspace across campaigns (Publisher). Same view permission as a campaign's posts.</summary>
-    public async Task<IReadOnlyList<PostListItemDto>> ListForOrganizationAsync(Guid organizationId, CancellationToken cancellationToken)
+    /// <summary>All posts of the workspace (Planner, Home), or of one campaign folder.</summary>
+    public async Task<IReadOnlyList<PostListItemDto>> ListAsync(Guid organizationId, Guid? campaignId, CancellationToken cancellationToken)
     {
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
-        return await posts.ListForOrganizationAsync(access.OrganizationId, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<PostSummaryDto>> ListForCampaignAsync(Guid organizationId, Guid campaignId, CancellationToken cancellationToken)
-    {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
-        var campaign = await LoadCampaignAsync(access, campaignId, cancellationToken);
-        return await posts.ListForCampaignAsync(access.OrganizationId, campaign.Id, cancellationToken);
+        if (campaignId is { } id)
+            await LoadCampaignAsync(access, id, cancellationToken);
+        return await posts.ListAsync(access.OrganizationId, campaignId, cancellationToken);
     }
 
     /// <summary>Creates a platform post with Version 1 and the current-version pointer in one transaction.</summary>
     public async Task<PostDto> CreateAsync(CreatePostCommand command, CancellationToken cancellationToken)
     {
         var access = await authorizer.AuthorizeAsync(command.OrganizationId, Permission.ManageCampaigns, cancellationToken);
-        var campaign = await LoadCampaignAsync(access, command.CampaignId, cancellationToken);
-
-        // One active post per platform per campaign (PRD §12); a filtered unique index backs this against races.
-        if (await posts.HasActivePostAsync(access.OrganizationId, campaign.Id, command.Platform, cancellationToken))
-            throw new BusinessException(ErrorCodes.AlreadyExists, $"This campaign already has a {command.Platform} post.");
-
+        var campaign = command.CampaignId is { } campaignId ? await LoadCampaignAsync(access, campaignId, cancellationToken) : null;
         var media = await LoadMediaAsync(access, command.Content.MediaAssetId, cancellationToken);
         var destination = await LoadDestinationAsync(access, command.Content.SocialAccountId, cancellationToken);
         var (post, version) = Post.Create(
-            Guid.NewGuid(), Guid.NewGuid(), campaign, command.Platform, command.Content, media, destination,
+            Guid.NewGuid(), Guid.NewGuid(), access.OrganizationId, campaign, command.Platform, command.Content, media, destination,
             PostVersionSource.Manual, access.UserId, Now);
         posts.Add(post);
         posts.Add(version);
@@ -86,13 +76,12 @@ public sealed class PostService(
 
         var current = await posts.GetVersionAsync(access.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken)
             ?? throw new InvalidOperationException($"Post {post.Id} has no current version row.");
-        var campaign = await LoadCampaignAsync(access, post.CampaignId, cancellationToken);
         var media = await LoadMediaAsync(access, command.Content.MediaAssetId, cancellationToken);
         var destination = await LoadDestinationAsync(access, command.Content.SocialAccountId, cancellationToken);
 
         var approvalBefore = post.ActiveApprovalId;
         var jobsToCancel = await publications.JobsToCancelForEditAsync(post, cancellationToken);
-        var next = post.Revise(Guid.NewGuid(), current, campaign, command.Content, media, destination, PostVersionSource.Manual, access.UserId, Now);
+        var next = post.Revise(Guid.NewGuid(), current, command.Content, media, destination, PostVersionSource.Manual, access.UserId, Now);
         if (next is not null)
         {
             posts.Add(next);
@@ -100,6 +89,24 @@ public sealed class PostService(
             activity.VersionCreated(post, next, access.UserId, revokedApprovalId: approvalBefore);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
+        return await ToDtoAsync(access, post, cancellationToken);
+    }
+
+    /// <summary>Moves the post between campaign folders. Requires If-Match with the post's ETag; content and approval are untouched.</summary>
+    public async Task<PostDto> MoveToCampaignAsync(MovePostToCampaignCommand command, CancellationToken cancellationToken)
+    {
+        var access = await authorizer.AuthorizeAsync(command.OrganizationId, Permission.ManageCampaigns, cancellationToken);
+        var post = await LoadPostAsync(access, command.PostId, cancellationToken);
+        ConcurrencyGuard.EnsureCurrent(post.RowVersion, command.ExpectedRowVersion);
+        var campaign = command.CampaignId is { } campaignId ? await LoadCampaignAsync(access, campaignId, cancellationToken) : null;
+        if (post.CampaignId == campaign?.Id)
+            return await ToDtoAsync(access, post, cancellationToken);
+
+        var from = post.CampaignId;
+        post.MoveToCampaign(campaign, Now);
+        activity.Audit(access.OrganizationId, access.UserId, AuditActions.PostCampaignChanged, ActivityRecorder.PostResource, post.Id,
+            new Dictionary<string, string?> { ["fromCampaignId"] = from?.ToString(), ["toCampaignId"] = campaign?.Id.ToString() });
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return await ToDtoAsync(access, post, cancellationToken);
     }
 

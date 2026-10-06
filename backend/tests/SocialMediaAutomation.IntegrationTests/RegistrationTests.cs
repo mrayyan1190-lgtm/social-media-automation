@@ -116,32 +116,9 @@ public class RegistrationTests(ApiFactory factory)
         onboarding = await (await client.GetAsync("/api/v1/onboarding/status")).ReadAsync<OnboardingStatusDto>();
         Assert.Equal((true, false, true, OnboardingSteps.SocialConnections), (onboarding.BrandProfileCompleted, onboarding.SocialAccountsConnected, onboarding.CanCreateCampaign, onboarding.NextStep));
 
-        // Campaign basics (audience from brand), details, facts, platforms, then the resolved brief.
-        var campaign = await client.CreateCampaignAsync(orgUrl, new
-        {
-            Name = "AI Reporting Dashboard Launch", Objective = "PRODUCT_LAUNCH",
-            Description = "We are launching a new AI reporting dashboard that automatically creates weekly business reports.",
-        });
-        campaign = await (await client.PutJsonAsync($"{orgUrl}/campaigns/{campaign.Id}", new
-        {
-            campaign.Name, campaign.Objective, campaign.Description, campaign.TargetAudience,
-            CallToAction = "BOOK_DEMO", CallToActionUrl = "https://centaiva.com/demo",
-        }, ApiClient.ETag(campaign.RowVersion))).ReadAsync<CampaignDto>();
-        campaign = await (await client.PutJsonAsync($"{orgUrl}/campaigns/{campaign.Id}/facts",
-            new { SupportingFacts = new[] { "Launch date: October 20", "Supports PDF and Excel exports" } }, ApiClient.ETag(campaign.RowVersion))).ReadAsync<CampaignDto>();
-
-        var notYet = await (await client.GetAsync($"{orgUrl}/campaigns/{campaign.Id}/review")).ReadAsync<CampaignBriefDto>();
-        Assert.Equal((false, "PLATFORMS"), (notYet.ReadyForGeneration, Assert.Single(notYet.MissingRequirements).Code));
-
-        await (await client.PutJsonAsync($"{orgUrl}/campaigns/{campaign.Id}/platforms",
-            new { Platforms = new[] { "LINKEDIN", "FACEBOOK", "INSTAGRAM" } }, ApiClient.ETag(campaign.RowVersion))).ReadAsync<CampaignDto>();
-        var brief = await (await client.GetAsync($"{orgUrl}/campaigns/{campaign.Id}/review")).ReadAsync<CampaignBriefDto>();
-
-        Assert.True(brief.ReadyForGeneration);
-        Assert.Equal("Small and medium-sized businesses, operations managers and business owners.", brief.Campaign.TargetAudience);
-        Assert.Equal(("Centaiva", "", "https://centaiva.com"), (brief.BrandContext!.BusinessName, brief.BrandContext.Industry, brief.BrandContext.Website));
-        Assert.Equal(2, brief.SupportingFacts.Count);
-        Assert.Equal(CampaignStatus.Draft, brief.Campaign.Status);
+        // A campaign is a folder: name and colour.
+        var campaign = await client.CreateCampaignAsync(orgUrl, new { Name = "AI Reporting Dashboard Launch", Color = "#7c3aed" });
+        Assert.Equal(("#7C3AED", CampaignStatus.Active), (campaign.Color, campaign.Status));
 
         // Social account step: a clearly labelled simulated destination completes onboarding.
         var simulated = await (await client.PostAsJsonAsync($"{orgUrl}/social-accounts/simulated", new { Platform = "LinkedIn" })).ReadAsync<SocialAccountDto>();

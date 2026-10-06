@@ -58,7 +58,7 @@ public sealed record PublishingQueueViewDto(PublishingQueueSummaryItemsDto Summa
 public sealed record PublicationQueryDto(Guid? OrganizationId, SocialPlatform? Platform, DateTime? FromUtc, DateTime? ToUtc, IReadOnlyList<DeliveryState>? States);
 
 public sealed record PublicationListItemDto(
-    Guid Id, Guid OrganizationId, string WorkspaceName, Guid CampaignId, string CampaignName, Guid PostId, int VersionNumber, SocialPlatform Platform,
+    Guid Id, Guid OrganizationId, string WorkspaceName, Guid? CampaignId, string? CampaignName, Guid PostId, int VersionNumber, SocialPlatform Platform,
     string Destination, ExecutionMode ExecutionMode, DateTime PublishAtUtc, DeliveryState State, int Attempts, int MaxAttempts, string? Worker,
     string? LastErrorCode, string? LastErrorMessage, string? CorrelationId, DateTime CreatedAtUtc);
 

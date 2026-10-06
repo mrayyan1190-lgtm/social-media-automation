@@ -35,8 +35,8 @@ public class DashboardTests(ApiFactory factory)
         var creator = await factory.SignInAsync(DemoData.CreatorA);
         var account = (await (await creator.GetAsync($"{OrgA}/social-accounts?platform={platform}")).ReadAsync<List<SocialAccountDto>>())
             .First(a => a.ExecutionMode == ExecutionMode.SIMULATED);
-        var campaign = await creator.CreateCampaignAsync(OrgA, platform);
-        var draft = await (await creator.PostAsJsonAsync($"{OrgA}/campaigns/{campaign.Id}/posts",
+        var campaign = await creator.CreateCampaignAsync(OrgA);
+        var draft = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
             new { Platform = platform, Hook = "Hook", Body = "Close the books in days.", SocialAccountId = account.Id })).ReadAsync<PostDto>();
         var review = await (await PostWithETagAsync(creator, $"{OrgA}/posts/{draft.Id}/submit-review", null, draft.RowVersion)).ReadAsync<ReviewSummaryDto>();
         await PostWithETagAsync(await factory.SignInAsync(DemoData.ReviewerA), $"{OrgA}/review-requests/{review.Id}/approve", null, review.RowVersion);

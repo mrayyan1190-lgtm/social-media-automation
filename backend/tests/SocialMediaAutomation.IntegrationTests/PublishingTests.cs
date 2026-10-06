@@ -75,7 +75,7 @@ public class PublishingTests : IDisposable
     {
         var creator = await factory.SignInAsync(DemoData.CreatorA);
         destination ??= await SimulatedAccountAsync(creator, platform);
-        var campaign = await creator.CreateCampaignAsync(OrgA, platform);
+        var campaign = await creator.CreateCampaignAsync(OrgA);
         Guid? mediaId = null;
         if (platform == "Instagram")
         {
@@ -84,7 +84,7 @@ public class PublishingTests : IDisposable
             mediaId = (await (await creator.PostAsync($"{OrgA}/media", new MultipartFormDataContent { { file, "file", "square.jpg" } }))
                 .ReadAsync<MediaAssetDto>()).Id;
         }
-        var draft = await (await creator.PostAsJsonAsync($"{OrgA}/campaigns/{campaign.Id}/posts", new
+        var draft = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}", new
         {
             Platform = platform, Hook = "Month-end, minus the pain", Body = "Close the books in days, not weeks.", Hashtags = new[] { "FinanceOps" },
             MediaAssetId = mediaId, AltText = mediaId is null ? null : "Dashboard screenshot", SocialAccountId = destination,

@@ -54,6 +54,11 @@ export function customerStatus(editorialState: string, deliveryState: string | n
   return (EDITORIAL_LABELS[editorialState] as CustomerStatus) ?? 'Draft';
 }
 
+/** The filter a status belongs to: a demo delivery is listed under Published but always labelled as a demo. */
+export function statusGroup(status: CustomerStatus): CustomerStatus {
+  return status === 'Demo (not sent)' ? 'Published' : status;
+}
+
 export function statusTone(status: string): string {
   switch (status) {
     case 'Published':

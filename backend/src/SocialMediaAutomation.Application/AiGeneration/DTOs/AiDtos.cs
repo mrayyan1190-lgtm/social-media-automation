@@ -19,7 +19,7 @@ public sealed record AiOutputDto(SocialPlatform Platform, Guid PostId, Guid Post
 
 public sealed record AiGenerationRequestDto(
     Guid Id,
-    Guid CampaignId,
+    Guid? CampaignId,
     AiRequestKind Kind,
     IReadOnlyList<SocialPlatform> Platforms,
     Guid? PostId,

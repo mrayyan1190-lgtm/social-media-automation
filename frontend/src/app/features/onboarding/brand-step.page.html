@@ -1,0 +1,78 @@
+<header>
+  <div class="bar-in">
+    <a class="brand" routerLink="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
+      </span>
+      <span class="brand-name">SocialMedia<span> Engine</span></span>
+    </a>
+
+    <div class="bar-right">
+      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
+      <button class="kebab" type="button" aria-label="More options">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="progress" role="progressbar" aria-valuenow="2" aria-valuemin="1" aria-valuemax="3" aria-label="Step 2 of 3"><i></i></div>
+</header>
+
+<main class="page">
+  <div class="step">
+
+    <div class="intro">
+      <div class="eyebrow">Step 2 of 3</div>
+      <h1>Tell us about your brand</h1>
+      <p>We use this to write content that sounds like you and speaks to the right people.</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="business">Business Description <span class="req">*</span></label>
+        <div class="input area">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V7.2a1 1 0 0 1 .62-.93l6-2.4A1 1 0 0 1 12 4.8V20"/><path d="M12 9.5l6.4 2.3a1 1 0 0 1 .6.94V20"/><path d="M3 20h18"/></svg>
+          <textarea id="business" formControlName="businessDescription" placeholder="What does your business do?"></textarea>
+        </div>
+        @if (form.controls.businessDescription.touched && form.controls.businessDescription.invalid) { <span class="field-error">Business description is required.</span> }
+      </div>
+
+      <div class="field">
+        <label for="audience">Target Audience <span class="req">*</span></label>
+        <div class="input area">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 19a6.2 6.2 0 0 1 12.4 0"/><path d="M16.5 5.3a3.2 3.2 0 0 1 0 5.6M18 13.6a6.2 6.2 0 0 1 3.2 5.4"/></svg>
+          <textarea id="audience" formControlName="targetAudience" placeholder="Who are your customers?"></textarea>
+        </div>
+        @if (form.controls.targetAudience.touched && form.controls.targetAudience.invalid) { <span class="field-error">Target audience is required.</span> }
+      </div>
+
+      <div class="field">
+        <label for="tone">Brand Tone <span class="req">*</span></label>
+        <div class="input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.3 9l5.7.4-4.4 3.7 1.4 5.6L12 15.7l-5 3 1.4-5.6L4 9.4 9.7 9 12 3.5Z"/></svg>
+          <select id="tone" formControlName="brandTone">
+            @for (t of tones; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
+          <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="website">Website</label>
+        <div class="opt">Optional</div>
+        <div class="input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 13.8a4 4 0 0 0 5.66 0l2.4-2.4a4 4 0 0 0-5.66-5.66l-1.1 1.1"/><path d="M13.8 10.2a4 4 0 0 0-5.66 0l-2.4 2.4a4 4 0 1 0 5.66 5.66l1.1-1.1"/></svg>
+          <input id="website" formControlName="website" type="url" inputmode="url" placeholder="https://yourwebsite.com" />
+        </div>
+        @if (form.controls.website.hasError('httpUrl')) { <span class="field-error">Enter a full address such as https://example.com.</span> }
+      </div>
+
+      @if (problem(); as p) {
+        <p class="error" role="alert">{{ p.detail }}</p>
+      }
+
+      <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Continue' }}</button>
+
+    </form>
+
+  </div>
+</main>

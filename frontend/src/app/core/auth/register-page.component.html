@@ -1,0 +1,130 @@
+<main class="shell">
+
+  <!-- LEFT -->
+  <section class="panel" aria-label="Product overview">
+    <a class="brand" routerLink="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
+      </span>
+      <span class="brand-name">SocialMedia<span> Engine</span></span>
+    </a>
+
+    <div class="art" aria-hidden="true">
+      <div class="art-inner">
+        <div class="cal">
+          <div class="cal-top"><h5>Content calendar</h5><span class="mon">October</span></div>
+          <div class="chan">
+            <span class="li on"><b></b> LinkedIn</span>
+            <span class="fb"><b></b> Facebook</span>
+            <span class="ig"><b></b> Instagram</span>
+          </div>
+          <div class="dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+          <div class="days">
+            <div class="day"><u>1</u><em></em></div>
+            <div class="day"><u>2</u><em class="b"></em></div>
+            <div class="day"><u>3</u></div>
+            <div class="day"><u>4</u><em class="g"></em></div>
+            <div class="day"><u>5</u><em></em><em class="p"></em></div>
+            <div class="day"><u>6</u></div>
+            <div class="day today"><u>7</u><em class="b"></em><em class="g"></em></div>
+            <div class="day"><u>8</u><em class="p"></em></div>
+            <div class="day"><u>9</u></div>
+            <div class="day"><u>10</u><em class="b"></em></div>
+            <div class="day"><u>11</u><em></em></div>
+            <div class="day"><u>12</u><em class="g"></em></div>
+            <div class="day"><u>13</u></div>
+            <div class="day"><u>14</u><em class="b"></em></div>
+          </div>
+        </div>
+
+        <div class="post">
+          <div class="post-head">
+            <span class="av">S</span>
+            <span><strong>SocialMedia Engine</strong><span>Scheduled · 9:00 AM</span></span>
+            <span class="net">in</span>
+          </div>
+          <div class="ln"></div><div class="ln s"></div>
+          <div class="ph"></div>
+          <div class="post-foot"><i>♡ 248</i><i>💬 36</i><i>↗ 12</i></div>
+        </div>
+
+        <span class="chip chip-new">Auto-publish</span>
+        <span class="chip chip-ai"><b></b> AI draft ready</span>
+        <span class="chip chip-ok"><b></b> Approved</span>
+      </div>
+    </div>
+
+    <div class="badge"><span>✨</span> Free to get started</div>
+    <div class="copy">
+      <h1>Start publishing in minutes.</h1>
+      <p>Create a workspace, invite your reviewers, and ship approved posts to LinkedIn, Facebook and Instagram.</p>
+    </div>
+  </section>
+
+  <!-- RIGHT -->
+  <section class="form-panel">
+    <div class="topbar">
+      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
+      <div class="top-link">Already have an account? <a routerLink="/login">Sign in</a></div>
+    </div>
+
+    <div class="form-wrap">
+      <h2>Create your account</h2>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="signup-email">Email</label>
+          <div class="input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>
+            <input id="signup-email" formControlName="email" type="email" autocomplete="email" placeholder="you@company.com" />
+          </div>
+          @if (form.controls.email.touched && form.controls.email.invalid) { <span class="field-error">Enter a valid email address.</span> }
+        </div>
+
+        <div class="field">
+          <label for="signup-password">Password</label>
+          <div class="input tog">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>
+            <input id="signup-password" formControlName="password" [type]="showPassword() ? 'text' : 'password'" autocomplete="new-password" placeholder="At least 8 characters" />
+            <button class="toggle" type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12s3.6-6.5 9-6.5S21 12 21 12s-3.6 6.5-9 6.5S3 12 3 12Z"/><circle cx="12" cy="12" r="2.5"/><path d="m4 20 16-16" [style.display]="showPassword() ? 'block' : 'none'"/></svg>
+            </button>
+          </div>
+          <div class="meter" [class]="strength() ? 'meter s' + strength() : 'meter'" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <div class="field-error">Use at least 8 characters.</div>
+          } @else {
+            <div class="hint">{{ hint() }}</div>
+          }
+        </div>
+
+        <div class="field">
+          <label for="signup-workspace">Workspace Name</label>
+          <div class="input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V7.2a1 1 0 0 1 .62-.93l6-2.4A1 1 0 0 1 12 4.8V20"/><path d="M12 9.5l6.4 2.3a1 1 0 0 1 .6.94V20"/><path d="M3 20h18M7.5 9.5v0M7.5 13v0M7.5 16.5v0"/></svg>
+            <input id="signup-workspace" formControlName="workspaceName" type="text" autocomplete="organization" placeholder="e.g. Centaiva" />
+          </div>
+          @if (form.controls.workspaceName.touched && form.controls.workspaceName.invalid) { <span class="field-error">Workspace name is required.</span> }
+        </div>
+
+        <label class="terms"><input type="checkbox" formControlName="terms" /> <span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</span></label>
+        @if (form.controls.terms.touched && form.controls.terms.invalid) { <span class="field-error">Please accept the terms to continue.</span> }
+
+        @if (problem(); as p) {
+          <p class="error" role="alert">{{ p.detail }}</p>
+        }
+
+        <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Creating…' : 'Create Account' }}</button>
+
+        <div class="divider"><span>or sign up with</span></div>
+
+        <button class="sso-wide" type="button">
+          <svg class="g" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.23-.2-1.78H12v3.42h5.52a4.76 4.76 0 0 1-2.05 3.04l-.03.12 2.98 2.31.2.02c1.84-1.7 2.98-4.2 2.98-7.13Z"/><path fill="#34A853" d="M12 22c2.69 0 4.94-.89 6.59-2.42l-3.14-2.43c-.84.57-1.95.97-3.45.97-2.58 0-4.77-1.74-5.56-4.15l-.11.01-3.1 2.4-.04.1A9.96 9.96 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.44 13.97A5.96 5.96 0 0 1 6.12 12c0-.69.12-1.36.31-1.97l-.01-.13-3.14-2.44-.1.05A10.02 10.02 0 0 0 2 12c0 1.61.38 3.13 1.06 4.48l3.38-2.51Z"/><path fill="#EA4335" d="M12 5.88c1.87 0 3.13.81 3.84 1.47l2.82-2.75C16.94 3 14.69 2 12 2a9.96 9.96 0 0 0-8.82 5.52l3.25 2.51C7.23 7.62 9.42 5.88 12 5.88Z"/></svg>
+          Continue with Google
+        </button>
+
+        <div class="footer">Already have an account? <a routerLink="/login">Sign in</a></div>
+      </form>
+    </div>
+  </section>
+</main>

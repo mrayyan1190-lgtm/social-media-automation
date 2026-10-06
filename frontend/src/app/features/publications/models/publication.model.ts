@@ -19,8 +19,8 @@ export interface PublicationJob {
   postId: string;
   postVersionId: string;
   versionNumber: number;
-  campaignId: string;
-  campaignName: string;
+  campaignId: string | null;
+  campaignName: string | null;
   platform: SocialPlatform;
   socialAccountId: string;
   destinationName: string;

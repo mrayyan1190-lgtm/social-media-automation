@@ -1,0 +1,59 @@
+<header>
+  <div class="bar-in">
+    <a class="brand" routerLink="/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
+      </span>
+      <span class="brand-name">SocialMedia<span> Engine</span></span>
+    </a>
+
+    <div class="bar-right">
+      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
+      <button class="kebab" type="button" aria-label="More options">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="progress" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="3" aria-label="Step 1 of 3"><i></i></div>
+</header>
+
+<main class="page">
+  <div class="step">
+
+    <div class="intro">
+      <div class="eyebrow">Step 1 of 3</div>
+      <h1>Welcome onboard! <span>👋</span></h1>
+      <p>Let's set up your workspace. This helps us personalize your experience.</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="field">
+        <label for="full-name">Full Name</label>
+        <div class="input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+          <input id="full-name" formControlName="fullName" type="text" autocomplete="name" placeholder="Your full name" />
+        </div>
+        @if (form.controls.fullName.touched && form.controls.fullName.invalid) { <span class="field-error">Full name is required.</span> }
+      </div>
+
+      <div class="field">
+        <label for="timezone">Workspace Timezone</label>
+        <div class="input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>
+          <select id="timezone" formControlName="timeZoneId">
+            @for (z of zones; track z) { <option [value]="z">{{ z }}</option> }
+          </select>
+          <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+
+      @if (problem(); as p) {
+        <p class="error" role="alert">{{ p.detail }}</p>
+      }
+
+      <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Next' }}</button>
+
+    </form>
+
+  </div>
+</main>

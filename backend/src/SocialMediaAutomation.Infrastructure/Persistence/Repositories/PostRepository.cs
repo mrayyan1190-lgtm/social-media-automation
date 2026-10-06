@@ -21,22 +21,16 @@ internal sealed class PostRepository(CoreDbContext db) : IPostRepository
         db.PostVersions.AsNoTracking()
             .SingleOrDefaultAsync(v => v.OrganizationId == organizationId && v.PostId == postId && v.Id == versionId, cancellationToken);
 
-    public Task<Post?> FindActivePostAsync(Guid organizationId, Guid campaignId, SocialPlatform platform, CancellationToken cancellationToken) =>
-        db.Posts.SingleOrDefaultAsync(p => p.OrganizationId == organizationId && p.CampaignId == campaignId && p.Platform == platform
-            && p.EditorialState != EditorialState.ARCHIVED, cancellationToken);
-
-    public Task<bool> HasActivePostAsync(Guid organizationId, Guid campaignId, SocialPlatform platform, CancellationToken cancellationToken) =>
-        db.Posts.AnyAsync(p => p.OrganizationId == organizationId && p.CampaignId == campaignId && p.Platform == platform
-            && p.EditorialState != EditorialState.ARCHIVED, cancellationToken);
-
     // ponytail: unpaged; add paging and server-side filters when a workspace grows to thousands of posts.
-    public async Task<IReadOnlyList<PostListItemDto>> ListForOrganizationAsync(Guid organizationId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PostListItemDto>> ListAsync(Guid organizationId, Guid? campaignId, CancellationToken cancellationToken)
     {
         var rows = await (from p in db.Posts.AsNoTracking()
                           join v in db.PostVersions on p.CurrentVersionId equals v.Id
-                          join c in db.Campaigns on p.CampaignId equals c.Id
+                          join c in db.Campaigns on p.CampaignId equals c.Id into folders
+                          from c in folders.DefaultIfEmpty()
                           join u in db.Users on p.CreatedByUserId equals u.Id
-                          where p.OrganizationId == organizationId && c.OrganizationId == organizationId && p.EditorialState != EditorialState.ARCHIVED
+                          where p.OrganizationId == organizationId && p.EditorialState != EditorialState.ARCHIVED
+                              && (campaignId == null || p.CampaignId == campaignId)
                           let job = db.PublicationJobs
                               .Where(j => j.OrganizationId == organizationId && j.PostId == p.Id)
                               .OrderByDescending(j => j.CreatedAtUtc)
@@ -45,26 +39,18 @@ internal sealed class PostRepository(CoreDbContext db) : IPostRepository
                           orderby p.UpdatedAtUtc descending
                           select new
                           {
-                              p.Id, p.CampaignId, CampaignName = c.Name, p.Platform, p.EditorialState, v.VersionNumber, v.Hook, v.Body,
+                              p.Id, p.CampaignId, CampaignName = c == null ? null : c.Name, CampaignColor = c == null ? null : c.Color, p.Platform, p.EditorialState, v.VersionNumber, v.Hook, v.Body,
                               v.SocialAccountId, p.CreatedByUserId, CreatedByName = u.DisplayName, p.CreatedAtUtc, p.UpdatedAtUtc,
                               JobId = (Guid?)job.Id, JobState = (DeliveryState?)job.DeliveryState, JobPublishAt = (DateTime?)job.PublishAtUtc,
                           })
             .ToListAsync(cancellationToken);
 
         return rows.Select(r => new PostListItemDto(
-                r.Id, r.CampaignId, r.CampaignName, r.Platform, r.EditorialState, r.VersionNumber, r.Hook,
+                r.Id, r.CampaignId, r.CampaignName, r.CampaignColor, r.Platform, r.EditorialState, r.VersionNumber, r.Hook,
                 r.Body.Length > 200 ? r.Body[..200] : r.Body, r.SocialAccountId, r.CreatedByUserId, r.CreatedByName, r.CreatedAtUtc,
                 r.UpdatedAtUtc, r.JobId, r.JobState, r.JobPublishAt))
             .ToList();
     }
-
-    public async Task<IReadOnlyList<PostSummaryDto>> ListForCampaignAsync(Guid organizationId, Guid campaignId, CancellationToken cancellationToken) =>
-        await (from p in db.Posts.AsNoTracking()
-               join v in db.PostVersions on p.CurrentVersionId equals v.Id
-               where p.OrganizationId == organizationId && p.CampaignId == campaignId
-               orderby p.Platform
-               select new PostSummaryDto(p.Id, p.Platform, p.EditorialState, v.VersionNumber, p.UpdatedAtUtc))
-            .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<PostVersionDto>> ListVersionsAsync(Guid organizationId, Guid postId, CancellationToken cancellationToken) =>
         await (from v in db.PostVersions.AsNoTracking()

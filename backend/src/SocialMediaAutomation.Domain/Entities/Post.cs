@@ -6,8 +6,8 @@ using SocialMediaAutomation.Domain.Exceptions;
 namespace SocialMediaAutomation.Domain.Entities;
 
 /// <summary>
-/// One platform-specific content item of a campaign (PRD §12, §17). Holds editorial state and points at its current
-/// immutable <see cref="PostVersion"/>. Delivery state never lives here.
+/// One platform-specific social post (PRD §12, §17), optionally filed in a campaign folder. Holds editorial state and
+/// points at its current immutable <see cref="PostVersion"/>. Delivery state never lives here.
 /// </summary>
 public sealed class Post
 {
@@ -15,7 +15,8 @@ public sealed class Post
 
     public Guid Id { get; private set; }
     public Guid OrganizationId { get; private set; }
-    public Guid CampaignId { get; private set; }
+    /// <summary>The campaign folder, if any. Organizational only: moving a post never creates a version or touches approval.</summary>
+    public Guid? CampaignId { get; private set; }
     public SocialPlatform Platform { get; private set; }
     public EditorialState EditorialState { get; private set; }
 
@@ -32,19 +33,16 @@ public sealed class Post
 
     /// <summary>Creates the post and its Version 1 together; the caller persists both in one transaction.</summary>
     public static (Post Post, PostVersion Version) Create(
-        Guid id, Guid versionId, Campaign campaign, SocialPlatform platform, PostContent content, MediaAsset? media,
+        Guid id, Guid versionId, Guid organizationId, Campaign? campaign, SocialPlatform platform, PostContent content, MediaAsset? media,
         SocialAccount? destination, PostVersionSource source, Guid userId, DateTime utcNow)
     {
-        campaign.EnsureEditable();
-        if (!campaign.Platforms.Contains(Guard.Defined(platform, "Platform")))
-            throw Guard.Invalid("Platform", $"{platform} is not selected for this campaign");
-
+        EnsureFileable(organizationId, campaign);
         var post = new Post
         {
             Id = id,
-            OrganizationId = campaign.OrganizationId,
-            CampaignId = campaign.Id,
-            Platform = platform,
+            OrganizationId = organizationId,
+            CampaignId = campaign?.Id,
+            Platform = Guard.Defined(platform, "Platform"),
             EditorialState = EditorialState.DRAFT,
             CreatedByUserId = userId,
             CreatedAtUtc = utcNow,
@@ -60,12 +58,11 @@ public sealed class Post
     /// nothing public-facing changed. Editing approved content revokes the approval and returns the post to DRAFT.
     /// </summary>
     public PostVersion? Revise(
-        Guid versionId, PostVersion current, Campaign campaign, PostContent content, MediaAsset? media,
+        Guid versionId, PostVersion current, PostContent content, MediaAsset? media,
         SocialAccount? destination, PostVersionSource source, Guid userId, DateTime utcNow)
     {
         if (current.Id != CurrentVersionId || current.PostId != Id)
             throw new InvalidOperationException("Revise must be based on the post's current version.");
-        campaign.EnsureEditable();
         if (EditorialState is EditorialState.IN_REVIEW or EditorialState.ARCHIVED)
             throw new BusinessException(ErrorCodes.InvalidStateTransition, $"A post in {EditorialState} cannot be edited.");
 
@@ -78,6 +75,25 @@ public sealed class Post
         EditorialState = EditorialState.DRAFT;
         UpdatedAtUtc = utcNow;
         return next;
+    }
+
+    /// <summary>Files the post into a campaign folder (or none). Public content, versions and approval are unaffected.</summary>
+    public void MoveToCampaign(Campaign? campaign, DateTime utcNow)
+    {
+        if (EditorialState == EditorialState.ARCHIVED)
+            throw new BusinessException(ErrorCodes.InvalidStateTransition, "Archived posts cannot be moved.");
+        EnsureFileable(OrganizationId, campaign);
+        CampaignId = campaign?.Id;
+        UpdatedAtUtc = utcNow;
+    }
+
+    private static void EnsureFileable(Guid organizationId, Campaign? campaign)
+    {
+        if (campaign is null)
+            return;
+        if (campaign.OrganizationId != organizationId)
+            throw new BusinessException(ErrorCodes.TenantMismatch, "The campaign belongs to another workspace.");
+        campaign.EnsureEditable();
     }
 
     /// <summary>DRAFT → IN_REVIEW for the exact current version captured by the review request.</summary>

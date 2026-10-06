@@ -29,6 +29,11 @@ public enum AiRequestStatus
 /// <summary>User-requested rewrite actions (PRD §16). Every rewrite produces a new PostVersion.</summary>
 public enum RewriteAction
 {
+    /// <summary>Fresh wording, same message and structure.</summary>
+    Rewrite,
+
+    /// <summary>A new alternative take (different hook and angle) on the same message.</summary>
+    Regenerate,
     Shorten,
     Expand,
     MoreProfessional,

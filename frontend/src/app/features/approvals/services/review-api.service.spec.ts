@@ -37,7 +37,7 @@ describe('ReviewApiService', () => {
   });
 
   it('submits the post version the user is looking at', async () => {
-    const result = firstValueFrom(TestBed.inject(ReviewApiService).submit('org-1', 'p-1', 'Ready', 'post-rv'));
+    const result = firstValueFrom(TestBed.inject(ReviewApiService).submit('org-1', 'p-1', 'Ready', null, 'post-rv'));
 
     const req = http.expectOne('/api/v1/organizations/org-1/posts/p-1/submit-review');
     expect(req.request.headers.get('If-Match')).toBe('"post-rv"');

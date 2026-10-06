@@ -12,7 +12,7 @@ public class PublicationJobTests
     private static readonly Guid Reviewer = Guid.NewGuid();
     private static readonly DateTime Now = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
 
-    private readonly Campaign campaign = CampaignTests.New(SocialPlatform.LinkedIn);
+    private readonly Campaign campaign = CampaignTests.New();
 
     private static string Code(Action act) => Assert.Throws<BusinessException>(act).Code;
 
@@ -22,9 +22,9 @@ public class PublicationJobTests
     private (Post Post, PostVersion Version, ReviewRequest Approval, SocialAccount Account) Approved(SocialAccount? destination = null)
     {
         var account = destination ?? Account();
-        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn,
+        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn,
             new PostContent("Hook", "Close the books faster.", null, null, [], null, null, account.Id), null, account, PostVersionSource.Manual, Creator, Now);
-        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, Now);
+        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         post.SubmitForReview(review, Now);
         review.Approve(Reviewer, v1, true, ApprovalPayload.From(post, v1, account, null), Now);
         post.Approve(review, Now);
@@ -101,9 +101,9 @@ public class PublicationJobTests
     public void Unapproved_post_cannot_create_a_job()
     {
         var account = Account();
-        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, SocialPlatform.LinkedIn,
+        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn,
             new PostContent("Hook", "Body", null, null, [], null, null, account.Id), null, account, PostVersionSource.Manual, Creator, Now);
-        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, Now);
+        var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         post.SubmitForReview(review, Now);
 
         Assert.Equal(ErrorCodes.ApprovalRequired, Code(() => PublicationJob.Create(Guid.NewGuid(), post, v1, review, account,
@@ -114,7 +114,7 @@ public class PublicationJobTests
     public void Stale_approval_or_changed_payload_cannot_create_a_job()
     {
         var approved = Approved();
-        var v2 = approved.Post.Revise(Guid.NewGuid(), approved.Version, campaign,
+        var v2 = approved.Post.Revise(Guid.NewGuid(), approved.Version,
             new PostContent("Hook", "Edited.", null, null, [], null, null, approved.Account.Id), null, approved.Account, PostVersionSource.Manual, Creator, Now)!;
         Assert.Equal(ErrorCodes.ApprovalRequired, Code(() => Job(approved)));
 

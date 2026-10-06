@@ -62,6 +62,8 @@ public sealed class AiGenerationProcessor(
         {
             var snapshot = JsonSerializer.Deserialize<AiInputSnapshot>(request.InputSnapshot, AiVersions.Json)
                 ?? throw new InvalidOperationException("Input snapshot is empty.");
+            if (snapshot.SchemaVersion != AiVersions.Snapshot)
+                throw new NonRetryableAiFailure(AiFailureCodes.SourceChanged, "This request was created by an earlier version of the app. Request it again.");
 
             if (request.Kind == AiRequestKind.ImageGeneration)
             {
@@ -110,28 +112,19 @@ public sealed class AiGenerationProcessor(
         var raw = await CallAsync(request, AiCallPurpose.Generation, AiVersions.GenerationPrompt, connection, PromptBuilder.Generation(snapshot), cancellationToken);
         var variants = ParseLogged(request, () => OutputParser.ParseContent(raw, request.Platforms), raw);
         var evaluations = await EvaluateAsync(request, snapshot, variants, connection, cancellationToken);
-        var campaign = await campaigns.GetAsync(request.CampaignId, cancellationToken)
-            ?? throw new NonRetryableAiFailure(AiFailureCodes.TargetNotEditable, "The campaign no longer exists.");
+        // The campaign is only a folder: if it was archived meanwhile, the drafts are still kept, just unfiled.
+        var campaign = request.CampaignId is { } campaignId ? await campaigns.GetAsync(campaignId, cancellationToken) : null;
+        if (campaign is { IsArchived: true } || campaign?.OrganizationId != request.OrganizationId)
+            campaign = null;
 
+        // Every generation writes new drafts; nothing already under review or approved is touched.
         foreach (var (platform, variant) in variants)
         {
-            var existing = await posts.FindActivePostAsync(request.OrganizationId, request.CampaignId, platform, cancellationToken);
-            PostVersion version;
-            if (existing is null)
-            {
-                var (post, first) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign, platform, Content(snapshot, variant, null),
-                    null, null, PostVersionSource.AiGeneration, request.RequestedByUserId, Now);
-                posts.Add(post);
-                posts.Add(first);
-                activity.VersionCreated(post, first, request.RequestedByUserId, revokedApprovalId: null);
-                version = first;
-            }
-            else
-            {
-                if (existing.EditorialState is not (EditorialState.DRAFT or EditorialState.CHANGES_REQUESTED))
-                    throw new NonRetryableAiFailure(AiFailureCodes.TargetNotEditable, $"The {platform} post moved to {existing.EditorialState} while generating.");
-                version = await ReviseAsync(request, existing, campaign, snapshot, variant, PostVersionSource.AiGeneration, cancellationToken);
-            }
+            var (post, version) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), request.OrganizationId, campaign, platform, Content(variant, null),
+                null, null, PostVersionSource.AiGeneration, request.RequestedByUserId, Now);
+            posts.Add(post);
+            posts.Add(version);
+            activity.VersionCreated(post, version, request.RequestedByUserId, revokedApprovalId: null);
             Record(request, snapshot, platform, variant, version, evaluations);
         }
     }
@@ -148,27 +141,20 @@ public sealed class AiGenerationProcessor(
         var raw = await CallAsync(request, AiCallPurpose.Rewrite, AiVersions.RewritePrompt, connection, PromptBuilder.Rewrite(snapshot), cancellationToken);
         var variants = ParseLogged(request, () => OutputParser.ParseContent(raw, request.Platforms), raw);
         var evaluations = await EvaluateAsync(request, snapshot, variants, connection, cancellationToken);
-        var campaign = await campaigns.GetAsync(request.CampaignId, cancellationToken)
-            ?? throw new NonRetryableAiFailure(AiFailureCodes.TargetNotEditable, "The campaign no longer exists.");
 
         var (platform, variant) = variants.Single();
-        var version = await ReviseAsync(request, post, campaign, snapshot, variant, PostVersionSource.AiRewrite, cancellationToken);
+        var version = await ReviseWithAsync(request, post, current => Content(variant, current), newImage: null, PostVersionSource.AiRewrite, cancellationToken);
         Record(request, snapshot, platform, variant, version, evaluations);
     }
 
     /// <summary>
-    /// Creates the next version from model text, keeping the current image, alt text and destination. A rewrite of
-    /// approved content revokes the approval like any other edit.
+    /// Creates the next version of the post. A rewrite or new image on approved content revokes the approval like any
+    /// other edit.
     /// </summary>
-    private Task<PostVersion> ReviseAsync(
-        AiGenerationRequest request, Post post, Campaign campaign, AiInputSnapshot snapshot, GeneratedVariant variant,
-        PostVersionSource source, CancellationToken cancellationToken) =>
-        ReviseWithAsync(request, post, campaign, current => Content(snapshot, variant, current), newImage: null, source, cancellationToken);
-
     /// <param name="contentFor">The next version's content, built from the current version.</param>
     /// <param name="newImage">A replacement image (AI image generation); null keeps the current image.</param>
     private async Task<PostVersion> ReviseWithAsync(
-        AiGenerationRequest request, Post post, Campaign campaign, Func<PostVersion, PostContent> contentFor, MediaAsset? newImage,
+        AiGenerationRequest request, Post post, Func<PostVersion, PostContent> contentFor, MediaAsset? newImage,
         PostVersionSource source, CancellationToken cancellationToken)
     {
         var current = await posts.GetVersionAsync(request.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken)
@@ -179,7 +165,7 @@ public sealed class AiGenerationProcessor(
         try
         {
             var jobsToCancel = await publications.JobsToCancelForEditAsync(post, cancellationToken);
-            var next = post.Revise(Guid.NewGuid(), current, campaign, contentFor(current), image, destination, source,
+            var next = post.Revise(Guid.NewGuid(), current, contentFor(current), image, destination, source,
                     request.RequestedByUserId, Now)
                 ?? throw new AiOutputInvalidException("The model returned content identical to the current version.", null);
             posts.Add(next);
@@ -224,8 +210,6 @@ public sealed class AiGenerationProcessor(
             throw;
         }
 
-        var campaign = await campaigns.GetAsync(request.CampaignId, cancellationToken)
-            ?? throw new NonRetryableAiFailure(AiFailureCodes.TargetNotEditable, "The campaign no longer exists.");
         MediaAsset asset;
         try
         {
@@ -238,7 +222,7 @@ public sealed class AiGenerationProcessor(
         }
 
         // Alt text describes a specific image, so the new image starts without the old description; the reviewer sees that.
-        var version = await ReviseWithAsync(request, post, campaign, current => new PostContent(current.Hook, current.Body, current.CallToAction,
+        var version = await ReviseWithAsync(request, post, current => new PostContent(current.Hook, current.Body, current.CallToAction,
             current.DestinationUrl, current.Hashtags, asset.Id, null, current.SocialAccountId), asset, PostVersionSource.AiImage, cancellationToken);
         ai.Add(AiRequestOutput.Create(request, version, post.Platform, JsonSerializer.Serialize(new { mediaAssetId = asset.Id }, AiVersions.Json), Now));
     }
@@ -303,12 +287,12 @@ public sealed class AiGenerationProcessor(
         }
     }
 
-    /// <summary>Model text becomes a version only through the domain; the destination URL always comes from the campaign brief.</summary>
-    private static PostContent Content(AiInputSnapshot snapshot, GeneratedVariant variant, PostVersion? current) => new(
+    /// <summary>Model text becomes a version only through the domain; the link, image and destination are kept from the current version.</summary>
+    private static PostContent Content(GeneratedVariant variant, PostVersion? current) => new(
         Hook: variant.Hook,
         Body: variant.Body!,
-        CallToAction: variant.Cta ?? snapshot.Campaign.CallToActionText,
-        DestinationUrl: snapshot.Campaign.CallToActionUrl,
+        CallToAction: variant.Cta,
+        DestinationUrl: current?.DestinationUrl,
         Hashtags: variant.Hashtags,
         MediaAssetId: current?.MediaAssetId,
         AltText: current?.AltText,

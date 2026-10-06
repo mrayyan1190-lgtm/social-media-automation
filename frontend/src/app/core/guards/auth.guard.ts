@@ -1,10 +1,10 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, CanMatchFn, Router } from '@angular/router';
 import { OnboardingStep } from '../auth/auth.models';
 import { Me } from '../auth/auth.models';
 import { AuthService, ONBOARDING_ROUTES } from '../auth/auth.service';
 import { InternalAuthService } from '../auth/internal-auth.service';
-import { WorkspaceService } from '../services/workspace.service';
+import { WorkspaceService, workspaceSlug } from '../services/workspace.service';
 
 /**
  * App shell: signed-in users who have finished onboarding. Unauthenticated users go to login; users with an
@@ -81,4 +81,28 @@ export const systemAdminGuard: CanActivateFn = async () => {
   } catch {
     return router.createUrlTree(['/internal/login']);
   }
+};
+
+/**
+ * Matches the leading /{workspace} segment of the customer app only when it is the slug of one of the user's
+ * workspaces, and makes that workspace current. Anything else falls through to workspaceRedirectGuard.
+ */
+export const workspaceMatchGuard: CanMatchFn = async (_route, segments) => {
+  const auth = inject(AuthService);
+  const workspace = inject(WorkspaceService);
+  const me = auth.me() ?? (await auth.loadMe().catch(() => null));
+  const slug = segments[0]?.path;
+  const match = me?.memberships.find((m) => workspaceSlug(m, me.memberships) === slug);
+  if (!match) return false;
+  workspace.select(match.organizationId);
+  return true;
+};
+
+/**
+ * Un-prefixed customer URLs (/home, /campaigns/123, old bookmarks, notification links, OAuth returns) and unknown
+ * workspace slugs land here: send them to the same path inside the current workspace. Runs after authGuard.
+ */
+export const workspaceRedirectGuard: CanActivateFn = (_route, state) => {
+  const slug = inject(WorkspaceService).slug();
+  return slug ? inject(Router).parseUrl(`/${slug}${state.url === '/' ? '' : state.url}`) : true;
 };

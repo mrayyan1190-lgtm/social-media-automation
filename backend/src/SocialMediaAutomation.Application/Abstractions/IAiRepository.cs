@@ -11,10 +11,16 @@ public interface IAiRepository
     /// <summary>Tracked; loads by id only, so callers verify OrganizationId (API) or hold its lease (worker).</summary>
     Task<AiGenerationRequest?> GetRequestAsync(Guid requestId, CancellationToken cancellationToken);
 
-    /// <summary>The pending or processing request for the same target, used to make repeated clicks idempotent.</summary>
-    Task<AiGenerationRequest?> FindActiveRequestAsync(Guid organizationId, Guid campaignId, AiRequestKind kind, Guid? postId, CancellationToken cancellationToken);
+    /// <summary>The pending or processing rewrite/image request for the same post, used to make repeated clicks idempotent.</summary>
+    Task<AiGenerationRequest?> FindActiveRequestAsync(Guid organizationId, AiRequestKind kind, Guid postId, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<AiGenerationRequestDto>> ListRequestsForCampaignAsync(Guid organizationId, Guid campaignId, int take, CancellationToken cancellationToken);
+    /// <summary>
+    /// A pending or processing generation by the same user with the identical input snapshot and campaign: a repeated
+    /// click returns it instead of writing the same drafts twice. A different prompt or option is a new request.
+    /// </summary>
+    Task<AiGenerationRequest?> FindActiveGenerationAsync(
+        Guid organizationId, Guid requestedByUserId, Guid? campaignId, string inputSnapshot, CancellationToken cancellationToken);
+
 
     Task<IReadOnlyList<AiOutputDto>> ListOutputsAsync(Guid organizationId, Guid requestId, CancellationToken cancellationToken);
 

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Organizations.DTOs;
@@ -22,36 +23,34 @@ internal static class ApiClient
         return client;
     }
 
-    /// <summary>A valid campaign request body (basics, details and optional advanced options).</summary>
-    public static object CampaignBody(
-        string? name = null,
-        string objective = "LEAD_GENERATION",
-        string? targetAudience = "Finance leaders",
-        string callToAction = "BOOK_DEMO",
-        string? callToActionUrl = "https://brightline.example/demo",
-        string? description = null) => new
+    /// <summary>A valid campaign (folder) request body.</summary>
+    public static object CampaignBody(string? name = null, string? color = "#2563EB", string? description = null) => new
     {
         Name = name ?? $"Campaign {Guid.NewGuid():N}",
-        Objective = objective,
-        Description = description ?? "Brightline Close helps finance teams close the books faster.",
-        TargetAudience = targetAudience,
-        CallToAction = callToAction,
-        CallToActionUrl = callToActionUrl,
+        Color = color,
+        Description = description,
     };
 
-    /// <summary>Creates a campaign in the workspace and selects its platforms, as the wizard does.</summary>
+    /// <summary>Creates a campaign folder in the workspace.</summary>
     /// <param name="organizationUrl">e.g. /api/v1/organizations/{id}</param>
-    public static async Task<CampaignDto> CreateCampaignAsync(this HttpClient client, string organizationUrl, params string[] platforms) =>
-        await client.CreateCampaignAsync(organizationUrl, CampaignBody(), platforms);
+    public static Task<CampaignDto> CreateCampaignAsync(this HttpClient client, string organizationUrl) =>
+        client.CreateCampaignAsync(organizationUrl, CampaignBody());
 
-    public static async Task<CampaignDto> CreateCampaignAsync(this HttpClient client, string organizationUrl, object body, params string[] platforms)
+    public static async Task<CampaignDto> CreateCampaignAsync(this HttpClient client, string organizationUrl, object body) =>
+        await (await client.PostAsJsonAsync($"{organizationUrl}/campaigns", body)).ReadAsync<CampaignDto>();
+
+    /// <summary>Creates a post filed in the campaign at <paramref name="campaignUrl"/> ({org}/campaigns/{id}).</summary>
+    public static Task<HttpResponseMessage> CreatePostAsync(this HttpClient client, string campaignUrl, object body)
     {
-        var url = $"{organizationUrl}/campaigns";
-        var campaign = await (await client.PostAsJsonAsync(url, body)).ReadAsync<CampaignDto>();
-        return platforms.Length == 0
-            ? campaign
-            : await (await client.PutJsonAsync($"{url}/{campaign.Id}/platforms", new { Platforms = platforms }, ETag(campaign.RowVersion))).ReadAsync<CampaignDto>();
+        var json = JsonSerializer.SerializeToNode(body, Json)!.AsObject();
+        json["campaignId"] = campaignUrl.Split('/')[^1];
+        return client.PostAsJsonAsync($"{OrganizationOf(campaignUrl)}/posts", json, Json);
     }
+
+    /// <summary>The post list of one campaign.</summary>
+    public static string PostsOf(string campaignUrl) => $"{OrganizationOf(campaignUrl)}/posts?campaignId={campaignUrl.Split('/')[^1]}";
+
+    private static string OrganizationOf(string campaignUrl) => campaignUrl[..campaignUrl.IndexOf("/campaigns/", StringComparison.Ordinal)];
 
     public static object WorkspaceBody(string? name = null, string timeZoneId = "Europe/Paris") =>
         new { Name = name ?? $"Workspace {Guid.NewGuid():N}", Industry = "Retail", TimeZoneId = timeZoneId };

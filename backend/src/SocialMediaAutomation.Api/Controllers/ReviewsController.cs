@@ -7,7 +7,7 @@ using SocialMediaAutomation.Domain.Enums;
 
 namespace SocialMediaAutomation.Api.Controllers;
 
-public sealed record SubmitForReviewRequest(string? Note);
+public sealed record SubmitForReviewRequest(string? Note, Guid? ReviewerUserId);
 
 public sealed record RequestChangesRequest(string? Explanation);
 
@@ -22,7 +22,7 @@ public sealed class ReviewsController(ReviewService reviews) : ControllerBase
     [HttpPost("posts/{postId:guid}/submit-review")]
     public async Task<ActionResult<ReviewSummaryDto>> Submit(Guid orgId, Guid postId, SubmitForReviewRequest? request, CancellationToken cancellationToken)
     {
-        var review = WithETag(await reviews.SubmitAsync(orgId, postId, request?.Note, RowVersionHeaders.ReadIfMatch(Request), cancellationToken));
+        var review = WithETag(await reviews.SubmitAsync(orgId, postId, request?.Note, request?.ReviewerUserId, RowVersionHeaders.ReadIfMatch(Request), cancellationToken));
         return CreatedAtAction(nameof(Get), new { orgId, reviewId = review.Id }, review);
     }
 

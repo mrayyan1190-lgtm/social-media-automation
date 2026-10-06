@@ -44,7 +44,7 @@ public class PostAndMediaTests(ApiFactory factory)
     private async Task<(HttpClient Client, string CampaignUrl)> CampaignAsync(DemoData.DemoUser user, string org)
     {
         var client = await factory.SignInAsync(user);
-        var campaign = await client.CreateCampaignAsync(org, "LinkedIn", "Instagram");
+        var campaign = await client.CreateCampaignAsync(org);
         return (client, $"{org}/campaigns/{campaign.Id}");
     }
 
@@ -76,9 +76,9 @@ public class PostAndMediaTests(ApiFactory factory)
     {
         var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
 
-        var response = await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"));
+        var response = await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"));
         var post = await response.ReadAsync<PostDto>();
-        var summaries = await (await creator.GetAsync($"{campaignUrl}/posts")).ReadAsync<List<PostSummaryDto>>();
+        var summaries = await (await creator.GetAsync(ApiClient.PostsOf(campaignUrl))).ReadAsync<List<PostListItemDto>>();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(EditorialState.DRAFT, post.EditorialState);
@@ -95,7 +95,7 @@ public class PostAndMediaTests(ApiFactory factory)
     public async Task Edit_creates_version_2_and_version_1_stays_unchanged()
     {
         var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var v1Post = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var v1Post = await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
 
         var v2Post = await (await ReviseAsync(creator, OrgA, v1Post, Content("Edited body"))).ReadAsync<PostDto>();
         var stale = await ReviseAsync(creator, OrgA, v1Post, Content("Stale edit"));
@@ -116,9 +116,9 @@ public class PostAndMediaTests(ApiFactory factory)
     public async Task Database_rejects_in_place_changes_and_cross_post_current_version()
     {
         var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var linkedIn = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var linkedIn = await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var media = await UploadAsync(creator, OrgA, ImageProbeTests.JpegHeader(1080, 1080), "a.jpg", "image/jpeg");
-        var instagram = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("Instagram", media.Id))).ReadAsync<PostDto>();
+        var instagram = await (await creator.CreatePostAsync(campaignUrl, NewPost("Instagram", media.Id))).ReadAsync<PostDto>();
         var unused = await UploadAsync(creator, OrgA, ImageProbeTests.PngHeader(400, 400));
         // LinkedIn v1 becomes a non-current version, so only the same-post FK (not the unique pointer index) can reject reuse.
         await (await ReviseAsync(creator, OrgA, linkedIn, Content("LinkedIn v2"))).ReadAsync<PostDto>();
@@ -137,20 +137,29 @@ public class PostAndMediaTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task One_active_post_per_platform_and_only_selected_platforms()
+    public async Task Campaign_holds_any_posts_and_moving_a_post_creates_no_version()
     {
         var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var unfiled = await (await creator.PostAsJsonAsync($"{OrgA}/posts", NewPost("Facebook"))).ReadAsync<PostDto>();
+        Assert.Null(unfiled.CampaignId);
 
-        await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).AssertErrorAsync(HttpStatusCode.Conflict, ErrorCodes.AlreadyExists);
-        await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("Facebook"))).AssertErrorAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
+        var moved = await (await creator.PutJsonAsync($"{OrgA}/posts/{unfiled.Id}/campaign", new { CampaignId = campaignUrl.Split('/')[^1] },
+            ApiClient.ETag(unfiled.RowVersion))).ReadAsync<PostDto>();
+        var inCampaign = await (await creator.GetAsync(ApiClient.PostsOf(campaignUrl))).ReadAsync<List<PostListItemDto>>();
+
+        Assert.Equal((unfiled.CurrentVersionId, 1), (moved.CurrentVersionId, moved.CurrentVersion.VersionNumber));
+        Assert.Equal(3, inCampaign.Count);
+        await (await creator.PutJsonAsync($"{OrgA}/posts/{unfiled.Id}/campaign", new { CampaignId = (Guid?)null }, ApiClient.ETag(unfiled.RowVersion)))
+            .AssertErrorAsync(HttpStatusCode.Conflict, ErrorCodes.ConcurrencyConflict);
     }
 
     [Fact]
     public async Task Reviewer_cannot_create_or_edit_posts_or_upload()
     {
         var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var post = await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var reviewer = await factory.SignInAsync(DemoData.ReviewerA);
 
         await (await reviewer.GetAsync($"{OrgA}/posts/{post.Id}")).ReadAsync<PostDto>();
@@ -204,7 +213,7 @@ public class PostAndMediaTests(ApiFactory factory)
         var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
         var first = await UploadAsync(creator, OrgA, ImageProbeTests.JpegHeader(1080, 1080), "first.jpg", "image/jpeg");
         var second = await UploadAsync(creator, OrgA, ImageProbeTests.JpegHeader(1080, 1350), "second.jpg", "image/jpeg");
-        var v1 = await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("Instagram", first.Id))).ReadAsync<PostDto>();
+        var v1 = await (await creator.CreatePostAsync(campaignUrl, NewPost("Instagram", first.Id))).ReadAsync<PostDto>();
 
         var v2 = await (await ReviseAsync(creator, OrgA, v1, NewPost("Instagram", second.Id))).ReadAsync<PostDto>();
         var altOnly = await (await ReviseAsync(creator, OrgA, v2, new
@@ -226,7 +235,7 @@ public class PostAndMediaTests(ApiFactory factory)
         var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
         var png = await UploadAsync(creator, OrgA, ImageProbeTests.PngHeader(1080, 1080));
 
-        await (await creator.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("Instagram", png.Id)))
+        await (await creator.CreatePostAsync(campaignUrl, NewPost("Instagram", png.Id)))
             .AssertErrorAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
     }
 
@@ -236,12 +245,12 @@ public class PostAndMediaTests(ApiFactory factory)
     public async Task Image_from_another_workspace_cannot_be_attached_or_read()
     {
         var (creatorA, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creatorA.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var post = await (await creatorA.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var adminB = await factory.SignInAsync(DemoData.AdminB);
         var mediaB = await UploadAsync(adminB, OrgB, ImageProbeTests.PngHeader(800, 800));
 
         var attach = await ReviseAsync(creatorA, OrgA, post, Content(mediaAssetId: mediaB.Id, altText: "foreign"));
-        var create = await creatorA.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("Instagram", mediaB.Id));
+        var create = await creatorA.CreatePostAsync(campaignUrl, NewPost("Instagram", mediaB.Id));
         var readViaOwnOrg = await creatorA.GetAsync($"{OrgA}/media/{mediaB.Id}/content");
         var versions = await (await creatorA.GetAsync($"{OrgA}/posts/{post.Id}/versions")).ReadAsync<List<PostVersionDto>>();
 
@@ -255,7 +264,7 @@ public class PostAndMediaTests(ApiFactory factory)
     public async Task Database_rejects_a_version_referencing_another_workspace_image()
     {
         var (creatorA, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creatorA.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var post = await (await creatorA.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var mediaB = await UploadAsync(await factory.SignInAsync(DemoData.AdminB), OrgB, ImageProbeTests.PngHeader(800, 800));
         await using var db = factory.CreateDbContext();
 
@@ -273,14 +282,14 @@ public class PostAndMediaTests(ApiFactory factory)
     public async Task Other_workspace_cannot_read_or_edit_posts()
     {
         var (creatorA, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creatorA.PostAsJsonAsync($"{campaignUrl}/posts", NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var post = await (await creatorA.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var adminB = await factory.SignInAsync(DemoData.AdminB);
 
         await (await adminB.GetAsync($"{OrgA}/posts/{post.Id}")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await adminB.GetAsync($"{OrgB}/posts/{post.Id}")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await adminB.GetAsync($"{OrgB}/posts/{post.Id}/versions")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await ReviseAsync(adminB, OrgB, post, Content("Hijack"))).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
-        await (await adminB.PostAsJsonAsync($"{OrgB}/campaigns/{campaignUrl.Split('/')[^1]}/posts", NewPost("Facebook")))
+        await (await adminB.CreatePostAsync($\"{OrgB}/campaigns/{campaignUrl.Split('/')[^1]}\", NewPost("Facebook")))
             .AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
     }
 }

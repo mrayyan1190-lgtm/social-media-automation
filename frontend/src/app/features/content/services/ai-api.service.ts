@@ -4,20 +4,16 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { ifMatch } from '../../../core/http/api-problem';
 import { SocialPlatform } from '../../campaigns/models/campaign.model';
-import { AiGenerationRequest, ContentEvaluation, RewriteAction, isActive } from '../models/ai.model';
+import { AiGenerationRequest, ContentEvaluation, GenerationInput, RewriteAction, isActive } from '../models/ai.model';
 
 /** Durable AI requests: the API only enqueues; the AI worker does the work and the UI polls for the outcome. */
 @Injectable({ providedIn: 'root' })
 export class AiApiService {
   private readonly http = inject(HttpClient);
 
-  /** Generates (or regenerates) drafts; `platforms` limits it to some of the campaign's platforms. */
-  requestGeneration(orgId: string, campaignId: string, platforms?: SocialPlatform[]): Observable<AiGenerationRequest> {
-    return this.http.post<AiGenerationRequest>(`${this.org(orgId)}/campaigns/${campaignId}/ai-generations`, platforms ? { platforms } : {});
-  }
-
-  listForCampaign(orgId: string, campaignId: string): Observable<AiGenerationRequest[]> {
-    return this.http.get<AiGenerationRequest[]>(`${this.org(orgId)}/campaigns/${campaignId}/ai-generations`);
+  /** AI Studio: queues generation; the worker writes one new draft post per platform (listed in `outputs` when done). */
+  requestGeneration(orgId: string, input: GenerationInput): Observable<AiGenerationRequest> {
+    return this.http.post<AiGenerationRequest>(`${this.org(orgId)}/ai-generations`, input);
   }
 
   get(orgId: string, requestId: string): Observable<AiGenerationRequest> {

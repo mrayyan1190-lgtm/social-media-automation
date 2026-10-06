@@ -10,7 +10,6 @@ public sealed class CoreDbContext(DbContextOptions<CoreDbContext> options) : DbC
     public DbSet<OrganizationMember> OrganizationMembers => Set<OrganizationMember>();
     public DbSet<BrandProfile> BrandProfiles => Set<BrandProfile>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
-    public DbSet<CampaignFact> CampaignFacts => Set<CampaignFact>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<PostVersion> PostVersions => Set<PostVersion>();

@@ -7,7 +7,7 @@ import { AiGenerationRequest } from '../models/ai.model';
 import { AiApiService } from './ai-api.service';
 
 const request = (status: AiGenerationRequest['status']): AiGenerationRequest => ({
-  id: 'req-1', campaignId: 'c-1', kind: 'Generation', platforms: ['LinkedIn'], postId: null, sourceVersionId: null, rewriteAction: null,
+  id: 'req-1', campaignId: null, kind: 'Generation', platforms: ['LinkedIn'], postId: null, sourceVersionId: null, rewriteAction: null,
   status, attemptCount: 1, maxAttempts: 3, failureCode: null, failureMessage: null, provider: 'OpenAI', model: 'm',
   createdAtUtc: '', completedAtUtc: null, outputs: [],
 });

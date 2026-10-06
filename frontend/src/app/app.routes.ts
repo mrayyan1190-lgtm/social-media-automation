@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
 import { LoginPageComponent } from './core/auth/login-page.component';
 import { RegisterPageComponent } from './core/auth/register-page.component';
-import { authGuard, contentCreatorGuard, onboardingGuard, systemAdminGuard, workspaceAdminGuard } from './core/guards/auth.guard';
+import { authGuard, contentCreatorGuard, onboardingGuard, systemAdminGuard, workspaceAdminGuard, workspaceMatchGuard, workspaceRedirectGuard } from './core/guards/auth.guard';
 import { ShellComponent } from './core/layout/shell.component';
+
+const composer = () => import('./features/composer/composer.page').then((m) => m.ComposerPage);
 
 export const routes: Routes = [
   // Public
@@ -27,23 +29,27 @@ export const routes: Routes = [
   { path: 'internal/login', loadComponent: () => import('./features/internal/internal-login.page').then((m) => m.InternalLoginPage) },
   { path: 'internal', canActivate: [systemAdminGuard], loadChildren: () => import('./features/internal/internal.routes').then((m) => m.INTERNAL_ROUTES) },
 
-  // The customer application.
+  // The customer application, scoped to a workspace in the URL: /{workspace-slug}/home.
   {
-    path: '',
+    path: ':workspace',
+    canMatch: [workspaceMatchGuard],
     component: ShellComponent,
     canActivate: [authGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'home' },
       { path: 'home', loadComponent: () => import('./features/home/home.page').then((m) => m.HomePage) },
       { path: 'ai-studio', canActivate: [contentCreatorGuard], loadComponent: () => import('./features/ai-studio/ai-studio.page').then((m) => m.AiStudioPage) },
+      // Composer: a new post (/composer?campaignId=…) or an existing one (/composer/{postId}). Read-only for reviewers.
+      { path: 'composer', loadComponent: composer },
+      { path: 'composer/:postId', loadComponent: composer },
       { path: 'campaigns', loadChildren: () => import('./features/campaigns/campaigns.routes').then((m) => m.CAMPAIGN_ROUTES) },
-      // The post composer (edit, rewrite, versions, review submission, scheduling) for one platform post.
-      { path: 'posts', loadChildren: () => import('./features/content/content.routes').then((m) => m.CONTENT_ROUTES) },
-      { path: 'publisher', loadChildren: () => import('./features/publisher/publisher.routes').then((m) => m.PUBLISHER_ROUTES) },
+      { path: 'approvals', loadComponent: () => import('./features/approvals/approvals.page').then((m) => m.ApprovalsPage) },
+      { path: 'approvals/:reviewId', loadComponent: () => import('./features/approvals/pages/review-detail/review-detail.page').then((m) => m.ReviewDetailPage) },
+      { path: 'planner', loadComponent: () => import('./features/planner/planner.page').then((m) => m.PlannerPage) },
       { path: 'library', loadComponent: () => import('./features/library/library.page').then((m) => m.LibraryPage) },
       { path: 'brand', loadComponent: () => import('./features/settings/pages/brand-settings/brand-settings.page').then((m) => m.BrandSettingsPage) },
-      // Workspace administration: workspace Admins only (the API enforces each permission too).
-      { path: 'social-accounts', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/settings/pages/social-connections.page').then((m) => m.SocialConnectionsPage) },
+      // Everyone sees connection status; only Admins get connect/disconnect actions (the API enforces it too).
+      { path: 'social-accounts', loadComponent: () => import('./features/settings/pages/social-connections.page').then((m) => m.SocialConnectionsPage) },
       { path: 'team', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/settings/pages/team.page').then((m) => m.TeamPage) },
       { path: 'settings', canActivate: [workspaceAdminGuard], loadChildren: () => import('./features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES) },
       { path: 'notifications', loadComponent: () => import('./features/account/notifications.page').then((m) => m.NotificationsPage) },
@@ -51,12 +57,19 @@ export const routes: Routes = [
 
       // Older links (bookmarks, notifications, emails) keep working.
       { path: 'dashboard', pathMatch: 'full', redirectTo: 'home' },
-      { path: 'approvals', pathMatch: 'full', redirectTo: 'publisher/approvals' },
-      { path: 'approvals/:reviewId', redirectTo: 'publisher/approvals/:reviewId' },
-      { path: 'calendar', pathMatch: 'full', redirectTo: 'publisher/planner' },
-      { path: 'publishing', pathMatch: 'full', redirectTo: 'publisher/planner' },
-      { path: 'publishing/:publicationJobId', redirectTo: 'publisher/planner' },
+      { path: 'posts/new', redirectTo: 'composer' },
+      { path: 'posts/:postId', redirectTo: 'composer/:postId' },
+      { path: 'posts/:postId/versions', redirectTo: 'composer/:postId' },
+      { path: 'publisher/approvals', pathMatch: 'full', redirectTo: 'approvals' },
+      { path: 'publisher/approvals/:reviewId', redirectTo: 'approvals/:reviewId' },
+      { path: 'publisher', redirectTo: 'planner' },
+      { path: 'publisher/:view', redirectTo: 'planner' },
+      { path: 'calendar', pathMatch: 'full', redirectTo: 'planner' },
+      { path: 'publishing', pathMatch: 'full', redirectTo: 'planner' },
+      { path: 'publishing/:publicationJobId', redirectTo: 'planner' },
+      { path: '**', redirectTo: 'home' },
     ],
   },
-  { path: '**', redirectTo: '' },
+  // Any other URL (/, /home, /campaigns/123, links without a workspace) opens inside the current workspace.
+  { path: '**', component: ShellComponent, canActivate: [authGuard, workspaceRedirectGuard], children: [] },
 ];

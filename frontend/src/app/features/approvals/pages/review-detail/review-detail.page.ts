@@ -4,28 +4,26 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../../core/http/api-problem';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { PlatformIconComponent } from '../../../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../../../shared/components/problem-banner.component';
+import { DEMO_MODE_NOTE } from '../../../../shared/models/states';
+import { postText } from '../../../content/models/post.model';
 import { MediaApiService } from '../../../content/services/media-api.service';
 import { ReviewDetail, ReviewSummary } from '../../models/review.model';
 import { ReviewApiService } from '../../services/review-api.service';
-import { DEMO_MODE_NOTE, MODE_LABELS } from '../../../../shared/models/states';
-import { CTA_LABELS, OBJECTIVE_LABELS } from '../../../campaigns/models/campaign.model';
 
 /**
- * Review of one exact version. Shows the submitted content (never newer edits), destination with its mode, media and
- * alt text, campaign intent, facts, automated findings, comments and history. Buttons are hidden when the API would
- * refuse, but the API decides.
+ * Review of one exact version. Shows the submitted content (never newer edits), account, media, notes, automated
+ * findings, comments and history. Buttons are hidden when the API would refuse, but the API decides.
  */
 @Component({
   selector: 'app-review-detail-page',
-  imports: [RouterLink, DatePipe, ProblemBannerComponent],
+  imports: [RouterLink, DatePipe, PlatformIconComponent, ProblemBannerComponent],
   templateUrl: './review-detail.page.html',
 })
 export class ReviewDetailPage {
   protected readonly reviewLabels: Record<string, string> = { PENDING: 'In Review', APPROVED: 'Approved', CHANGES_REQUESTED: 'Changes Requested' };
-  protected readonly objectiveLabels = OBJECTIVE_LABELS;
-  protected readonly ctaLabels = CTA_LABELS;
-  protected readonly modeLabels = MODE_LABELS;
+  protected readonly tones: Record<string, string> = { PENDING: 'waiting', APPROVED: 'success', CHANGES_REQUESTED: 'danger' };
   protected readonly demoNote = DEMO_MODE_NOTE;
   private readonly api = inject(ReviewApiService);
   private readonly media = inject(MediaApiService);
@@ -48,6 +46,10 @@ export class ReviewDetailPage {
     });
   }
 
+  protected text(d: ReviewDetail): string {
+    return postText(d.version);
+  }
+
   protected imageUrl(mediaAssetId: string): string {
     return this.media.previewUrl(this.workspace.orgId()!, mediaAssetId);
   }
@@ -66,7 +68,7 @@ export class ReviewDetailPage {
   }
 
   protected approve(): Promise<void> {
-    return this.decide((orgId, review) => firstValueFrom(this.api.approve(orgId, review)), 'Approved. Exactly this version can now be scheduled.');
+    return this.decide((orgId, review) => firstValueFrom(this.api.approve(orgId, review)), 'Approved. Exactly this version can now be scheduled or published.');
   }
 
   protected requestChanges(): Promise<void> {

@@ -17,9 +17,9 @@ describe('CampaignApiService', () => {
   afterEach(() => http.verify());
 
   it('scopes requests to the workspace and sends the row version as a quoted If-Match', async () => {
-    const result = firstValueFrom(api.updateFact('org-1', 'camp-1', 'fact-1', { text: 't', sourceNote: 's' }, 'AAAAAAAAB9E='));
+    const result = firstValueFrom(api.update('org-1', 'camp-1', { name: 'n', color: '#2563EB', description: null }, 'AAAAAAAAB9E='));
 
-    const request = http.expectOne('/api/v1/organizations/org-1/campaigns/camp-1/facts/fact-1');
+    const request = http.expectOne('/api/v1/organizations/org-1/campaigns/camp-1');
     expect(request.request.method).toBe('PUT');
     expect(request.request.headers.get('If-Match')).toBe('"AAAAAAAAB9E="');
     request.flush({});

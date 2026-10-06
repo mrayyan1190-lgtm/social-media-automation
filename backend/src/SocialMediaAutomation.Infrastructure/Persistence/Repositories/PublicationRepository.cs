@@ -63,9 +63,10 @@ internal sealed class PublicationRepository(CoreDbContext db) : IPublicationRepo
         var rows = await (from j in jobs.Take(query.Take)
                join v in db.PostVersions on j.PostVersionId equals v.Id
                join p in db.Posts on j.PostId equals p.Id
-               join c in db.Campaigns on p.CampaignId equals c.Id
+               join c in db.Campaigns on p.CampaignId equals c.Id into folders
+               from c in folders.DefaultIfEmpty()
                join a in db.SocialAccounts on j.SocialAccountId equals a.Id
-               select new PublicationJobDto(j.Id, j.PostId, j.PostVersionId, v.VersionNumber, c.Id, c.Name, j.Platform, j.SocialAccountId, a.DisplayName,
+               select new PublicationJobDto(j.Id, j.PostId, j.PostVersionId, v.VersionNumber, p.CampaignId, c == null ? null : c.Name, j.Platform, j.SocialAccountId, a.DisplayName,
                    j.ExecutionMode, j.DeliveryState, j.PublishAtUtc, j.LocalPublishAt, j.TimeZoneId, j.UtcOffsetMinutes, j.PayloadHash,
                    j.AttemptCount, j.MaxAttempts, j.ExternalPostId, j.ExternalPostUrl, j.LastErrorCode, j.LastErrorMessage, j.CreatedAtUtc, j.CanceledAtUtc,
                    j.DeliveryState == DeliveryState.SCHEDULED || j.DeliveryState == DeliveryState.RETRY_PENDING || j.DeliveryState == DeliveryState.ACTION_REQUIRED,

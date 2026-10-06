@@ -1,172 +1,139 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../../core/http/api-problem';
-import { OrganizationApiService } from '../../../../core/services/organization-api.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { IconComponent } from '../../../../shared/components/icon.component';
 import { PlatformIconComponent } from '../../../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../../../shared/components/problem-banner.component';
-import { DELIVERY_LABELS } from '../../../../shared/models/states';
-import { ReviewApiService } from '../../../approvals/services/review-api.service';
-import { AiApiService } from '../../../content/services/ai-api.service';
+import { CustomerStatus, customerStatus, statusGroup, statusTone } from '../../../../shared/models/states';
+import { PostListItem } from '../../../content/models/post.model';
+import { PostApiService } from '../../../content/services/post-api.service';
 import { formatInZone } from '../../../publications/models/time-zones';
-import { PublicationApiService } from '../../../publications/services/publication-api.service';
-import { BrandProfile } from '../../../settings/models/brand-profile.model';
-import { BrandProfileApiService } from '../../../settings/services/brand-profile-api.service';
-import { CampaignContentComponent } from '../../components/campaign-content/campaign-content.component';
-import { CampaignFactsEditorComponent } from '../../components/campaign-facts-editor/campaign-facts-editor.component';
-import { CampaignFormComponent, CampaignFormValue } from '../../components/campaign-form/campaign-form.component';
-import { CTA_LABELS, Campaign, CampaignFact, OBJECTIVE_LABELS } from '../../models/campaign.model';
+import { CampaignDialogComponent } from '../../components/campaign-dialog.component';
+import { Campaign } from '../../models/campaign.model';
 import { CampaignApiService } from '../../services/campaign-api.service';
 
-type Tab = 'overview' | 'content' | 'activity';
+const FILTERS: (CustomerStatus | 'All')[] = ['All', 'Draft', 'In Review', 'Changes Requested', 'Approved', 'Scheduled', 'Published'];
 
-interface ActivityItem {
-  at: string;
-  text: string;
-}
-
-/** One campaign: Overview (brief and brand context), Content (one post per platform) and Activity. */
+/** One campaign folder: its posts with a status filter. Opening a post goes to Composer. */
 @Component({
   selector: 'app-campaign-detail-page',
-  imports: [
-    RouterLink, RouterLinkActive, IconComponent, PlatformIconComponent, ProblemBannerComponent,
-    CampaignFormComponent, CampaignFactsEditorComponent, CampaignContentComponent,
-  ],
-  templateUrl: './campaign-detail.page.html',
+  imports: [RouterLink, IconComponent, PlatformIconComponent, ProblemBannerComponent, CampaignDialogComponent],
+  template: `
+    <a class="back" routerLink="/campaigns">← Campaigns</a>
+    <div class="page-header">
+      <div class="title-row">
+        <span class="color-dot lg" [style.background]="campaign()?.color ?? '#94a3b8'" aria-hidden="true"></span>
+        <div>
+          <h1>{{ campaign()?.name ?? 'Campaign' }} @if (campaign()?.status === 'Archived') { <span class="badge muted">Archived</span> }</h1>
+          <p class="muted">{{ posts().length }} {{ posts().length === 1 ? 'Post' : 'Posts' }}@if (campaign()?.description) { · {{ campaign()?.description }} }</p>
+        </div>
+      </div>
+      @if (editable()) {
+        <div class="actions">
+          <a class="button primary" routerLink="/composer" [queryParams]="{ campaignId: campaignId() }"><app-icon name="plus" [size]="16" />Create Post</a>
+          <a class="button" routerLink="/ai-studio" [queryParams]="{ campaignId: campaignId() }"><app-icon name="sparkles" [size]="16" />Create with AI</a>
+          <button type="button" class="icon-btn" title="Edit campaign" aria-label="Edit campaign" (click)="dialog().open(campaign()!)"><app-icon name="edit" [size]="16" /></button>
+          <button type="button" class="icon-btn" title="Archive campaign" aria-label="Archive campaign" (click)="archive()"><app-icon name="archive" [size]="16" /></button>
+        </div>
+      }
+    </div>
+    <app-problem-banner [problem]="problem()" (reload)="load()" />
+
+    <div class="chip-filters" role="tablist" aria-label="Status">
+      @for (f of filters; track f) {
+        <button type="button" role="tab" class="chip" [class.on]="filter() === f" [attr.aria-selected]="filter() === f" (click)="filter.set(f)">
+          {{ f }} <span class="chip-count">{{ count(f) }}</span>
+        </button>
+      }
+    </div>
+
+    @if (loading() && !posts().length) {
+      <p class="muted">Loading…</p>
+    } @else {
+      <div class="post-table card flush">
+        @for (p of shown(); track p.id) {
+          <a class="post-row" [routerLink]="['/composer', p.id]">
+            <span class="post-main">
+              <strong class="ellipsis-line">{{ p.hook || p.bodyExcerpt }}</strong>
+              @if (p.hook) { <span class="hint ellipsis-line">{{ p.bodyExcerpt }}</span> }
+            </span>
+            <span><app-platform-icon [platform]="p.platform" [label]="true" /></span>
+            <span><span [class]="'badge delivery ' + tone(p.status)">{{ p.status }}</span></span>
+            <span class="hint nowrap">{{ time(p.updatedAtUtc) }}</span>
+          </a>
+        } @empty {
+          <div class="empty-row">
+            @if (posts().length) { No {{ filter() }} posts. } @else { No posts in this campaign yet. }
+          </div>
+        }
+      </div>
+    }
+
+    <app-campaign-dialog (saved)="campaign.set($event)" />
+  `,
 })
 export class CampaignDetailPage {
   private readonly api = inject(CampaignApiService);
-  private readonly brandApi = inject(BrandProfileApiService);
-  private readonly organizations = inject(OrganizationApiService);
-  private readonly ai = inject(AiApiService);
-  private readonly reviews = inject(ReviewApiService);
-  private readonly publications = inject(PublicationApiService);
+  private readonly postsApi = inject(PostApiService);
   private readonly router = inject(Router);
   protected readonly workspace = inject(WorkspaceService);
+  protected readonly dialog = viewChild.required(CampaignDialogComponent);
 
-  /** Route parameter and route data / query parameter, bound by the router. */
+  /** Route parameter. */
   readonly campaignId = input.required<string>();
-  readonly tab = input<Tab>('overview');
-  readonly generate = input<string>();
 
-  protected readonly objectiveLabels = OBJECTIVE_LABELS;
-  protected readonly ctaLabels = CTA_LABELS;
+  protected readonly filters = FILTERS;
+  protected readonly tone = statusTone;
   protected readonly campaign = signal<Campaign | null>(null);
-  protected readonly facts = signal<CampaignFact[]>([]);
-  protected readonly brand = signal<BrandProfile | null>(null);
-  protected readonly createdByName = signal<string | null>(null);
-  protected readonly activity = signal<ActivityItem[] | null>(null);
-  protected readonly editing = signal(false);
-  protected readonly saving = signal(false);
+  protected readonly posts = signal<(PostListItem & { status: CustomerStatus })[]>([]);
+  protected readonly filter = signal<CustomerStatus | 'All'>('All');
+  protected readonly loading = signal(true);
   protected readonly problem = signal<ApiProblem | null>(null);
-  protected readonly editable = computed(() => this.workspace.canManageCampaigns() && this.campaign()?.status !== 'Archived');
+  protected readonly editable = computed(() => this.workspace.canManageCampaigns() && !!this.campaign() && this.campaign()?.status !== 'Archived');
+  protected readonly shown = computed(() => this.filter() === 'All' ? this.posts() : this.posts().filter((p) => statusGroup(p.status) === this.filter()));
 
   constructor() {
     effect(() => {
       if (this.workspace.orgId() && this.campaignId()) void this.load();
     });
-    effect(() => {
-      if (this.tab() === 'activity' && this.campaign()) void this.loadActivity();
-    });
   }
 
-  protected time(utc: string, options: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }): string {
-    return formatInZone(utc, this.workspace.timeZone(), options);
+  protected count(f: CustomerStatus | 'All'): number {
+    return f === 'All' ? this.posts().length : this.posts().filter((p) => statusGroup(p.status) === f).length;
+  }
+
+  protected time(utc: string): string {
+    return formatInZone(utc, this.workspace.timeZone(), { dateStyle: 'medium', timeStyle: 'short' });
   }
 
   async load(): Promise<void> {
     const orgId = this.workspace.orgId();
     if (!orgId) return;
+    this.loading.set(true);
     this.problem.set(null);
     try {
-      const campaign = await firstValueFrom(this.api.get(orgId, this.campaignId()));
-      this.campaign.set(campaign);
-      this.facts.set(campaign.facts);
-      const [brand, members] = await Promise.all([
-        firstValueFrom(this.brandApi.get(orgId)).catch(() => null),
-        firstValueFrom(this.organizations.members(orgId)).catch(() => []),
+      const [campaign, posts] = await Promise.all([
+        firstValueFrom(this.api.get(orgId, this.campaignId())),
+        firstValueFrom(this.postsApi.listAll(orgId, this.campaignId())),
       ]);
-      this.brand.set(brand);
-      this.createdByName.set(members.find((m) => m.userId === campaign.createdByUserId)?.displayName ?? null);
-    } catch (error) {
-      this.problem.set(toApiProblem(error));
-    }
-  }
-
-  protected async reloadFacts(): Promise<void> {
-    const orgId = this.workspace.orgId();
-    if (!orgId) return;
-    try {
-      this.facts.set((await firstValueFrom(this.api.get(orgId, this.campaignId()))).facts);
-    } catch (error) {
-      this.problem.set(toApiProblem(error));
-    }
-  }
-
-  protected generateContent(): void {
-    void this.router.navigate(['/campaigns', this.campaignId(), 'content'], { queryParams: { generate: 1 } });
-  }
-
-  protected async update({ input, platforms }: CampaignFormValue): Promise<void> {
-    await this.mutate(async (orgId, c) => {
-      const updated = await firstValueFrom(this.api.update(orgId, c.id, input, c.rowVersion));
-      const unchanged = platforms.length === updated.platforms.length && platforms.every((p) => updated.platforms.includes(p));
-      return unchanged ? updated : firstValueFrom(this.api.setPlatforms(orgId, c.id, platforms, updated.rowVersion));
-    });
-    if (!this.problem()) this.editing.set(false);
-  }
-
-  protected archive(): Promise<void> {
-    if (!confirm('Archive this campaign? It becomes read-only.')) return Promise.resolve();
-    return this.mutate((orgId, c) => firstValueFrom(this.api.archive(orgId, c.id, c.rowVersion)));
-  }
-
-  private async mutate(action: (orgId: string, campaign: Campaign) => Promise<Campaign>): Promise<void> {
-    const orgId = this.workspace.orgId();
-    const current = this.campaign();
-    if (!orgId || !current) return;
-    this.saving.set(true);
-    this.problem.set(null);
-    try {
-      const saved = await action(orgId, current);
-      this.campaign.set(saved);
-      this.facts.set(saved.facts);
+      this.campaign.set(campaign);
+      this.posts.set(posts.map((p) => ({ ...p, status: customerStatus(p.editorialState, p.latestDeliveryState) })));
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
-      this.saving.set(false);
+      this.loading.set(false);
     }
   }
 
-  /** A readable timeline from generation requests, reviews and publishing for this campaign. */
-  private async loadActivity(): Promise<void> {
+  protected async archive(): Promise<void> {
     const orgId = this.workspace.orgId();
-    const campaignId = this.campaignId();
-    if (!orgId) return;
+    const c = this.campaign();
+    if (!orgId || !c || !confirm(`Archive “${c.name}”? Its posts stay as they are; the campaign becomes read-only.`)) return;
     try {
-      const [requests, reviews, jobs] = await Promise.all([
-        firstValueFrom(this.ai.listForCampaign(orgId, campaignId)),
-        firstValueFrom(this.reviews.list(orgId)),
-        firstValueFrom(this.publications.list(orgId)),
-      ]);
-      const items: ActivityItem[] = [];
-      for (const r of requests) {
-        const what = r.kind === 'Generation' ? `Content generated for ${r.platforms.join(', ')}` : `${r.platforms.join(', ')} post rewritten`;
-        items.push({ at: r.completedAtUtc ?? r.createdAtUtc, text: r.status === 'FAILED' ? `${what}: did not complete` : r.status === 'COMPLETED' ? what : `${what} (in progress)` });
-      }
-      for (const r of reviews.filter((x) => x.campaignId === campaignId)) {
-        items.push({ at: r.submittedAtUtc, text: `${r.submittedByName} submitted ${r.platform} Version ${r.versionNumber} for review` });
-        if (r.decidedAtUtc) {
-          items.push({ at: r.decidedAtUtc, text: `${r.decidedByName} ${r.status === 'APPROVED' ? 'approved' : 'requested changes on'} ${r.platform} Version ${r.versionNumber}` });
-        }
-      }
-      for (const j of jobs.filter((x) => x.campaignId === campaignId)) {
-        items.push({ at: j.createdAtUtc, text: `${j.platform} Version ${j.versionNumber} scheduled for ${this.time(j.publishAtUtc)}` });
-        if (j.deliveryState !== 'SCHEDULED') items.push({ at: j.publishAtUtc, text: `${j.platform}: ${DELIVERY_LABELS[j.deliveryState]}` });
-      }
-      this.activity.set(items.sort((a, b) => b.at.localeCompare(a.at)));
+      await firstValueFrom(this.api.archive(orgId, c.id, c.rowVersion));
+      await this.router.navigate(['/campaigns']);
     } catch (error) {
       this.problem.set(toApiProblem(error));
     }

@@ -185,8 +185,8 @@ public class SocialConnectionTests(ApiFactory factory)
             Assert.Equal("", (await db.OAuthConnections.SingleAsync(c => c.Id == connection.Id)).ProtectedAccessToken);
 
         // Content aimed at the disconnected destination cannot enter review.
-        var campaign = await creator.CreateCampaignAsync(OrgA, "LinkedIn");
-        var post = await (await creator.PostAsJsonAsync($"{OrgA}/campaigns/{campaign.Id}/posts",
+        var campaign = await creator.CreateCampaignAsync(OrgA);
+        var post = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
             new { Platform = "LinkedIn", Hook = "Month-end, minus the pain", Body = "Close the books in days.", SocialAccountId = account.Id })).ReadAsync<PostDto>();
         var submit = await creator.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{OrgA}/posts/{post.Id}/submit-review")
         {

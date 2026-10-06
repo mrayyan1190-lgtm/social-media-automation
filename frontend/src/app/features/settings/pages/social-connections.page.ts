@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { SocialConnectionsComponent } from '../../social-accounts/components/social-connections.component';
 
-/** Workspace Admin: connect, reconnect or disconnect LinkedIn, Facebook and Instagram. No technical settings. */
+/** LinkedIn, Facebook and Instagram status for everyone; Admins connect, reconnect or disconnect. No technical settings. */
 @Component({
   selector: 'app-social-connections-page',
   imports: [SocialConnectionsComponent],
@@ -21,7 +21,8 @@ import { SocialConnectionsComponent } from '../../social-accounts/components/soc
     }
     @if (workspace.orgId(); as orgId) {
       <section class="card narrow-card">
-        <app-social-connections [orgId]="orgId" [allowDisconnect]="true" />
+        <app-social-connections [orgId]="orgId" [allowDisconnect]="true" [canManage]="workspace.isAdmin()" />
+        @if (!workspace.isAdmin()) { <p class="hint">Ask a workspace Admin to connect or reconnect accounts.</p> }
       </section>
     }
   `,

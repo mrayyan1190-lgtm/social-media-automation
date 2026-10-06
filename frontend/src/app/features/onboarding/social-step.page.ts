@@ -1,32 +1,16 @@
-import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, ViewEncapsulation, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { SocialConnectionsComponent } from '../social-accounts/components/social-connections.component';
 
 /** Onboarding step 3: connect at least one social account (no skip), then continue to the dashboard. */
 @Component({
   selector: 'app-onboarding-social',
-  imports: [SocialConnectionsComponent],
-  template: `
-    <main class="onboarding">
-      <div class="onboarding-step">
-        <header class="onboarding-intro">
-          <p class="step-label">Step 3 of 3</p>
-          <h1>Connect your social accounts</h1>
-          <p class="muted">Connect at least one account to continue.</p>
-        </header>
-        <section class="onboarding-form">
-          @if (oauthFailed(); as message) {
-            <p class="error" role="alert">The connection did not complete: {{ message }}</p>
-          }
-          @if (orgId) {
-            <app-social-connections [orgId]="orgId" [compact]="true" (connectedChange)="anyConnected.set($event)" />
-          }
-          <button type="button" class="primary block" (click)="finish()" [disabled]="!anyConnected() || busy()">Continue to Home</button>
-        </section>
-      </div>
-    </main>
-  `,
+  imports: [SocialConnectionsComponent, RouterLink],
+  templateUrl: './social-step.page.html',
+  styleUrl: './social-step.page.css',
+  // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.
+  encapsulation: ViewEncapsulation.ShadowDom,
 })
 export class SocialStepPage {
   private readonly auth = inject(AuthService);

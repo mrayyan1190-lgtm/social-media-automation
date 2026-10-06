@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -19,17 +19,17 @@ import { ScheduleDialogComponent } from './schedule-dialog.component';
   imports: [ProblemBannerComponent, PublicationJobComponent, ScheduleDialogComponent],
   template: `
     <section class="card">
-      <h2>Scheduling</h2>
+      <h2>Publishing</h2>
       @if (success(); as message) { <p class="banner success" role="status">{{ message }}</p> }
       <app-problem-banner [problem]="problem()" (reload)="reload()" />
       @if (canSchedule()) {
-        <p class="hint">Version {{ post().currentVersion.versionNumber }} is approved and ready. Pick a date and time, or publish it now. It goes out even if you close the browser.</p>
+        <p class="hint">Version {{ post().currentVersion.versionNumber }} is approved. Schedule it or publish it now; it goes out even if you close the browser.</p>
         <div class="actions">
           <button class="primary" type="button" [disabled]="busy()" (click)="openSchedule()">Schedule</button>
           <button type="button" [disabled]="busy()" (click)="publishNow()">{{ busy() ? 'Working…' : 'Publish Now' }}</button>
         </div>
       } @else if (post().editorialState !== 'APPROVED') {
-        <p class="hint">Only approved content can be scheduled. Submit this post for review first.</p>
+        <p class="hint">Only approved content can be scheduled or published. Submit this post for review first.</p>
       }
       @if (loading()) {
         <p class="hint">Loading…</p>
@@ -44,6 +44,8 @@ import { ScheduleDialogComponent } from './schedule-dialog.component';
 })
 export class PublicationPanelComponent {
   readonly post = input.required<Post>();
+  /** The post's publication jobs after every (re)load, so the page can show the delivery status. */
+  readonly jobsChange = output<PublicationJob[]>();
 
   private readonly api = inject(PublicationApiService);
   protected readonly workspace = inject(WorkspaceService);
@@ -136,6 +138,7 @@ export class PublicationPanelComponent {
   private async load(orgId: string, postId: string): Promise<void> {
     try {
       this.jobs.set(await firstValueFrom(this.api.list(orgId, { postId })));
+      this.jobsChange.emit(this.jobs());
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {

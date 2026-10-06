@@ -7,11 +7,11 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { IconComponent } from '../../shared/components/icon.component';
 import { PlatformIconComponent } from '../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
-import { ReviewSummary } from '../approvals/models/review.model';
-import { ReviewApiService } from '../approvals/services/review-api.service';
 import { formatInZone } from '../publications/models/time-zones';
+import { ReviewSummary } from './models/review.model';
+import { ReviewApiService } from './services/review-api.service';
 
-type Tab = 'pending' | 'mine' | 'completed' | 'changes';
+type Tab = 'pending' | 'mine' | 'changes' | 'completed';
 
 const STATUS_TEXT: Record<string, { label: string; tone: string }> = {
   PENDING: { label: 'In Review', tone: 'waiting' },
@@ -19,10 +19,7 @@ const STATUS_TEXT: Record<string, { label: string; tone: string }> = {
   CHANGES_REQUESTED: { label: 'Changes Requested', tone: 'danger' },
 };
 
-/**
- * Approvals: role-aware. Reviewers start on what waits for them; Creators on what they submitted. Each review covers
- * one exact version; the decision page is where Approve / Request Changes happen.
- */
+/** Human review. Each review covers one exact version; Approve / Request Changes happen on the review page. */
 @Component({
   selector: 'app-approvals-page',
   imports: [RouterLink, IconComponent, PlatformIconComponent, ProblemBannerComponent],
@@ -30,16 +27,16 @@ const STATUS_TEXT: Record<string, { label: string; tone: string }> = {
     <div class="page-header">
       <div>
         <h1>Approvals</h1>
-        <p class="muted">Every review covers one exact version. Approving it approves exactly that content and destination.</p>
+        <p class="muted">A person approves every post before it can be scheduled or published. Approval covers one exact version.</p>
       </div>
     </div>
     <nav class="tabs" aria-label="Approvals">
       @if (workspace.canReview()) {
-        <button type="button" [class.active]="tab() === 'pending'" (click)="tab.set('pending')">Pending My Review <span class="count">{{ count('pending') }}</span></button>
+        <button type="button" [class.active]="tab() === 'pending'" (click)="tab.set('pending')">Pending My Review @if (count('pending')) { <span class="count">{{ count('pending') }}</span> }</button>
       }
-      <button type="button" [class.active]="tab() === 'mine'" (click)="tab.set('mine')">Submitted by Me <span class="count">{{ count('mine') }}</span></button>
+      <button type="button" [class.active]="tab() === 'mine'" (click)="tab.set('mine')">Submitted by Me</button>
+      <button type="button" [class.active]="tab() === 'changes'" (click)="tab.set('changes')">Changes Requested @if (count('changes')) { <span class="count">{{ count('changes') }}</span> }</button>
       <button type="button" [class.active]="tab() === 'completed'" (click)="tab.set('completed')">Completed</button>
-      <button type="button" [class.active]="tab() === 'changes'" (click)="tab.set('changes')">Changes Requested</button>
     </nav>
     <app-problem-banner [problem]="problem()" />
 
@@ -51,25 +48,25 @@ const STATUS_TEXT: Record<string, { label: string; tone: string }> = {
           <li>
             <app-platform-icon [platform]="r.platform" />
             <div class="grow">
-              <a [routerLink]="['/publisher/approvals', r.id]"><strong>{{ r.campaignName }}</strong> · {{ r.platform }} · Version {{ r.versionNumber }}</a>
+              <a [routerLink]="['/approvals', r.id]" class="ellipsis-line"><strong>{{ r.excerpt }}</strong></a>
               <span class="hint">
-                Submitted by {{ r.submittedByName }} · {{ time(r.submittedAtUtc) }}
-                @if (r.decidedByName) { · {{ statusText[r.status].label }} by {{ r.decidedByName }} }
+                @if (r.campaignName) { <span class="color-dot sm" [style.background]="r.campaignColor"></span>{{ r.campaignName }} · }
+                Version {{ r.versionNumber }} · by {{ r.submittedByName }} · {{ time(r.submittedAtUtc) }}
+                @if (r.assignedReviewerName) { · Reviewer: {{ r.assignedReviewerName }} }
               </span>
               @if (r.decisionComment) { <span class="hint quote">“{{ r.decisionComment }}”</span> }
             </div>
             <span [class]="'badge delivery ' + statusText[r.status].tone">{{ statusText[r.status].label }}</span>
             @if (tab() === 'pending') {
-              <a class="button primary" [routerLink]="['/publisher/approvals', r.id]">Review</a>
+              <a class="button primary small" [routerLink]="['/approvals', r.id]">Review</a>
             } @else if (r.status === 'CHANGES_REQUESTED' && workspace.canManageCampaigns()) {
-              <a class="button" [routerLink]="['/posts', r.postId]">Edit</a>
+              <a class="button small" [routerLink]="['/composer', r.postId]">Edit</a>
+            } @else {
+              <a class="button small" [routerLink]="['/approvals', r.id]">Open</a>
             }
           </li>
         } @empty {
-          <li class="empty-row">
-            <app-icon name="checkCircle" [size]="22" />
-            {{ emptyText() }}
-          </li>
+          <li class="empty-row"><app-icon name="checkCircle" [size]="22" />{{ emptyText() }}</li>
         }
       </ul>
     }
@@ -87,12 +84,21 @@ export class ApprovalsPage {
   protected readonly problem = signal<ApiProblem | null>(null);
 
   private readonly me = computed(() => this.auth.me()?.userId);
+  /** The newest review of each post: older change requests are already answered by a newer version. */
+  private readonly latest = computed(() => {
+    const seen = new Set<string>();
+    return this.reviews().filter((r) => {
+      if (seen.has(r.postId)) return false;
+      seen.add(r.postId);
+      return true;
+    });
+  });
   protected readonly shown = computed(() => this.select(this.tab()));
   protected readonly emptyText = computed(() => ({
-    pending: 'Nothing is waiting for review.',
+    pending: 'Nothing is waiting for your review.',
     mine: 'You have not submitted anything for review yet.',
-    completed: 'No approved content yet.',
-    changes: 'No change requests.',
+    changes: 'No open change requests.',
+    completed: 'No approved posts yet.',
   })[this.tab()]);
 
   constructor() {
@@ -103,7 +109,7 @@ export class ApprovalsPage {
   }
 
   protected count(tab: Tab): number {
-    return this.select(tab).filter((r) => r.status === 'PENDING').length;
+    return this.select(tab).length;
   }
 
   protected time(utc: string): string {
@@ -111,17 +117,19 @@ export class ApprovalsPage {
   }
 
   private select(tab: Tab): ReviewSummary[] {
-    const all = this.reviews();
+    const me = this.me();
     switch (tab) {
-      // Oldest first, so the longest-waiting review is on top. Own submissions are never "mine to review".
+      // Assigned to me, or to nobody in particular (then not my own submissions). Oldest first.
       case 'pending':
-        return all.filter((r) => r.status === 'PENDING' && r.submittedByUserId !== this.me()).reverse();
+        return this.reviews()
+          .filter((r) => r.status === 'PENDING' && (r.assignedReviewerUserId === me || (!r.assignedReviewerUserId && r.submittedByUserId !== me)))
+          .reverse();
       case 'mine':
-        return all.filter((r) => r.submittedByUserId === this.me());
-      case 'completed':
-        return all.filter((r) => r.status === 'APPROVED');
+        return this.reviews().filter((r) => r.submittedByUserId === me);
+      case 'changes':
+        return this.latest().filter((r) => r.status === 'CHANGES_REQUESTED');
       default:
-        return all.filter((r) => r.status === 'CHANGES_REQUESTED');
+        return this.reviews().filter((r) => r.status === 'APPROVED');
     }
   }
 

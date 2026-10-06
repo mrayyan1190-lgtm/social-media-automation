@@ -14,24 +14,21 @@ internal sealed class AiRepository(CoreDbContext db) : IAiRepository
     public Task<AiGenerationRequest?> GetRequestAsync(Guid requestId, CancellationToken cancellationToken) =>
         db.AiGenerationRequests.SingleOrDefaultAsync(r => r.Id == requestId, cancellationToken);
 
-    public Task<AiGenerationRequest?> FindActiveRequestAsync(Guid organizationId, Guid campaignId, AiRequestKind kind, Guid? postId, CancellationToken cancellationToken) =>
+    public Task<AiGenerationRequest?> FindActiveRequestAsync(Guid organizationId, AiRequestKind kind, Guid postId, CancellationToken cancellationToken) =>
         db.AiGenerationRequests
-            .Where(r => r.OrganizationId == organizationId && r.CampaignId == campaignId && r.Kind == kind && r.PostId == postId
+            .Where(r => r.OrganizationId == organizationId && r.Kind == kind && r.PostId == postId
                 && (r.Status == AiRequestStatus.PENDING || r.Status == AiRequestStatus.PROCESSING))
             .OrderByDescending(r => r.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<AiGenerationRequestDto>> ListRequestsForCampaignAsync(Guid organizationId, Guid campaignId, int take, CancellationToken cancellationToken)
-    {
-        var requests = await db.AiGenerationRequests.AsNoTracking()
-            .Where(r => r.OrganizationId == organizationId && r.CampaignId == campaignId)
-            .OrderByDescending(r => r.CreatedAtUtc).Take(take).ToListAsync(cancellationToken);
-        var ids = requests.Select(r => r.Id).ToList();
-        var outputs = await db.AiRequestOutputs.AsNoTracking()
-            .Where(o => o.OrganizationId == organizationId && ids.Contains(o.RequestId)).ToListAsync(cancellationToken);
-        return requests.Select(r => AiGenerationRequestDto.From(r,
-            outputs.Where(o => o.RequestId == r.Id).Select(o => new AiOutputDto(o.Platform, o.PostId, o.PostVersionId)).ToList())).ToList();
-    }
+    public Task<AiGenerationRequest?> FindActiveGenerationAsync(
+        Guid organizationId, Guid requestedByUserId, Guid? campaignId, string inputSnapshot, CancellationToken cancellationToken) =>
+        db.AiGenerationRequests
+            .Where(r => r.OrganizationId == organizationId && r.Kind == AiRequestKind.Generation && r.RequestedByUserId == requestedByUserId
+                && r.CampaignId == campaignId && (r.Status == AiRequestStatus.PENDING || r.Status == AiRequestStatus.PROCESSING)
+                && r.InputSnapshot == inputSnapshot)
+            .OrderByDescending(r => r.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<IReadOnlyList<AiOutputDto>> ListOutputsAsync(Guid organizationId, Guid requestId, CancellationToken cancellationToken) =>
         await db.AiRequestOutputs.AsNoTracking()

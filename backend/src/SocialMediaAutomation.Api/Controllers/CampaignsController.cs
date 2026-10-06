@@ -7,6 +7,7 @@ using SocialMediaAutomation.Application.Campaigns.Services;
 
 namespace SocialMediaAutomation.Api.Controllers;
 
+/// <summary>Campaign folders. Their posts are listed through GET posts?campaignId=.</summary>
 [ApiController]
 [Route("api/v1/organizations/{orgId:guid}/campaigns")]
 public sealed class CampaignsController(CampaignService campaigns) : ControllerBase
@@ -32,27 +33,6 @@ public sealed class CampaignsController(CampaignService campaigns) : ControllerB
     public async Task<CampaignDto> Update(Guid orgId, Guid campaignId, SaveCampaignRequest request, CancellationToken cancellationToken) =>
         WithETag(await campaigns.UpdateAsync(
             new UpdateCampaignCommand(orgId, campaignId, request.ToDetails(), RowVersionHeaders.ReadIfMatch(Request)), cancellationToken));
-
-    /// <summary>Requires If-Match. Replaces the selected platforms (at least one).</summary>
-    [HttpPut("{campaignId:guid}/platforms")]
-    public async Task<CampaignDto> SetPlatforms(Guid orgId, Guid campaignId, SetCampaignPlatformsRequest request, CancellationToken cancellationToken) =>
-        WithETag(await campaigns.SetPlatformsAsync(
-            new SetCampaignPlatformsCommand(orgId, campaignId, request.Platforms, RowVersionHeaders.ReadIfMatch(Request)), cancellationToken));
-
-    /// <summary>Requires If-Match (the campaign's). Replaces the supporting facts with one fact per entry.</summary>
-    [HttpPut("{campaignId:guid}/facts")]
-    public async Task<CampaignDto> ReplaceFacts(Guid orgId, Guid campaignId, ReplaceCampaignFactsRequest request, CancellationToken cancellationToken) =>
-        WithETag(await campaigns.ReplaceFactsAsync(
-            new ReplaceCampaignFactsCommand(orgId, campaignId, request.SupportingFacts, RowVersionHeaders.ReadIfMatch(Request)), cancellationToken));
-
-    /// <summary>The resolved brief AI generation would receive, with readiness and what is still missing.</summary>
-    [HttpGet("{campaignId:guid}/review")]
-    public async Task<CampaignBriefDto> Review(Guid orgId, Guid campaignId, CancellationToken cancellationToken)
-    {
-        var brief = await campaigns.GetBriefAsync(orgId, campaignId, cancellationToken);
-        Response.Headers.ETag = RowVersionHeaders.ToETag(brief.RowVersion);
-        return brief;
-    }
 
     /// <summary>Requires If-Match.</summary>
     [HttpPost("{campaignId:guid}/archive")]
