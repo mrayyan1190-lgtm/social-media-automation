@@ -162,8 +162,9 @@ public sealed class PublicationService(
         var alreadyDue = publishNow && job.DeliveryState == DeliveryState.SCHEDULED && job.PublishAtUtc <= Now;
         if ((job.DeliveryState == DeliveryState.SCHEDULED && job.IsSameSchedule(time)) || alreadyDue)
             return await ToDtoAsync(access, job, cancellationToken);
-        // Publish Now on a scheduled intent moves it forward; a canceled intent is reactivated. Anything else conflicts.
-        if (job.DeliveryState == DeliveryState.CANCELED || (publishNow && job.DeliveryState == DeliveryState.SCHEDULED))
+        // Publish Now on a scheduled intent moves it forward; a canceled intent, or one the provider refused (nothing was
+        // published), is reactivated. Anything else (published, processing, uncertain) conflicts.
+        if (job.DeliveryState is DeliveryState.CANCELED or DeliveryState.ACTION_REQUIRED || (publishNow && job.DeliveryState == DeliveryState.SCHEDULED))
         {
             await MoveAsync(access, job, time, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);

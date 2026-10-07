@@ -1845,6 +1845,10 @@ Originally deferred. The product owner approved it on 2026-10-05; implemented as
 
 - [x] Platform image configuration in `/internal/ai` (write-only key in the secret store, test without generating)
 - [x] `IImageGenerationProvider` abstraction with an OpenAI-compatible implementation
+- [x] Hugging Face text-to-image provider (Z-Image-Turbo default, FLUX.1-schnell, SANA 1.5) via HF Inference Providers; HF token as the image key
+- [x] Composer "Generate image" button (text-to-image for the open post)
+- [x] AI Studio: Text / Text + Image with LLM-written image prompt, reference images (up to 4) read by a vision model, model pickers in Advanced Options, progress stages, image failure as a warning
+- [x] Composer AI modes: Text / Text + Image (HF image model picker) / From images (HF vision model picker, up to 4 images, first attached)
 - [x] Durable `ImageGeneration` AI request processed by the AI worker
 - [x] `AI_GENERATED` MediaAsset with generation request, provider and model
 - [x] Attach the image as a new PostVersion (`AiImage` source) that requires human review

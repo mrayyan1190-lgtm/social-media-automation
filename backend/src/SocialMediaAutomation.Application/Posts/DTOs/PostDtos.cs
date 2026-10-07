@@ -56,4 +56,5 @@ public sealed record PostListItemDto(
     DateTime UpdatedAtUtc,
     Guid? LatestJobId,
     DeliveryState? LatestDeliveryState,
-    DateTime? LatestPublishAtUtc);
+    DateTime? LatestPublishAtUtc,
+    Guid? MediaAssetId = null);

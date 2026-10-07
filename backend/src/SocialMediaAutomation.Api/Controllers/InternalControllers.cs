@@ -29,10 +29,15 @@ public sealed record ReplaceSecretRequest([Required, MaxLength(500)] string Valu
 
 public sealed record TestAiConnectionRequest([Required] AiProvider? Provider, string? BaseUrl, string? Model, string? ApiKey);
 
+public sealed record SaveAiVisionConfigurationRequest([Required, MaxLength(200)] string Model, bool Enabled, string? RowVersion);
+
+public sealed record TestAiVisionRequest([MaxLength(200)] string? Model);
+
 public sealed record SaveAiImageConfigurationRequest(
     [Required] AiProvider? Provider, string? BaseUrl, [Required, MaxLength(200)] string Model, [Required, MaxLength(20)] string Size, bool Enabled, string? RowVersion);
 
-public sealed record SaveSocialProviderRequest([Required, MaxLength(200)] string ClientId, [MaxLength(2048)] string? RedirectUri, bool Enabled, string? RowVersion);
+public sealed record SaveSocialProviderRequest([Required, MaxLength(200)] string ClientId, [MaxLength(2048)] string? RedirectUri, bool Enabled, string? RowVersion,
+    [MaxLength(100)] string? ConfigurationId = null);
 
 public sealed record ConfirmPublishedRequest([MaxLength(200)] string? ExternalPostId, [MaxLength(2048)] string? ExternalPostUrl);
 
@@ -182,6 +187,19 @@ public sealed class InternalController(
     public Task<AiConnectionTestDto> TestAiImage(TestAiConnectionRequest request, CancellationToken cancellationToken) =>
         ai.TestImageAsync(request.Provider!.Value, request.BaseUrl, request.Model, request.ApiKey, cancellationToken);
 
+    [HttpPut("ai/vision-configuration")]
+    public Task<AiConfigurationDto> SaveAiVisionConfiguration(SaveAiVisionConfigurationRequest request, CancellationToken cancellationToken) =>
+        ai.SaveVisionAsync(new SaveAiVisionConfigurationCommand(request.Model, request.Enabled, RowVersion(request.RowVersion)), cancellationToken);
+
+    [HttpPut("ai/vision-api-key")]
+    public Task<AiConfigurationDto> ReplaceAiVisionKey(ReplaceSecretRequest request, CancellationToken cancellationToken) =>
+        ai.ReplaceVisionApiKeyAsync(request.Value, cancellationToken);
+
+    [EnableRateLimiting(RateLimitingExtensions.Ai)]
+    [HttpPost("ai/vision-test")]
+    public Task<AiConnectionTestDto> TestAiVision(TestAiVisionRequest request, CancellationToken cancellationToken) =>
+        ai.TestVisionAsync(request.Model, cancellationToken);
+
     // ---- Social providers (platform integrations, not customer accounts) ----
 
     [HttpGet("social-providers")]
@@ -282,7 +300,7 @@ public sealed class InternalController(
         operations.SystemLogAsync(Query(from, to, search, correlationId), level, service, cancellationToken);
 
     private Task<SocialProviderDto> SaveProvider(PlatformProvider provider, SaveSocialProviderRequest request, CancellationToken cancellationToken) =>
-        providers.SaveAsync(new SaveSocialProviderCommand(provider, request.ClientId, request.RedirectUri, null, request.Enabled, RowVersion(request.RowVersion)),
+        providers.SaveAsync(new SaveSocialProviderCommand(provider, request.ClientId, request.RedirectUri, null, request.ConfigurationId, request.Enabled, RowVersion(request.RowVersion)),
             cancellationToken);
 
     private static PlatformProvider Provider(string value) => value.ToLowerInvariant() switch

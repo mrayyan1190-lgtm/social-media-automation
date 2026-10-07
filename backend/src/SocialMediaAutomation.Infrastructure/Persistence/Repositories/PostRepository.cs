@@ -42,13 +42,14 @@ internal sealed class PostRepository(CoreDbContext db) : IPostRepository
                               p.Id, p.CampaignId, CampaignName = c == null ? null : c.Name, CampaignColor = c == null ? null : c.Color, p.Platform, p.EditorialState, v.VersionNumber, v.Hook, v.Body,
                               v.SocialAccountId, p.CreatedByUserId, CreatedByName = u.DisplayName, p.CreatedAtUtc, p.UpdatedAtUtc,
                               JobId = (Guid?)job.Id, JobState = (DeliveryState?)job.DeliveryState, JobPublishAt = (DateTime?)job.PublishAtUtc,
+                              v.MediaAssetId,
                           })
             .ToListAsync(cancellationToken);
 
         return rows.Select(r => new PostListItemDto(
                 r.Id, r.CampaignId, r.CampaignName, r.CampaignColor, r.Platform, r.EditorialState, r.VersionNumber, r.Hook,
                 r.Body.Length > 200 ? r.Body[..200] : r.Body, r.SocialAccountId, r.CreatedByUserId, r.CreatedByName, r.CreatedAtUtc,
-                r.UpdatedAtUtc, r.JobId, r.JobState, r.JobPublishAt))
+                r.UpdatedAtUtc, r.JobId, r.JobState, r.JobPublishAt, r.MediaAssetId))
             .ToList();
     }
 

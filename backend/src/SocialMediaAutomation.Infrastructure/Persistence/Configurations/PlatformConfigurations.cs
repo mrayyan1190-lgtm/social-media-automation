@@ -22,6 +22,9 @@ internal sealed class PlatformAiConfigurationConfiguration : IEntityTypeConfigur
         builder.Property(c => c.ImageModel).HasMaxLength(AiProviderSettings.ModelMax);
         builder.Property(c => c.ImageSize).HasMaxLength(20);
         builder.Property(c => c.ImageApiKeySecretRef).HasMaxLength(200);
+        builder.Property(c => c.VisionApiKeySecretRef).HasMaxLength(200);
+        builder.Property(c => c.VisionModel).HasMaxLength(AiProviderSettings.ModelMax);
+        builder.Ignore(c => c.HuggingFaceTokenSecretName);
         builder.Property(c => c.RowVersion).IsRowVersion();
     }
 }
@@ -36,6 +39,7 @@ internal sealed class SocialProviderConfigurationConfiguration : IEntityTypeConf
         builder.Property(c => c.ClientId).HasMaxLength(200).IsRequired();
         builder.Property(c => c.RedirectUri).HasMaxLength(Guard.UrlMaxLength).IsRequired();
         builder.Property(c => c.ApiVersion).HasMaxLength(20);
+        builder.Property(c => c.ConfigurationId).HasMaxLength(100);
         builder.Property(c => c.ClientSecretRef).HasMaxLength(200);
         builder.Property(c => c.RowVersion).IsRowVersion();
     }

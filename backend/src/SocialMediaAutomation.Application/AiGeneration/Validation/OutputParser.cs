@@ -42,6 +42,13 @@ public static class OutputParser
         return result;
     }
 
+    /// <summary>The optional LLM-written image prompt (null when missing), clipped to a sane length.</summary>
+    public static string? ParseImagePrompt(string raw)
+    {
+        var prompt = Deserialize<GeneratedContent>(raw).ImagePrompt?.Trim();
+        return string.IsNullOrEmpty(prompt) ? null : prompt.Length > 1500 ? prompt[..1500] : prompt;
+    }
+
     public static IReadOnlyDictionary<SocialPlatform, VariantEvaluation> ParseEvaluation(string raw)
     {
         var content = Deserialize<EvaluationContent>(raw);

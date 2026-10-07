@@ -39,6 +39,11 @@ import { HEALTH_LABELS, InternalApiService, SocialProvider, tone, when } from '.
       <label>Redirect URI <input name="redirectUri" type="url" [(ngModel)]="redirectUri" [placeholder]="'https://your-api/api/v1/oauth/' + (meta() ? 'facebook' : 'linkedin') + '/callback'" />
         @if (meta() && p.derivedRedirectUri) { <span class="hint">Instagram callback: {{ p.derivedRedirectUri }}</span> }
       </label>
+      @if (meta()) {
+        <label>Meta Configuration ID <input name="configurationId" [(ngModel)]="configurationId" autocomplete="off" placeholder="Facebook Login for Business configuration" />
+          <span class="hint">When set, the configuration's permissions are requested instead of the default scopes.</span>
+        </label>
+      }
       <label class="checkbox"><input name="enabled" type="checkbox" [(ngModel)]="enabled" /> Enabled</label>
 
       <ul class="kv">
@@ -72,6 +77,7 @@ export class ProviderCardComponent implements OnInit {
   protected clientId = '';
   protected secret = '';
   protected redirectUri = '';
+  protected configurationId = '';
   protected enabled = true;
 
   protected meta(): boolean {
@@ -82,6 +88,7 @@ export class ProviderCardComponent implements OnInit {
     const p = this.provider();
     this.clientId = p.clientId;
     this.redirectUri = p.redirectUri;
+    this.configurationId = p.configurationId ?? '';
     this.enabled = p.source === 'NONE' ? true : p.enabled;
   }
 
@@ -101,7 +108,7 @@ export class ProviderCardComponent implements OnInit {
         this.secret = '';
       }
       const saved = await firstValueFrom(this.api.saveSocialProvider(this.key, {
-        clientId: this.clientId.trim(), redirectUri: this.redirectUri.trim() || null, enabled: this.enabled, rowVersion,
+        clientId: this.clientId.trim(), redirectUri: this.redirectUri.trim() || null, configurationId: this.configurationId.trim() || null, enabled: this.enabled, rowVersion,
       }));
       this.replacing.set(false);
       this.changed.emit(saved);

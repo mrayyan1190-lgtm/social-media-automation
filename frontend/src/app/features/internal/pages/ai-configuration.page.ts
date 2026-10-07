@@ -26,7 +26,8 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           <h2>Configuration</h2>
           <label>Provider *
             <select name="provider" [(ngModel)]="provider" required>
-              <option value="OpenAI">OpenAI</option><option value="Groq">Groq</option><option value="OpenAICompatible">OpenAI-compatible endpoint</option>
+              <option value="OpenAI">OpenAI</option><option value="Groq">Groq</option><option value="HuggingFace">Hugging Face</option>
+              <option value="OpenAICompatible">OpenAI-compatible endpoint</option>
             </select>
           </label>
           @if (provider === 'OpenAICompatible') {
@@ -34,7 +35,7 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           }
 
           <div class="secret-field">
-            <span class="field-label">{{ provider === 'OpenAI' ? 'OpenAI ' : '' }}API Key *</span>
+            <span class="field-label">{{ provider === 'OpenAI' ? 'OpenAI ' : provider === 'HuggingFace' ? 'Hugging Face ' : '' }}API Key *</span>
             @if (cfg.apiKeyConfigured && cfg.source === 'PLATFORM' && !replacingKey()) {
               <div class="secret-set">
                 <span class="badge delivery success">Configured ✓</span>
@@ -88,17 +89,27 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           <h2>Image Generation</h2>
           <p class="hint">Creates images for posts. Each image becomes a new post version and is reviewed by a person before it can be scheduled.</p>
           <label>Provider *
-            <select name="imgProvider" [(ngModel)]="imgProvider">
-              <option value="OpenAI">OpenAI</option><option value="OpenAICompatible">OpenAI-compatible endpoint</option>
+            <select name="imgProvider" [ngModel]="imgProvider" (ngModelChange)="chooseImgProvider($event)">
+              <option value="HuggingFace">Hugging Face</option><option value="OpenAI">OpenAI</option><option value="OpenAICompatible">OpenAI-compatible endpoint</option>
             </select>
           </label>
           @if (imgProvider === 'OpenAICompatible') {
             <label>Base URL * <input name="imgBaseUrl" type="url" [(ngModel)]="imgBaseUrl" placeholder="https://…/v1" /></label>
           }
           <div class="two-inputs">
-            <label>Image Model * <input name="imgModel" [(ngModel)]="imgModel" placeholder="gpt-image-1" />
-              <span class="hint">GPT image models return JPEG, which Instagram requires; DALL·E returns PNG (LinkedIn and Facebook only).</span>
-            </label>
+            @if (imgProvider === 'HuggingFace') {
+              <label>Image Model *
+                <select name="imgModel" [(ngModel)]="imgModel">
+                  @for (m of hfModels; track m.id) { <option [value]="m.id">{{ m.id }}</option> }
+                  @if (!isHfModel(imgModel)) { <option [value]="imgModel">{{ imgModel }} (custom)</option> }
+                </select>
+                <span class="hint">{{ hfHint() }}</span>
+              </label>
+            } @else {
+              <label>Image Model * <input name="imgModel" [(ngModel)]="imgModel" placeholder="gpt-image-1" />
+                <span class="hint">GPT image models return JPEG, which Instagram requires; DALL·E returns PNG (LinkedIn and Facebook only).</span>
+              </label>
+            }
             <label>Image Size *
               <select name="imgSize" [(ngModel)]="imgSize">
                 @for (s of img.sizes; track s) { <option [value]="s">{{ s }}{{ s === '1024x1024' ? ' (square)' : ' (landscape)' }}</option> }
@@ -107,7 +118,8 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
 
           <div class="secret-field">
-            <span class="field-label">Image API Key <span class="hint">optional</span></span>
+            <span class="field-label">{{ imgProvider === 'HuggingFace' ? 'Hugging Face Token' : 'Image API Key' }}
+              <span class="hint">{{ imgProvider === 'HuggingFace' && provider !== 'HuggingFace' ? 'required' : 'optional' }}</span></span>
             @if (img.ownApiKey && !replacingImgKey()) {
               <div class="secret-set">
                 <span class="badge delivery success">Configured ✓</span>
@@ -116,7 +128,8 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
               </div>
             } @else {
               <input name="imgKey" type="password" autocomplete="new-password" [(ngModel)]="imgKey" spellcheck="false"
-                [placeholder]="cfg.apiKeyConfigured ? 'Leave empty to use the AI / LLM API key' : 'Paste the API key'" />
+                [placeholder]="imgProvider === 'HuggingFace' ? 'hf_… token with Inference Providers permission'
+                  : cfg.apiKeyConfigured ? 'Leave empty to use the AI / LLM API key' : 'Paste the API key'" />
               <span class="hint">Stored encrypted in the secret store. It is never shown again.</span>
               @if (img.ownApiKey) { <button type="button" class="link" (click)="imgKey = ''; replacingImgKey.set(false)">Keep the current key</button> }
             }
@@ -145,6 +158,52 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           <p class="hint">Test Connection only checks the key and model list; it does not generate (or bill) an image.</p>
         </section>
       </div>
+      @let vis = cfg.vision;
+      <div class="admin-grid wide-left">
+        <form class="card form-grid" (ngSubmit)="saveVision()">
+          <h2>Image Understanding (Vision)</h2>
+          <p class="hint">Reads images users upload in Create with AI and Composer, so posts can be written about them. Uses the Hugging Face token saved above; users can pick another of these models in Advanced Options.</p>
+          <label>Default Vision Model *
+            <select name="visModel" [(ngModel)]="visModel">
+              @for (m of vis.models; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+            <span class="hint">{{ visionHints[visModel] || '' }}</span>
+          </label>
+          <div class="secret-field">
+            <span class="field-label">Hugging Face Token <span class="hint">optional</span></span>
+            @if (vis.tokenSource !== 'NONE' && !replacingVisKey()) {
+              <div class="secret-set">
+                <span class="badge delivery success">Configured ✓</span>
+                <span class="hint">{{ vis.hasOwnApiKey ? 'Last updated: ' + when(vis.apiKeyUpdatedAtUtc) : vis.tokenSource === 'IMAGE_KEY' ? 'Uses the Image Generation token' : 'Uses the AI / LLM key (Hugging Face)' }}</span>
+                <button type="button" (click)="replacingVisKey.set(true)">{{ vis.hasOwnApiKey ? 'Replace API Key' : 'Use a Separate Key' }}</button>
+              </div>
+            } @else {
+              <input name="visKey" type="password" autocomplete="new-password" [(ngModel)]="visKey" spellcheck="false"
+                placeholder="hf_… token with Inference Providers permission" />
+              <span class="hint">Used only for image understanding. Stored encrypted in the secret store. It is never shown again.</span>
+              @if (vis.tokenSource !== 'NONE') { <button type="button" class="link" (click)="visKey = ''; replacingVisKey.set(false)">Keep the current key</button> }
+            }
+          </div>
+          <label class="checkbox"><input name="visEnabled" type="checkbox" [(ngModel)]="visEnabled" /> Image Understanding Enabled</label>
+
+          @if (visTest(); as t) { <p [class]="'banner ' + (t.succeeded ? 'success' : 'error')">{{ t.message }}</p> }
+          <div class="actions">
+            <button type="button" (click)="testVision()" [disabled]="busy() || vis.tokenSource === 'NONE'" title="Save a new token first; the test uses the saved token">{{ busy() === 'vis-test' ? 'Testing…' : 'Test Connection' }}</button>
+            <button type="submit" class="primary" [disabled]="busy()">{{ busy() === 'vis-save' ? 'Saving…' : 'Save Vision Settings' }}</button>
+          </div>
+        </form>
+
+        <section class="card">
+          <h2>Vision Status</h2>
+          <ul class="kv">
+            <li><span>Configuration</span><span [class]="'badge delivery ' + (vis.usable ? 'success' : 'neutral')">{{ vis.usable ? 'Configured' : vis.enabled ? 'Not Configured' : 'Disabled' }}</span></li>
+            <li><span>Default Model</span><span>{{ vis.model }}</span></li>
+            <li><span>Token</span><span>{{ vis.tokenSource === 'VISION_KEY' ? 'Separate vision key' : vis.tokenSource === 'IMAGE_KEY' ? 'Image Generation token' : vis.tokenSource === 'LLM_KEY' ? 'AI / LLM key' : 'None' }}</span></li>
+            <li><span>Images per Request</span><span>up to 4</span></li>
+          </ul>
+          <p class="hint">Test Connection sends one tiny test image to the model, so it checks the token, the model and that its Hugging Face provider accepts images (costs a fraction of a cent).</p>
+        </section>
+      </div>
     } @else {
       <p class="muted">Loading…</p>
     }
@@ -153,15 +212,31 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
 export class AiConfigurationPage implements OnInit {
   private readonly api = inject(InternalApiService);
   protected readonly c = signal<AiConfiguration | null>(null);
-  protected readonly busy = signal<'save' | 'test' | 'img-save' | 'img-test' | null>(null);
+  protected readonly busy = signal<'save' | 'test' | 'img-save' | 'img-test' | 'vis-save' | 'vis-test' | null>(null);
+  protected readonly visTest = signal<{ succeeded: boolean; message: string } | null>(null);
+  protected visModel = '';
+  protected visEnabled = true;
+  protected readonly visionHints: Record<string, string> = {
+    'meta-llama/Llama-4-Scout-17B-16E-Instruct': 'Default: fast and served by several Hugging Face providers.',
+    'Qwen/Qwen3-VL-30B-A3B-Instruct': 'Fast (small active size), good at reading screenshots and charts.',
+    'google/gemma-3-27b-it': 'Alternative if the others are busy.',
+  };
   protected readonly imgTest = signal<{ succeeded: boolean; message: string; modelAvailable: boolean } | null>(null);
   protected readonly replacingImgKey = signal(false);
+  protected readonly replacingVisKey = signal(false);
+  protected visKey = '';
   protected imgProvider = 'OpenAI';
   protected imgBaseUrl = '';
   protected imgModel = 'gpt-image-1';
   protected imgSize = '1024x1024';
   protected imgKey = '';
   protected imgEnabled = false;
+  /** Suggested Hugging Face text-to-image models (any HF model served for text-to-image can be typed instead). */
+  protected readonly hfModels = [
+    { id: 'Tongyi-MAI/Z-Image-Turbo', label: 'Z-Image-Turbo — default: fast, good quality and prompt following' },
+    { id: 'black-forest-labs/FLUX.1-schnell', label: 'FLUX.1-schnell — strong general purpose, very fast' },
+    { id: 'Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers', label: 'SANA 1.5 1.6B — lightweight, 1024px' },
+  ];
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly notice = signal<string | null>(null);
   protected readonly test = signal<{ succeeded: boolean; message: string; modelAvailable: boolean } | null>(null);
@@ -234,6 +309,57 @@ export class AiConfigurationPage implements OnInit {
     }
   }
 
+  protected isHfModel(id: string): boolean {
+    return this.hfModels.some((m) => m.id === id);
+  }
+
+  protected async testVision(): Promise<void> {
+    this.busy.set('vis-test');
+    this.problem.set(null);
+    this.visTest.set(null);
+    try {
+      this.visTest.set(await firstValueFrom(this.api.testAiVision(this.visModel)));
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
+  protected async saveVision(): Promise<void> {
+    const current = this.c();
+    if (!current) return;
+    this.busy.set('vis-save');
+    this.problem.set(null);
+    this.notice.set(null);
+    try {
+      // An optional separate vision token is stored first (audited on its own), then the vision settings.
+      let rowVersion = current.rowVersion;
+      if (this.visKey.trim()) {
+        rowVersion = (await firstValueFrom(this.api.replaceAiVisionKey(this.visKey.trim()))).rowVersion;
+        this.visKey = '';
+      }
+      this.apply(await firstValueFrom(this.api.saveAiVision({ model: this.visModel, enabled: this.visEnabled, rowVersion })));
+      this.notice.set('Image understanding settings saved.');
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+      this.c.set(await firstValueFrom(this.api.aiConfiguration()).catch(() => current));
+    } finally {
+      this.busy.set(null);
+    }
+  }
+
+  protected hfHint(): string {
+    return this.hfModels.find((m) => m.id === this.imgModel.trim())?.label ?? 'Any Hugging Face model served for text-to-image (owner/name).';
+  }
+
+  /** Switching provider swaps in that provider's default model unless the admin typed their own. */
+  protected chooseImgProvider(provider: string): void {
+    const defaults = ['', 'gpt-image-1', ...this.hfModels.map((m) => m.id)];
+    if (defaults.includes(this.imgModel.trim())) this.imgModel = provider === 'HuggingFace' ? this.hfModels[0].id : 'gpt-image-1';
+    this.imgProvider = provider;
+  }
+
   protected async testImage(): Promise<void> {
     this.busy.set('img-test');
     this.problem.set(null);
@@ -286,10 +412,13 @@ export class AiConfigurationPage implements OnInit {
     this.timeoutSeconds = cfg.requestTimeoutSeconds;
     this.enabled = cfg.source === 'NONE' ? true : cfg.enabled;
     this.replacingImgKey.set(false);
-    this.imgProvider = cfg.image.provider ?? 'OpenAI';
+    this.imgProvider = cfg.image.provider ?? 'HuggingFace';
     this.imgBaseUrl = cfg.image.baseUrl ?? '';
-    this.imgModel = cfg.image.model ?? 'gpt-image-1';
+    this.imgModel = cfg.image.model ?? (this.imgProvider === 'HuggingFace' ? this.hfModels[0].id : 'gpt-image-1');
     this.imgSize = cfg.image.size ?? '1024x1024';
     this.imgEnabled = cfg.image.model ? cfg.image.enabled : true;
+    this.replacingVisKey.set(false);
+    this.visModel = cfg.vision.model;
+    this.visEnabled = cfg.vision.enabled;
   }
 }

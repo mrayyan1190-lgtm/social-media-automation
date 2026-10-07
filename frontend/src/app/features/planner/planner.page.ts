@@ -49,6 +49,8 @@ export class PlannerPage {
   /** Query parameters from the sidebar shortcuts: ?status=Draft (a list filter) or ?view=list. */
   readonly statusQuery = input<string>(undefined, { alias: 'status' });
   readonly viewQuery = input<string>(undefined, { alias: 'view' });
+  /** ?q= from the topbar search: matches the post text, campaign and author. */
+  readonly searchQuery = input<string>(undefined, { alias: 'q' });
 
   protected readonly platforms = SOCIAL_PLATFORMS;
   protected readonly statuses = CUSTOMER_STATUSES;
@@ -68,13 +70,15 @@ export class PlannerPage {
     [...new Map(this.rows().filter((r) => r.campaignId).map((r) => [r.campaignId!, r.campaignName!])).entries()]
       .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
 
-  protected readonly filtersActive = computed(() => !!(this.platform() || this.campaign() || this.status() || this.range()));
+  protected readonly filtersActive = computed(() => !!(this.platform() || this.campaign() || this.status() || this.range() || this.searchQuery()));
 
   protected readonly filtered = computed(() => {
     const zone = this.workspace.timeZone();
     const today = dayKeyInZone(new Date().toISOString(), zone);
     const shift = (days: number) => dayKeyInZone(new Date(Date.now() + days * 864e5).toISOString(), zone);
+    const q = (this.searchQuery() ?? '').trim().toLowerCase();
     return this.rows().filter((r) => {
+      if (q && ![r.hook, r.bodyExcerpt, r.campaignName, r.createdByName].some((t) => t?.toLowerCase().includes(q))) return false;
       if (this.platform() && r.platform !== this.platform()) return false;
       if (this.campaign() === 'none' ? !!r.campaignId : this.campaign() && r.campaignId !== this.campaign()) return false;
       if (this.status() && statusGroup(r.status) !== this.status()) return false;
@@ -92,6 +96,7 @@ export class PlannerPage {
   /** "Drafts", "Scheduled posts"… when opened from a Publisher shortcut (or filtered by status). */
   protected readonly listTitle = computed(() => {
     const status = this.status();
+    if (this.searchQuery()?.trim()) return `Results for “${this.searchQuery()!.trim()}”`;
     if (!status) return 'All posts';
     return status === 'Draft' ? 'Drafts' : status === 'Failed' ? 'Failed posts' : `${status} posts`;
   });
@@ -141,7 +146,7 @@ export class PlannerPage {
     });
     effect(() => {
       const status = this.statusQuery() ?? '';
-      const list = !!status || this.viewQuery() === 'list';
+      const list = !!status || this.viewQuery() === 'list' || !!this.searchQuery();
       untracked(() => {
         this.status.set(status);
         this.layout.set(list ? 'list' : 'calendar');

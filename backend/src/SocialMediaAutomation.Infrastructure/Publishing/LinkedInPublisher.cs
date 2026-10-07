@@ -17,7 +17,12 @@ namespace SocialMediaAutomation.Infrastructure.Publishing;
 public sealed class LinkedInPublisher(HttpClient http, IConfiguration configuration) : HttpPublisher(http)
 {
     public const string ApiBase = "https://api.linkedin.com/rest";
-    public const string DefaultApiVersion = "202509";
+    /// <summary>
+    /// LinkedIn retires each monthly API version about a year after release, so a fixed default expires on its own
+    /// (202509 stopped working in 2026). Default to the version from three months ago: released and stable, and well
+    /// inside the support window. SocialProviders:LinkedIn:ApiVersion still pins an exact version when set.
+    /// </summary>
+    public static string DefaultApiVersion => DateTime.UtcNow.AddMonths(-3).ToString("yyyyMM");
 
     // Reserved characters of LinkedIn's "little text" commentary format must be escaped to appear literally.
     private const string Reserved = "\\|{}@[]()<>#*_~";

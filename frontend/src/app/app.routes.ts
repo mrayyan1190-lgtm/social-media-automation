@@ -44,7 +44,6 @@ export const routes: Routes = [
       { path: 'composer/:postId', loadComponent: composer },
       // Creator (MVP): Home, AI Studio, Composer, Planner, Notifications and Profile only. Every other page is Admin-only
       // here as well as hidden in the sidebar; the API enforces the same permissions.
-      { path: 'campaigns', canActivate: [workspaceAdminGuard], loadChildren: () => import('./features/campaigns/campaigns.routes').then((m) => m.CAMPAIGN_ROUTES) },
       { path: 'approvals', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/approvals/approvals.page').then((m) => m.ApprovalsPage) },
       { path: 'approvals/:reviewId', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/approvals/pages/review-detail/review-detail.page').then((m) => m.ReviewDetailPage) },
       { path: 'planner', loadComponent: () => import('./features/planner/planner.page').then((m) => m.PlannerPage) },

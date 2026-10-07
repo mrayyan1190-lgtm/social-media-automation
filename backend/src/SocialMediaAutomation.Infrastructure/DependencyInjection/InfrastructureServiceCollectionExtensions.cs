@@ -50,7 +50,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ILlmClient, OpenAiCompatibleClient>();
         // Image generation can take a minute or more; it is background work in the AI worker.
         services.AddHttpClient(OpenAiImageClient.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(180));
-        services.AddSingleton<IImageGenerationProvider, OpenAiImageClient>();
+        services.AddSingleton<OpenAiImageClient>();
+        services.AddSingleton<HuggingFaceImageClient>();
+        services.AddSingleton<IImageGenerationProvider, ImageGenerationRouter>();
         // The system LLM comes from configuration/environment (Ai__ApiKey etc.); users never configure it.
         var ai = configuration.GetSection(SystemAiOptions.SectionName);
         services.AddSingleton(new SystemAiOptions { Provider = ai["Provider"], BaseUrl = ai["BaseUrl"], Model = ai["Model"], ApiKey = ai["ApiKey"] });

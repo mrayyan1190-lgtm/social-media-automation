@@ -138,7 +138,11 @@ public sealed class PublicationJob
     /// <summary>No external side effect has started, so the intent can still be withdrawn.</summary>
     public bool CanCancel => DeliveryState is DeliveryState.SCHEDULED or DeliveryState.RETRY_PENDING or DeliveryState.ACTION_REQUIRED;
 
-    public bool CanReschedule => DeliveryState is DeliveryState.SCHEDULED or DeliveryState.CANCELED;
+    /// <summary>
+    /// ACTION_REQUIRED is included: it means the provider definitively refused (nothing was published), so after the
+    /// cause is fixed the same intent may go out again. Uncertain outcomes are RECONCILIATION_REQUIRED and stay excluded.
+    /// </summary>
+    public bool CanReschedule => DeliveryState is DeliveryState.SCHEDULED or DeliveryState.CANCELED or DeliveryState.ACTION_REQUIRED;
 
     /// <summary>
     /// Creates the intent after re-verifying, on the exact objects, that the post is APPROVED, that the active approval
@@ -196,6 +200,15 @@ public sealed class PublicationJob
                 $"A publication in {DeliveryState} cannot be rescheduled.");
         CanceledByUserId = null;
         CanceledAtUtc = null;
+        if (DeliveryState == DeliveryState.ACTION_REQUIRED)
+        {
+            // A fresh try after a refused one: start before dispatch again with a full retry budget (attempt rows keep history).
+            // Any Instagram container from the refused try may have expired, so a new one is created.
+            DispatchStartedAtUtc = null;
+            ProviderContainerId = null;
+            MediaContainerCreatedAtUtc = null;
+            AttemptCount = 0;
+        }
         SetSchedule(time, utcNow);
     }
 

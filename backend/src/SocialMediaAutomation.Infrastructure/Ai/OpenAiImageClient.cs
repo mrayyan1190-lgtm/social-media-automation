@@ -11,7 +11,7 @@ namespace SocialMediaAutomation.Infrastructure.Ai;
 /// OpenAI-compatible images endpoint (POST /images/generations). GPT image models are asked for JPEG (Instagram accepts
 /// only JPEG); DALL·E models return PNG. The key and prompt are never logged; errors are normalized like chat errors.
 /// </summary>
-internal sealed class OpenAiImageClient(IHttpClientFactory httpClientFactory) : IImageGenerationProvider
+internal sealed class OpenAiImageClient(IHttpClientFactory httpClientFactory, ILlmClient llm) : IImageGenerationProvider
 {
     public const string HttpClientName = "image-model";
     private const int DiagnosticMax = 2000;
@@ -45,17 +45,7 @@ internal sealed class OpenAiImageClient(IHttpClientFactory httpClientFactory) : 
         }
 
         var latency = (int)stopwatch.ElapsedMilliseconds;
-        if (status is < 200 or >= 300)
-        {
-            var (kind, summary) = status switch
-            {
-                401 or 403 => (LlmErrorKind.Authentication, "The image provider rejected the API key."),
-                408 or 409 or 429 or >= 500 => (LlmErrorKind.Transient, $"The image provider is temporarily unavailable (HTTP {status})."),
-                // 400 includes content-policy refusals: not retried, the user can change the instruction.
-                _ => (LlmErrorKind.Rejected, $"The image provider refused the request (HTTP {status}): {ProviderMessage(json)}"),
-            };
-            throw new LlmException(kind, summary, status, latency, Truncate(json));
-        }
+        ThrowIfFailed(status, json, latency);
 
         try
         {
@@ -69,13 +59,36 @@ internal sealed class OpenAiImageClient(IHttpClientFactory httpClientFactory) : 
         }
     }
 
+    public async Task<bool> IsModelAvailableAsync(ImageConnection connection, CancellationToken cancellationToken)
+    {
+        var models = await llm.ListModelsAsync(new LlmConnection(connection.Provider, connection.BaseUrl, connection.Model, connection.ApiKey), cancellationToken);
+        return string.IsNullOrWhiteSpace(connection.Model) || models.Contains(connection.Model.Trim(), StringComparer.Ordinal);
+    }
+
+    /// <summary>Shared by the image adapters so every image provider's failures get the same retry policy.</summary>
+    internal static void ThrowIfFailed(int status, string json, int latency)
+    {
+        if (status is >= 200 and < 300)
+            return;
+        var (kind, summary) = status switch
+        {
+            401 or 403 => (LlmErrorKind.Authentication, "The image provider rejected the API key."),
+            408 or 409 or 429 or >= 500 => (LlmErrorKind.Transient, $"The image provider is temporarily unavailable (HTTP {status})."),
+            // 400 includes content-policy refusals: not retried, the user can change the instruction.
+            _ => (LlmErrorKind.Rejected, $"The image provider refused the request (HTTP {status}): {ProviderMessage(json)}"),
+        };
+        throw new LlmException(kind, summary, status, latency, Truncate(json));
+    }
+
+    /// <summary>OpenAI sends {"error":{"message":…}}; Hugging Face sends {"error":"…"}.</summary>
     private static string ProviderMessage(string body)
     {
         try
         {
-            return JsonNode.Parse(body)?["error"]?["message"]?.GetValue<string>() ?? Truncate(body) ?? "";
+            var error = JsonNode.Parse(body)?["error"];
+            return (error is JsonValue ? error.GetValue<string>() : error?["message"]?.GetValue<string>()) ?? Truncate(body) ?? "";
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
             return Truncate(body) ?? "";
         }

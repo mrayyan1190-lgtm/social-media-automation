@@ -79,6 +79,8 @@ export interface PostListItem {
   latestJobId: string | null;
   latestDeliveryState: string | null;
   latestPublishAtUtc: string | null;
+  /** The current version's image, if any. */
+  mediaAssetId?: string | null;
 }
 
 /** Media Library row. */

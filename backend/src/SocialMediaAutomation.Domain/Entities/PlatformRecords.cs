@@ -65,7 +65,7 @@ public sealed class PlatformAiConfiguration
         UpdatedAtUtc = utcNow;
     }
 
-    // ---- Image generation (an OpenAI-compatible images endpoint) ----
+    // ---- Image generation (an OpenAI-compatible images endpoint, or Hugging Face text-to-image) ----
 
     public const string ImageApiKeySecretName = "platform/ai/image-api-key";
 
@@ -86,17 +86,63 @@ public sealed class PlatformAiConfiguration
 
     public bool HasImageApiKey => ImageApiKeySecretRef is not null;
 
+    /// <summary>The LLM key belongs to the LLM provider's account, so a Hugging Face image model can only borrow a Hugging Face LLM key.</summary>
+    public bool ImageCanUseLlmKey => ImageProvider != AiProvider.HuggingFace || Provider == AiProvider.HuggingFace;
+
     public void UpdateImage(AiProvider provider, string? baseUrl, string model, string size, bool enabled, Guid userId, DateTime utcNow)
     {
         if (Guard.Defined(provider, "Image provider") == AiProvider.Groq)
-            throw Guard.Invalid("Image provider", "Groq does not offer image generation; use OpenAI or an OpenAI-compatible endpoint");
+            throw Guard.Invalid("Image provider", "Groq does not offer image generation; use OpenAI, Hugging Face or an OpenAI-compatible endpoint");
         ImageProvider = provider;
         ImageBaseUrl = provider == AiProvider.OpenAICompatible ? AiProviderSettings.ResolveBaseUrl(provider, baseUrl) : null;
         ImageModel = Guard.Required(model, "Image model", AiProviderSettings.ModelMax);
         ImageSize = ImageSizes.Contains(size) ? size : throw Guard.Invalid("Image size", $"must be one of {string.Join(", ", ImageSizes)}");
-        if (enabled && !HasImageApiKey && !HasApiKey)
-            throw Guard.Invalid("Image API key", "is required (or save an AI / LLM API key) before image generation can be enabled");
+        if (enabled && !HasImageApiKey && !(HasApiKey && ImageCanUseLlmKey))
+            throw Guard.Invalid("Image API key", ImageCanUseLlmKey
+                ? "is required (or save an AI / LLM API key) before image generation can be enabled"
+                : "is required: a Hugging Face token (hf_…) must be saved as the image API key");
         ImageEnabled = enabled;
+        UpdatedByUserId = userId;
+        UpdatedAtUtc = utcNow;
+    }
+
+    // ---- Image understanding (Hugging Face vision models: its own token, or a Hugging Face token saved above) ----
+
+    public const string VisionApiKeySecretName = "platform/ai/vision-api-key";
+
+    /// <summary>Optional token for image understanding only; when absent a Hugging Face token saved above is used.</summary>
+    public string? VisionApiKeySecretRef { get; private set; }
+    public DateTime? VisionApiKeyUpdatedAtUtc { get; private set; }
+
+    public bool HasVisionApiKey => VisionApiKeySecretRef is not null;
+
+    /// <summary>On unless an operator turns it off, so a saved Hugging Face token keeps working; null model = catalog default.</summary>
+    public bool VisionEnabled { get; private set; } = true;
+    public string? VisionModel { get; private set; }
+
+    /// <summary>
+    /// The Hugging Face token image understanding uses: its own vision token when saved, else the image key (images on
+    /// Hugging Face), else the LLM key (LLM on Hugging Face).
+    /// </summary>
+    public string? HuggingFaceTokenSecretName =>
+        HasVisionApiKey ? VisionApiKeySecretName
+        : ImageProvider == AiProvider.HuggingFace && HasImageApiKey ? ImageApiKeySecretName
+        : Provider == AiProvider.HuggingFace && HasApiKey ? ApiKeySecretName
+        : null;
+
+    /// <summary>The caller checks the model against the offered list.</summary>
+    public void UpdateVision(string model, bool enabled, Guid userId, DateTime utcNow)
+    {
+        VisionModel = Guard.Required(model, "Vision model", AiProviderSettings.ModelMax);
+        VisionEnabled = enabled;
+        UpdatedByUserId = userId;
+        UpdatedAtUtc = utcNow;
+    }
+
+    public void VisionApiKeyReplaced(Guid userId, DateTime utcNow)
+    {
+        VisionApiKeySecretRef = VisionApiKeySecretName;
+        VisionApiKeyUpdatedAtUtc = utcNow;
         UpdatedByUserId = userId;
         UpdatedAtUtc = utcNow;
     }
@@ -126,6 +172,8 @@ public sealed class SocialProviderConfiguration
     public string ClientId { get; private set; } = "";
     public string RedirectUri { get; private set; } = "";
     public string? ApiVersion { get; private set; }
+    /// <summary>Meta only: a Facebook Login for Business configuration; when set it replaces the requested scopes.</summary>
+    public string? ConfigurationId { get; private set; }
     public bool Enabled { get; private set; }
     public string? ClientSecretRef { get; private set; }
     public DateTime? SecretUpdatedAtUtc { get; private set; }
@@ -140,11 +188,12 @@ public sealed class SocialProviderConfiguration
     public static SocialProviderConfiguration Create(PlatformProvider provider, Guid userId, DateTime utcNow) =>
         new() { Provider = Guard.Defined(provider, "Provider"), UpdatedByUserId = userId, UpdatedAtUtc = utcNow };
 
-    public void Update(string clientId, string? redirectUri, string? apiVersion, bool enabled, Guid userId, DateTime utcNow)
+    public void Update(string clientId, string? redirectUri, string? apiVersion, string? configurationId, bool enabled, Guid userId, DateTime utcNow)
     {
         ClientId = Guard.Required(clientId, Provider == PlatformProvider.META ? "Meta App ID" : "Client ID", 200);
         RedirectUri = Guard.OptionalHttpUrl(redirectUri, "Redirect URI") ?? "";
         ApiVersion = Guard.Optional(apiVersion, "API version", 20);
+        ConfigurationId = Provider == PlatformProvider.META ? Guard.Optional(configurationId, "Meta Configuration ID", 100) : null;
         if (enabled && !HasSecret)
             throw Guard.Invalid(Provider == PlatformProvider.META ? "Meta App Secret" : "Client Secret", "is required before the provider can be enabled");
         Enabled = enabled;
@@ -194,6 +243,9 @@ public static class PlatformAuditActions
     public const string AiImageConfigurationChanged = "AI_IMAGE_CONFIGURATION_CHANGED";
     public const string AiImageApiKeyReplaced = "AI_IMAGE_API_KEY_REPLACED";
     public const string AiImageConnectionTested = "AI_IMAGE_CONNECTION_TESTED";
+    public const string AiVisionConfigurationChanged = "AI_VISION_CONFIGURATION_CHANGED";
+    public const string AiVisionConnectionTested = "AI_VISION_CONNECTION_TESTED";
+    public const string AiVisionApiKeyReplaced = "AI_VISION_API_KEY_REPLACED";
     public const string SocialProviderUpdated = "SOCIAL_PROVIDER_UPDATED";
     public const string SocialProviderSecretReplaced = "SOCIAL_PROVIDER_SECRET_REPLACED";
     public const string SocialProviderValidated = "SOCIAL_PROVIDER_VALIDATED";

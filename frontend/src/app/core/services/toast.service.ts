@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, untracked } from '@angular/core';
 
 export interface Toast {
   id: number;
@@ -27,8 +27,9 @@ export class ToastService {
   }
 
   private show(toast: Omit<Toast, 'id'>, ms: number): void {
-    // The same message twice in a row (e.g. a retried request) is shown once.
-    const existing = this.toasts().find((t) => t.message === toast.message);
+    // The same message twice in a row (e.g. a retried request) is shown once. Read untracked: callers run inside effects
+    // (problem banners), and tracking the list this method writes would re-run that effect forever and freeze the page.
+    const existing = untracked(this.toasts).find((t) => t.message === toast.message);
     if (existing) this.dismiss(existing.id);
     const id = this.nextId++;
     this.toasts.update((list) => [...list.slice(-2), { ...toast, id }]);

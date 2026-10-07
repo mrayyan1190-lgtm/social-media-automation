@@ -16,7 +16,7 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
   encapsulation: ViewEncapsulation.ShadowDom,
 })
 export class RegisterPageComponent {
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
   readonly busy = signal(false);

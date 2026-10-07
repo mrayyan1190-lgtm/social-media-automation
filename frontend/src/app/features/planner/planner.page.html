@@ -127,7 +127,6 @@
               </summary>
               <div class="pl-menu">
                 <a [routerLink]="['/composer', r.id]">Open in Composer</a>
-                @if (r.campaignId && workspace.isAdmin()) { <a [routerLink]="['/campaigns', r.campaignId]">Open campaign</a> }
                 @if (r.status === 'In Review' && workspace.isAdmin()) { <a routerLink="/approvals">Go to Approvals</a> }
               </div>
             </details>

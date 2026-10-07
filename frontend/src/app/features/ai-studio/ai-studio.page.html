@@ -1,204 +1,288 @@
-<div class="st">
+<div class="content">
   <app-problem-banner [problem]="problem()" />
 
-  <!-- Composer card -->
-  <section class="st-card st-main">
-    <button type="button" class="st-card-save" [class.saved]="promptSaved()" title="Save draft" aria-label="Save draft" (click)="savePrompt()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h7"/></svg>
-    </button>
+  <ng-template #chipOf let-platform>
+    @switch (platform) {
+      @case ('LinkedIn') { <span class="in-chip li">in</span> }
+      @case ('Facebook') { <span class="in-chip fb"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 21v-7h2.4l.4-3h-2.8V9.1c0-.9.3-1.5 1.6-1.5h1.3V4.9c-.2 0-1-.1-1.9-.1-1.9 0-3.2 1.2-3.2 3.3V11H9v3h2.3v7h2.2z"/></svg></span> }
+      @default { <span class="in-chip ig"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg></span> }
+    }
+  </ng-template>
 
-    <textarea class="st-prompt" maxlength="2000" aria-label="What would you like to create?" [(ngModel)]="prompt" [placeholder]="example"></textarea>
+  <ng-template #allChip>
+    <span class="in-chip all"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/></svg></span>
+  </ng-template>
 
-    <div class="st-composer">
-      @if (image(); as img) {
-        <div class="st-attach">
-          <span class="st-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
-          <span class="st-fname">{{ img.originalFileName }}</span>
-          <button type="button" aria-label="Remove attachment" (click)="image.set(null)">&times;</button>
+  <div class="wrap" [class.top]="!hero()">
+
+    <!-- ============ GENERATED POSTS PANEL (loading + result) ============ -->
+    @if (!hero()) {
+      <section class="chat">
+        @if (asked(); as q) { <div class="bubble">{{ q }}</div> }
+        <div class="answer">
+          @if (generating()) {
+            <!-- loading -->
+            <div class="worked" role="status"><span class="spin"></span>{{ stageText() }}</div>
+            <div class="rows">
+              <div class="rows-head"><span>Post</span><span>Actions</span></div>
+              @for (p of request()?.platforms ?? []; track p) {
+                <div class="row">
+                  <span class="row-thumb skel-thumb"><ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" /></span>
+                  <div class="skel-body"><div class="skel"></div><div class="skel"></div></div>
+                </div>
+              }
+            </div>
+          } @else if (request()?.status === 'FAILED') {
+            <p class="gen-msg error" role="alert">{{ failureText() }}</p>
+            <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()">Try again</button>
+          } @else {
+            <div class="worked">
+              @if (workedFor(); as w) { Worked for {{ w }} }
+              <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()" title="Write these posts again">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Regenerate
+              </button>
+            </div>
+            @if (request()?.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
+            <!-- result -->
+            <div class="rows">
+              <div class="rows-head"><span>Post</span><span>Actions</span></div>
+              @for (r of results(); track r.post.id) {
+                @let v = r.post.currentVersion;
+                <div class="row">
+                  <span class="row-thumb">
+                    @if (v.media; as m) { <img [src]="previewUrl(m.id)" [alt]="v.altText || 'Post image'" /> }
+                    <span class="row-plat" [title]="r.post.platform"><ng-container *ngTemplateOutlet="chipOf; context: { $implicit: r.post.platform }" /></span>
+                  </span>
+                  <div class="row-main">
+                    <p class="row-text">{{ body(v) }}</p>
+                    <span class="row-meta">
+                      <button type="button" class="more" (click)="preview.set(r)">… Show more</button>
+                      @if (chip(r).tone !== 'draft' || r.post.editorialState === 'CHANGES_REQUESTED') { <span [class]="'pill ' + chip(r).tone">{{ chip(r).label }}</span> }
+                    </span>
+                    @if (r.error) { <p class="post-err" role="alert">{{ r.error }}</p> }
+                  </div>
+                  <div class="row-actions">
+                    <button type="button" class="act" title="Preview" aria-label="Preview" (click)="preview.set(r)">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                    <button type="button" class="act" [class.done]="r.saved" [title]="r.saved ? 'Saved in Drafts' : 'Save draft'" aria-label="Save draft" (click)="saveDraft(r)">
+                      @if (r.saved) { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                      @else { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 15h7"/><polyline points="12 12 15 15 12 18"/></svg> }
+                    </button>
+                    <a class="act" title="Edit in Composer" aria-label="Edit in Composer" [routerLink]="['/composer', r.post.id]">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </a>
+                    @if (workspace.isAdmin()) {
+                      <button type="button" class="act" [disabled]="!!r.busy" title="Schedule (after approval)" aria-label="Schedule" (click)="schedule(r)">
+                        @if (r.busy) { <span class="spin"></span> }
+                        @else { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5.5"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="17.5" cy="17.5" r="4.5"/><polyline points="17.5 15.5 17.5 17.5 19 18.5"/></svg> }
+                      </button>
+                    } @else {
+                      <button type="button" class="act" [disabled]="!!r.busy || r.submitted || r.post.editorialState !== 'DRAFT'"
+                        [title]="r.submitted || r.post.editorialState !== 'DRAFT' ? 'Submitted for review' : 'Submit for review'" aria-label="Submit for review" (click)="submit(r)">
+                        @if (r.busy) { <span class="spin"></span> }
+                        @else { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg> }
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+            @if (results().length) {
+              <p class="reply">{{ results().length === 1 ? 'Your post is' : 'Your ' + results().length + ' posts are' }} ready above.
+                @if (workspace.isAdmin()) { Preview or edit, then schedule once approved. } @else { Preview or edit, then submit for review. }
+                Nothing is published automatically.</p>
+            }
+          }
+        </div>
+      </section>
+    }
+
+    <!-- ============ EMPTY STATE ============ -->
+    @if (hero()) { <h1 class="empty-title">What do you want to post today?</h1> }
+
+    <!-- ============ COMPOSER ============ -->
+    <!-- With results, prompt + options stay docked at the bottom of the screen while the posts scroll. -->
+    <div class="dock">
+    <div class="composer">
+      @if (images().length) {
+        <div class="thumbs">
+          @for (img of images(); track img.id; let first = $first) {
+            <span class="thumb" [title]="img.originalFileName + (first && withImage() ? ' · attached to the posts' : ' · analysed by AI')">
+              <img [src]="previewUrl(img.id)" [alt]="img.originalFileName" />
+              <button type="button" aria-label="Remove image" (click)="removeImage(img.id)" [disabled]="busy() || generating()">&times;</button>
+            </span>
+          }
+          <span class="thumbs-note">{{ withImage() ? 'AI reads all images · the first is attached' : 'AI reads the images · none attached' }}</span>
         </div>
       }
-      <div class="st-composer-row">
-        <label class="st-icon-btn" [attr.data-tip]="uploading() ? 'Uploading…' : 'Upload image'" aria-label="Upload image">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.19 9.19a1.83 1.83 0 0 1-2.59-2.59l8.48-8.48"/></svg>
-          <input type="file" accept="image/jpeg,image/png" hidden (change)="upload($event)" [disabled]="uploading()" />
-        </label>
-        <input class="st-quick" type="text" maxlength="500" placeholder="Add any extra instruction (optional)..." aria-label="Extra instruction"
-          [(ngModel)]="extra" (keydown.enter)="generate()" />
-        <button type="button" class="st-send" [class.is-loading]="busy() || generating()" data-tip="Generate posts" aria-label="Generate posts"
-          (click)="generate()" [disabled]="!canGenerate()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
-        </button>
+      <div class="composer-top">
+        <textarea rows="1" maxlength="2000" aria-label="Describe your post idea" placeholder="Describe your post idea…" [(ngModel)]="prompt"
+          (keydown.enter)="onEnter($any($event))"></textarea>
       </div>
-    </div>
-
-    <div class="st-chips">
-      @for (c of presets; track c.label) {
-        <button type="button" class="st-chip" [class.active]="activeChips().includes(c.label)" (click)="toggleChip(c.label)">
-          @switch (c.icon) {
-            @case ('spark') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg> }
-            @case ('user') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> }
-            @case ('bulb') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2z"/></svg> }
-            @case ('chat') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> }
-            @case ('doc') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> }
-            @default { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg> }
+      <div class="composer-bottom">
+        <span class="pop-wrap">
+          <button type="button" class="plus-btn" title="Attach media and options" [attr.aria-expanded]="plusOpen()" (click)="plusOpen.set(!plusOpen()); outOpen.set(false); platOpen.set(false)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          @if (plusOpen()) {
+            <span class="dd-menu left" role="menu">
+              <label class="dd-opt" role="menuitem" [class.off]="!caps().imageAnalysis || images().length >= maxImages">
+                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.19 9.19a1.83 1.83 0 0 1-2.59-2.59l8.48-8.48"/></svg></span>
+                <span class="dd-titles"><span class="dd-title">{{ uploading() ? 'Uploading…' : 'Upload images' }}</span>
+                  <span class="dd-desc">{{ caps().imageAnalysis ? 'Up to ' + maxImages + ' · AI reads them' : 'Image analysis unavailable' }}</span></span>
+                <input type="file" accept="image/jpeg,image/png" multiple hidden (change)="upload($event); plusOpen.set(false)"
+                  [disabled]="uploading() || !caps().imageAnalysis || images().length >= maxImages" />
+              </label>
+              <button type="button" class="dd-opt" role="menuitemcheckbox" [class.selected]="withImage()" [attr.aria-checked]="withImage()"
+                [disabled]="!imageOptionAvailable()" (click)="setOutput(!withImage()); plusOpen.set(false)">
+                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+                <span class="dd-titles"><span class="dd-title">Image</span>
+                  <span class="dd-desc">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Attach your first image' : 'AI creates the image' }}</span></span>
+                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="dd-opt" role="menuitem" (click)="advOpen.set(!advOpen()); plusOpen.set(false)">
+                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>
+                <span class="dd-titles"><span class="dd-title">{{ advOpen() ? 'Hide options' : 'Tone, length & more' }}</span><span class="dd-desc">Brand, extra instruction, models</span></span>
+              </button>
+            </span>
           }
-          {{ c.label }}
-        </button>
-      }
-    </div>
-
-    <!-- Platforms + output -->
-    <div class="st-options">
-      <div class="st-opt">
-        <span class="st-microlabel">Platforms</span>
-        <div class="st-platforms">
-          @for (p of platforms; track p) {
-            <button type="button" class="st-plat" [class.active]="selected().includes(p)" [attr.aria-pressed]="selected().includes(p)" (click)="toggle(p)">
-              <app-platform-icon [platform]="p" />{{ p }}
-            </button>
+        </span>
+        <div class="platpick pop-wrap" [class.open]="platOpen()">
+          <button type="button" class="tm-btn" aria-label="Platforms" [attr.aria-expanded]="platOpen()" (click)="platOpen.set(!platOpen()); plusOpen.set(false); outOpen.set(false)">
+            @if (allPlatforms()) {
+              <ng-container *ngTemplateOutlet="allChip" /><span>All platforms</span>
+            } @else {
+              <span class="mini-chips">@for (p of selected(); track p) { <ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" /> }</span>
+              @if (selected().length === 1) { <span>{{ selected()[0] }}</span> }
+            }
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          @if (platOpen()) {
+            <div class="dd-menu" role="menu">
+              @for (p of platforms; track p) {
+                <button type="button" class="dd-opt" role="menuitemcheckbox" [class.selected]="!allPlatforms() && selected().includes(p)"
+                  [attr.aria-checked]="!allPlatforms() && selected().includes(p)" (click)="toggle(p)">
+                  <ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" />
+                  <span class="dd-titles"><span class="dd-title">{{ p }}</span><span class="dd-desc">Post written for {{ p }}</span></span>
+                  <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+              }
+              <div class="dd-sep"></div>
+              <button type="button" class="dd-opt" role="menuitemradio" [class.selected]="allPlatforms()" [attr.aria-checked]="allPlatforms()" (click)="chooseAll()">
+                <ng-container *ngTemplateOutlet="allChip" />
+                <span class="dd-titles"><span class="dd-title">All platforms</span><span class="dd-desc">One post that fits every platform</span></span>
+                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
           }
         </div>
-      </div>
-      <div class="st-opt">
-        <span class="st-microlabel">Output</span>
-        <div class="st-seg" role="group" aria-label="Output type">
-          <button type="button" [class.active]="!withImage()" (click)="withImage.set(false)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M9 19h6"/></svg>Text
+
+        <div class="textmode pop-wrap" [class.open]="outOpen()">
+          <button type="button" class="tm-btn" [attr.aria-expanded]="outOpen()" (click)="outOpen.set(!outOpen()); plusOpen.set(false); platOpen.set(false)">
+            <span>{{ withImage() ? 'Text + Image' : 'Text' }}</span>
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <button type="button" [class.active]="withImage()" [disabled]="!imageAvailable()" [title]="imageAvailable() ? '' : 'Image generation is not available right now'" (click)="withImage.set(true)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Text + Image
-          </button>
+          @if (outOpen()) {
+            <div class="dd-menu" role="menu">
+              <button type="button" class="dd-opt" role="menuitemradio" [class.selected]="!withImage()" [attr.aria-checked]="!withImage()" (click)="setOutput(false)">
+                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span>
+                <span class="dd-titles"><span class="dd-title">Text</span><span class="dd-desc">Post copy only</span></span>
+                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="dd-opt" role="menuitemradio" [class.selected]="withImage()" [attr.aria-checked]="withImage()" [disabled]="!imageOptionAvailable()" (click)="setOutput(true)">
+                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+                <span class="dd-titles"><span class="dd-title">Text + Image</span>
+                  <span class="dd-desc">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Uses your first image' : 'AI creates the image' }}</span></span>
+                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+          }
         </div>
-      </div>
-    </div>
 
-    @if (withImage()) {
-      <input class="st-image-prompt" type="text" maxlength="500" placeholder="Describe the image (optional) — otherwise it follows the post" aria-label="Image prompt" [(ngModel)]="imagePrompt" />
-    }
-
-    <!-- Brand + advanced -->
-    <div class="st-foot">
-      <div class="st-foot-left">
-        @if (brand()) {
-          <button type="button" class="st-brand-chip" [class.open]="brandOpen()" [attr.aria-expanded]="brandOpen()" (click)="brandOpen.set(!brandOpen())">
-            <svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-            Using Brand Profile
-            <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-        } @else if (brandLoaded()) {
-          <span class="st-brand-missing">
-            @if (workspace.isAdmin()) { Complete your <a routerLink="/brand">Brand profile</a> first } @else { The Admin needs to complete the Brand profile first }
-          </span>
-        }
-        <button type="button" class="st-adv-pill" [attr.aria-expanded]="advOpen()" aria-controls="st-adv" (click)="advOpen.set(!advOpen())">
-          <svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-          Advanced Options
-          <span class="hint">{{ settingsHint() }}</span>
+        @if (prompt.length > 1500) { <span class="count">{{ prompt.length }}/2000</span> }
+        <button type="button" class="send-btn" (click)="generate()" [disabled]="!canGenerate()" [attr.aria-label]="busy() || generating() ? 'Generating' : 'Generate'"
+          [title]="busy() || generating() ? 'Generating…' : 'Generate'">
+          @if (busy() || generating()) { <span class="spin light"></span> }
+          @else { <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> }
         </button>
       </div>
-      <span class="st-note">Nothing is published automatically. Every post goes through review.</span>
     </div>
-
-    @if (brandOpen() && brand(); as b) {
-      <div class="st-brand-detail">
-        <b>Audience:</b> {{ b.targetAudience }} &nbsp;·&nbsp; <b>Tone:</b> {{ tone || b.brandTone }}
-        @if (workspace.isAdmin()) { <a class="edit" routerLink="/brand">Edit</a> }
-      </div>
-    }
-    @if (campaign(); as c) {
-      <p class="st-campaign"><span class="color-dot" [style.background]="c.color"></span>Posts will be added to <strong>{{ c.name }}</strong></p>
-    }
 
     @if (advOpen()) {
-      <div class="st-adv" id="st-adv">
-        <div class="st-adv-grid">
-          <div class="st-field">
-            <label for="st-tone">Tone</label>
-            <span class="st-select">
-              <select id="st-tone" [(ngModel)]="tone">
-                <option value="">Use Brand Tone</option>
-                @for (t of tones; track t) { <option [value]="t">{{ t }}</option> }
-              </select>
-              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </span>
-          </div>
-          <div class="st-field">
-            <label for="st-length">Length</label>
-            <span class="st-select">
-              <select id="st-length" [(ngModel)]="length"><option value="SHORT">Short</option><option value="MEDIUM">Medium</option><option value="LONG">Long</option></select>
-              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </span>
-          </div>
-          <div class="st-field">
-            <label for="st-hashtags">Hashtags</label>
-            <span class="st-select">
-              <select id="st-hashtags" [(ngModel)]="hashtags"><option value="AUTO">Auto</option><option value="NONE">None</option></select>
-              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </span>
-          </div>
-          <div class="st-field">
-            <label for="st-emojis">Emojis</label>
-            <span class="st-select">
-              <select id="st-emojis" [(ngModel)]="emojis"><option value="AUTO">Auto</option><option value="NONE">None</option></select>
-              <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </span>
-          </div>
+      <div class="adv">
+        <div class="adv-top">
+          @if (brand(); as b) {
+            <span class="brand-ok">✓ Using Brand Profile · {{ b.targetAudience }} · {{ tone || b.brandTone }}</span>
+          } @else if (brandLoaded()) {
+            <span class="brand-miss">@if (workspace.isAdmin()) { Complete your <a routerLink="/brand">Brand profile</a> first } @else { The Admin needs to complete the Brand profile first }</span>
+          }
+          @if (campaign(); as c) { <span class="camp">Posts go to <strong>{{ c.name }}</strong></span> }
+          <button type="button" class="save" (click)="savePrompt()">{{ promptSaved() ? 'Saved ✓' : 'Save prompt' }}</button>
+        </div>
+        <input class="extra" type="text" maxlength="500" placeholder="Add any extra instruction (optional)…" aria-label="Extra instruction" [(ngModel)]="extra" />
+        <div class="chips">
+          @for (c of presets; track c.label) {
+            <button type="button" class="chipbtn" [class.on]="activeChips().includes(c.label)" (click)="toggleChip(c.label)">{{ c.label }}</button>
+          }
+        </div>
+        <div class="fields">
+          <label>Tone<select [(ngModel)]="tone"><option value="">Use Brand Tone</option>@for (t of tones; track t) { <option [value]="t">{{ t }}</option> }</select></label>
+          <label>Length<select [(ngModel)]="length"><option value="SHORT">Short</option><option value="MEDIUM">Medium</option><option value="LONG">Long</option></select></label>
+          <label>Hashtags<select [(ngModel)]="hashtags"><option value="AUTO">Auto</option><option value="NONE">None</option></select></label>
+          <label>Emojis<select [(ngModel)]="emojis"><option value="AUTO">Auto</option><option value="NONE">None</option></select></label>
+          @if (images().length && caps().visionModels.length) {
+            <label>Vision model<select [ngModel]="visionModel()" (ngModelChange)="visionModel.set($event)">
+              @for (m of caps().visionModels; track m; let first = $first) { <option [value]="m">{{ modelName(m) }}{{ first ? ' (default)' : '' }}</option> }</select></label>
+          }
+          @if (withImage() && !images().length && caps().imageModels.length) {
+            <label>Image model<select [ngModel]="imageModel()" (ngModelChange)="imageModel.set($event)">
+              @for (m of caps().imageModels; track m; let first = $first) { <option [value]="m">{{ modelName(m) }}{{ first ? ' (default)' : '' }}</option> }</select></label>
+          }
         </div>
       </div>
     }
-  </section>
+    </div>
 
-  <!-- Results -->
-  @if (request()) {
-    <section class="st-card st-results">
-      <div class="st-results-head">
-        <span class="rt">
-          @if (generating()) { <b>Writing {{ request()?.platforms?.join(', ') }} posts…</b> this usually takes a few seconds. }
-          @else if (request()?.status === 'FAILED') { <b>{{ failureText() }}</b> }
-          @else { <b>{{ results().length }} {{ results().length === 1 ? 'post' : 'posts' }}</b> generated · one per selected platform · saved to Drafts }
-        </span>
-        @if (!generating()) {
-          <button type="button" class="st-link" (click)="generate()" [disabled]="!canGenerate()">
-            {{ request()?.status === 'FAILED' ? 'Try again' : 'Regenerate all' }}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+    <!-- ============ SUGGESTIONS ============ -->
+    @if (hero()) {
+      <div class="suggests">
+        @for (s of suggestions; track s.text) {
+          <button type="button" class="suggest" (click)="useSuggestion(s.text)">
+            @switch (s.icon) {
+              @case ('spark') { <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2 5.4 5.4 2-5.4 2-2 5.4-2-5.4-5.4-2 5.4-2 2-5.4z"/><path d="M18.8 14.2l1 2.7 2.7 1-2.7 1-1 2.7-1-2.7-2.7-1 2.7-1 1-2.7z"/></svg> }
+              @case ('bulb') { <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4.1 12.7c.7.5 1.1 1.4 1.1 2.3h6c0-.9.4-1.8 1.1-2.3A7 7 0 0 0 12 2z"/></svg> }
+              @default { <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/></svg> }
+            }
+            {{ s.text }}
           </button>
         }
       </div>
-
-      @for (r of results(); track r.post.id; let i = $index) {
-        <article class="st-result" [style.animation-delay.ms]="i * 70">
-          <div class="st-result-head">
-            <div class="rh-left"><app-platform-icon [platform]="r.post.platform" /><span class="pname">{{ r.post.platform }}</span></div>
-            <span class="st-tag">Draft · v{{ r.post.currentVersion.versionNumber }}</span>
+      <p class="review-note">Nothing is published automatically · every post goes through review</p>
+    }
+  </div>
+  @if (preview(); as p) {
+    @let pv = p.post.currentVersion;
+    <div class="modal-back" (click)="preview.set(null)">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Post preview" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <h2>Post Preview</h2>
+          <button type="button" class="act" title="Copy text" aria-label="Copy text" (click)="copy(p.post)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button type="button" class="act" aria-label="Close" (click)="preview.set(null)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-card">
+          <div class="modal-text">
+            @for (para of paragraphs(pv); track $index) { <p>{{ para }}</p> }
+            @if (pv.hashtags.length) { <p class="post-tags">{{ pv.hashtags.join('  ') }}</p> }
           </div>
-          <div class="st-result-body">{{ text(r.post) }}</div>
-          @if (r.post.currentVersion.media; as m) {
-            <img class="st-result-img" [src]="previewUrl(m.id)" [alt]="r.post.currentVersion.altText || 'Post image'" />
-          } @else if (r.busy === 'image') {
-            <div class="st-imgph"><span class="spinner" aria-hidden="true"></span>Generating image…</div>
-          } @else if (r.imageFailed) {
-            <div class="st-imgph">The image could not be generated. You can try again in Composer.</div>
-          }
-          @if (r.error) { <p class="st-error" role="alert">{{ r.error }}</p> }
-          <div class="st-result-foot">
-            <div class="rf-left">
-              <button type="button" class="st-ghost" (click)="copy(r.post)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy
-              </button>
-              <a class="st-ghost" [routerLink]="['/composer', r.post.id]">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h7"/></svg>Edit draft
-              </a>
-            </div>
-            @if (r.submitted) {
-              <span class="st-done">Submitted for review</span>
-            } @else {
-              <button type="button" class="st-primary" (click)="submit(r)" [disabled]="!!r.busy">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>{{ r.busy === 'submit' ? 'Submitting…' : 'Submit for review' }}
-              </button>
-            }
-          </div>
-        </article>
-      }
-    </section>
+          @if (pv.media; as m) { <img [src]="previewUrl(m.id)" [alt]="pv.altText || 'Post image'" /> }
+        </div>
+      </div>
+    </div>
   }
 </div>

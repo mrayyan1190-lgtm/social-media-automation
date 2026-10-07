@@ -15,7 +15,8 @@ public sealed record LlmConnection(
     }
 }
 
-public sealed record LlmChatRequest(string SystemPrompt, string UserContent, double Temperature, int MaxOutputTokens);
+/// <summary>ImageUrls (data: URIs) are sent with the user message to vision models; never logged.</summary>
+public sealed record LlmChatRequest(string SystemPrompt, string UserContent, double Temperature, int MaxOutputTokens, IReadOnlyList<string>? ImageUrls = null);
 
 public sealed record LlmChatResponse(string Content, string? ResponseModel, int? InputTokens, int? OutputTokens, int LatencyMs, int HttpStatus);
 

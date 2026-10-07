@@ -29,6 +29,15 @@ internal sealed class OpenAiCompatibleClient(IHttpClientFactory httpClientFactor
             ["max_completion_tokens"] = request.MaxOutputTokens,
             ["response_format"] = new JsonObject { ["type"] = "json_object" },
         };
+        if (request.ImageUrls is { Count: > 0 } images)
+        {
+            var parts = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = request.UserContent });
+            foreach (var url in images)
+                parts.Add(new JsonObject { ["type"] = "image_url", ["image_url"] = new JsonObject { ["url"] = url } });
+            body["messages"]![1]!["content"] = parts;
+            // Many vision model hosts reject JSON mode; the prompt asks for JSON and the parser accepts fenced JSON.
+            body.Remove("response_format");
+        }
 
         var stopwatch = Stopwatch.StartNew();
         var (status, json) = await SendAsync(connection, HttpMethod.Post, "chat/completions", body, stopwatch, cancellationToken);
@@ -108,19 +117,34 @@ internal sealed class OpenAiCompatibleClient(IHttpClientFactory httpClientFactor
         var (kind, summary) = code switch
         {
             401 or 403 => (LlmErrorKind.Authentication, "The provider rejected the API key."),
+            // Out of credits / billing: an account problem for the operator, like a bad key. Another model or a retry cannot help.
+            402 => (LlmErrorKind.Authentication, $"The provider account has no remaining credits (HTTP 402): {ProviderMessage(body)}"),
             408 or 409 or 429 or >= 500 => (LlmErrorKind.Transient, $"The provider is temporarily unavailable (HTTP {code})."),
             _ => (LlmErrorKind.Rejected, $"The provider rejected the request (HTTP {code}): {ProviderMessage(body)}"),
         };
         throw new LlmException(kind, summary, code, latencyMs, Truncate(body));
     }
 
+    /// <summary>
+    /// The provider's reason, whatever shape its error body has: {"error":{"message":"…"}} (OpenAI style),
+    /// {"error":"…"} (Hugging Face router), {"message":"…"} or plain text. Never throws: reading an error must not
+    /// turn into a second, unhandled error.
+    /// </summary>
     private static string ProviderMessage(string body)
     {
         try
         {
-            return JsonNode.Parse(body)?["error"]?["message"]?.GetValue<string>() ?? Truncate(body) ?? "";
+            var root = JsonNode.Parse(body);
+            var error = root is JsonObject obj ? obj["error"] : null;
+            var message = error switch
+            {
+                JsonObject e => e["message"] is JsonValue m && m.TryGetValue<string>(out var text) ? text : null,
+                JsonValue v when v.TryGetValue<string>(out var text) => text,
+                _ => root is JsonObject o && o["message"] is JsonValue m && m.TryGetValue<string>(out var text) ? text : null,
+            };
+            return message ?? Truncate(body) ?? "";
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
         {
             return Truncate(body) ?? "";
         }

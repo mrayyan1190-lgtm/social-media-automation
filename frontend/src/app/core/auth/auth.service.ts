@@ -62,6 +62,11 @@ export class AuthService {
     return me ? ONBOARDING_ROUTES[me.onboarding.nextStep] : '/login';
   }
 
+  /** Full-page navigation: the server runs the Google sign-in and comes back to /home (or /login?error=...). */
+  continueWithGoogle(): void {
+    window.location.href = `${environment.apiBaseUrl}/auth/google`;
+  }
+
   async logout(): Promise<void> {
     try {
       await firstValueFrom(this.http.post<void>(`${environment.apiBaseUrl}/auth/logout`, null));

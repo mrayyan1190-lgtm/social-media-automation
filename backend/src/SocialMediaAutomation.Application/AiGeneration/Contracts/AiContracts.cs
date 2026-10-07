@@ -14,6 +14,8 @@ public static class AiVersions
     public const string RewritePrompt = "rewrite-v2";
     public const string EvaluationPrompt = "evaluation-v2";
     public const string ImagePrompt = "image-v2";
+    /// <summary>An image prompt written by the LLM during generation, wrapped with the fixed safety rules.</summary>
+    public const string GeneratedImagePrompt = "image-llm-v1";
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -33,7 +35,13 @@ public sealed record AiInputSnapshot(
     BriefSnapshot Brief,
     IReadOnlyList<SocialPlatform> Platforms,
     RewriteSnapshot? Rewrite,
-    ImageSnapshot? Image = null);
+    ImageSnapshot? Image = null,
+    VisionSnapshot? Vision = null,
+    ImagePlanSnapshot? ImagePlan = null,
+    bool? Unified = null);
+
+// Unified (AI Studio "All platforms"): one post with the same text on every platform, so it must fit the strictest
+// platform. Null (not false) when off, so existing snapshots and duplicate-click matching stay unchanged.
 
 /// <summary>Business name, industry and language come from the Organization; the rest from the brand profile.</summary>
 public sealed record BrandSnapshot(
@@ -54,12 +62,26 @@ public sealed record SourceContentSnapshot(int VersionNumber, string? Hook, stri
 /// <summary>An image request for one post: the post text it should illustrate and the user's optional visual direction.</summary>
 public sealed record ImageSnapshot(SocialPlatform Platform, string? Instruction, SourceContentSnapshot SourceVersion, string Size);
 
+/// <summary>
+/// Uploaded images a vision model reads to write the post (ids only; the worker loads the bytes). With Attach (Text + Image)
+/// the first one becomes the drafts' image; with Text only it is analysed but not attached.
+/// </summary>
+public sealed record VisionSnapshot(IReadOnlyList<Guid> MediaAssetIds, bool Attach = true);
+
+/// <summary>
+/// The LLM also writes an image prompt, which this image model renders. Text + Image always plans an image; with
+/// OnlyIfRequested (Text, or a Composer edit) the LLM writes a prompt only when the user's own words ask for an image.
+/// </summary>
+public sealed record ImagePlanSnapshot(AiProvider Provider, string Model, string Size, bool OnlyIfRequested = false);
+
 // ---- Model output (parsed leniently, then validated strictly) ----------------------------------------------------------
 
 public sealed class GeneratedContent
 {
     public string? SchemaVersion { get; set; }
     public List<GeneratedVariant>? Variants { get; set; }
+    /// <summary>Only when an image is planned: the LLM-written prompt for one image that suits every variant.</summary>
+    public string? ImagePrompt { get; set; }
 }
 
 public sealed class GeneratedVariant

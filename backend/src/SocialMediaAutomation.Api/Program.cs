@@ -14,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment.ContentRootPath);
-builder.Services.AddSessionAuthentication(builder.Environment);
+builder.Services.AddSessionAuthentication(builder.Environment, builder.Configuration);
 builder.Services.AddApiRateLimiting(builder.Configuration);
 // TLS terminates at the host or a reverse proxy; trust X-Forwarded-* only when configured for that deployment.
 var trustForwardedHeaders = builder.Configuration.GetValue("Security:TrustForwardedHeaders", false);

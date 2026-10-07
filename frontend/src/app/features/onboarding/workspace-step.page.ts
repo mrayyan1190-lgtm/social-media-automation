@@ -18,6 +18,8 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
       <form class="card" [formGroup]="form" (ngSubmit)="submit()">
         <p class="muted">Step 1 of 3</p>
         <h1>Create your workspace</h1>
+        <!-- The account email comes from sign-in (e.g. Google) and cannot be changed here. -->
+        <label>Email <input [value]="auth.me()?.email ?? ''" readonly disabled /></label>
         <label>Business name <input formControlName="name" autocomplete="organization" /></label>
         <label>Industry <input formControlName="industry" placeholder="e.g. Software / Technology" /></label>
         <label>Time zone
@@ -32,7 +34,7 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
   `,
 })
 export class WorkspaceStepPage {
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
   private readonly organizations = inject(OrganizationApiService);
   private readonly workspace = inject(WorkspaceService);
   private readonly router = inject(Router);

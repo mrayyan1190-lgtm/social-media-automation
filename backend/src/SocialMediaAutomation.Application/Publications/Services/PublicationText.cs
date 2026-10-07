@@ -19,7 +19,8 @@ public static class PublicationText
             payload.Hook is { Length: > 0 } hook ? escape(hook) : null,
             escape(payload.Body),
             cta,
-            payload.Hashtags.Count > 0 ? string.Join(' ', payload.Hashtags.Select(hashtag)) : null,
+            // Stored hashtags carry their "#" ("#Centaiva"); providers get the bare word and add their own syntax.
+            payload.Hashtags.Count > 0 ? string.Join(' ', payload.Hashtags.Select(tag => hashtag(tag.TrimStart('#')))) : null,
         };
         return string.Join("\n\n", parts.Where(part => !string.IsNullOrWhiteSpace(part)));
     }

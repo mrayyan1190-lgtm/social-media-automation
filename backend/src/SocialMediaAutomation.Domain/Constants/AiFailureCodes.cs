@@ -12,4 +12,6 @@ public static class AiFailureCodes
     public const string TargetNotEditable = "AI_TARGET_NOT_EDITABLE";
     public const string WorkerLost = "AI_WORKER_LOST";
     public const string ImageNotSuitable = "AI_IMAGE_NOT_SUITABLE";
+    /// <summary>An unexpected error inside the worker (a bug, not the provider); details are in the worker log.</summary>
+    public const string Unexpected = "AI_UNEXPECTED_ERROR";
 }

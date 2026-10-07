@@ -62,6 +62,7 @@ public sealed class AiProviderSettings
     {
         AiProvider.OpenAI => "https://api.openai.com/v1",
         AiProvider.Groq => "https://api.groq.com/openai/v1",
+        AiProvider.HuggingFace => "https://router.huggingface.co/v1",
         AiProvider.OpenAICompatible => Guard.OptionalHttpUrl(customBaseUrl, "Base URL") is { } url
             && Uri.TryCreate(url, UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttps || uri.IsLoopback)

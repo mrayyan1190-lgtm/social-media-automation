@@ -23,4 +23,10 @@ public sealed record GeneratedImage(byte[] Bytes, int LatencyMs, int HttpStatus)
 public interface IImageGenerationProvider
 {
     Task<GeneratedImage> GenerateAsync(ImageConnection connection, string prompt, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Checks the key (throws <see cref="LlmException"/> Authentication when refused) and whether the model is offered for
+    /// image generation. A blank model only checks the key. Generates nothing, so nothing is billed.
+    /// </summary>
+    Task<bool> IsModelAvailableAsync(ImageConnection connection, CancellationToken cancellationToken);
 }

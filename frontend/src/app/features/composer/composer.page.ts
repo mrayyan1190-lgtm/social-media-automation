@@ -1,4 +1,4 @@
-import { DatePipe, Location } from '@angular/common';
+import { Location } from '@angular/common';
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -12,8 +12,8 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
 import { ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
 import { SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
-import { RewriteAction } from '../content/models/ai.model';
-import { MediaAsset, PLATFORM_TEXT_LIMITS, Post, PostContent, PostListItem, PostVersion, postText } from '../content/models/post.model';
+import { AiCapabilities, RewriteAction } from '../content/models/ai.model';
+import { MediaAsset, PLATFORM_TEXT_LIMITS, Post, PostContent, PostVersion, postText } from '../content/models/post.model';
 import { AiApiService } from '../content/services/ai-api.service';
 import { MediaApiService } from '../content/services/media-api.service';
 import { PostApiService } from '../content/services/post-api.service';
@@ -22,15 +22,20 @@ import { SocialAccountApiService } from '../social-accounts/services/social-acco
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-/** Quick additions to the "Write with AI" description. */
-const AI_PRESETS = [
-  { label: 'Product launch', icon: 'rocket', text: 'Announce a product launch' },
-  { label: 'Professional LinkedIn tone', icon: 'user', text: 'Use a professional LinkedIn tone' },
-  { label: 'Customer pain point', icon: 'bulb', text: 'Start from a customer pain point' },
-  { label: 'Engaging hook', icon: 'chat', text: 'Open with an engaging hook' },
-  { label: 'Short promotional post', icon: 'doc', text: 'Keep it a short promotional post' },
-  { label: 'Thought leadership', icon: 'chart', text: 'Write it as a thought leadership post' },
-] as const;
+/**
+ * "Improve with AI" menu. Each item is an AI rewrite of the current version, saved as a new version (the old one is
+ * kept). Grammar and hashtags have no dedicated server action, so they are fixed Custom instructions.
+ */
+const IMPROVE_ACTIONS: { label: string; icon: string; action: RewriteAction; instruction: string | null }[] = [
+  { label: 'Rephrase', icon: '↻', action: 'Rewrite', instruction: null },
+  { label: 'Shorten', icon: '−', action: 'Shorten', instruction: null },
+  { label: 'Lengthen', icon: '+', action: 'Expand', instruction: null },
+  { label: 'Stronger hook', icon: '✦', action: 'ImproveHook', instruction: null },
+  { label: 'More professional', icon: '◆', action: 'MoreProfessional', instruction: null },
+  { label: 'Less promotional', icon: '◇', action: 'LessPromotional', instruction: null },
+  { label: 'Fix grammar', icon: '✓', action: 'Custom', instruction: 'Fix grammar, spelling and punctuation only. Keep the wording, tone and meaning.' },
+  { label: 'Add hashtags', icon: '#', action: 'Custom', instruction: 'Keep the text as it is and add 3 to 5 relevant hashtags.' },
+];
 
 /**
  * Composer: where a real post is prepared. A new post (/composer, optionally ?campaignId=) is created on Save Draft or
@@ -39,9 +44,11 @@ const AI_PRESETS = [
  */
 @Component({
   selector: 'app-composer-page',
-  imports: [FormsModule, RouterLink, DatePipe, PlatformIconComponent, ProblemBannerComponent],
+  imports: [FormsModule, RouterLink, PlatformIconComponent, ProblemBannerComponent],
   templateUrl: './composer.page.html',
   styleUrl: './composer.page.css',
+  // Close an open Improve / Image menu when clicking anywhere else.
+  host: { '(document:click)': 'closeMenus($event)' },
 })
 export class ComposerPage {
   private readonly router = inject(Router);
@@ -61,14 +68,14 @@ export class ComposerPage {
   readonly campaignId = input<string>();
 
   protected readonly platforms = SOCIAL_PLATFORMS;
-  protected readonly aiPresets = AI_PRESETS;
+  protected readonly improveActions = IMPROVE_ACTIONS;
+  /** The open toolbar menu (Publish to / Improve / Media). */
+  protected readonly menu = signal<'publish' | 'improve' | 'image' | null>(null);
 
   // Loaded data
   protected readonly post = signal<Post | null>(null);
   protected readonly accounts = signal<SocialAccount[]>([]);
   protected readonly reviews = signal<ReviewSummary[]>([]);
-  /** Latest drafts (and posts sent back with changes requested), excluding the one being edited. */
-  protected readonly drafts = signal<PostListItem[]>([]);
 
   // Editor state. Link and alt text have no field here but are kept unchanged on every save.
   protected readonly platform = signal<SocialPlatform | null>(null);
@@ -79,11 +86,14 @@ export class ComposerPage {
   protected readonly altText = signal('');
   protected readonly campaign = signal<string>('');
   protected readonly aiInstruction = signal('');
+  /** What the platform offers (/internal/ai); only working modes and model choices are shown. */
+  protected readonly caps = signal<AiCapabilities>({ textGeneration: false, imageGeneration: false, imageAnalysis: false, imageModels: [], visionModels: [] });
+  protected readonly imageAvailable = computed(() => this.caps().imageGeneration);
+  protected readonly imageModel = signal('');
 
   // Activity
   protected readonly loading = signal(false);
   protected readonly busy = signal<string | null>(null);
-  protected readonly notice = signal<string | null>(null);
   protected readonly problem = signal<ApiProblem | null>(null);
 
   private readonly original = signal<{ text: string; link: string; imageId: string | null; altText: string; accountId: string } | null>(null);
@@ -102,6 +112,11 @@ export class ComposerPage {
   protected readonly length = computed(() => this.text().length + (this.link().trim() ? this.link().trim().length + 2 : 0));
   protected readonly platformAccounts = computed(() => this.accounts().filter((a) => a.platform === this.platform()));
   protected readonly latestReview = computed(() => this.reviews().at(0) ?? null);
+  /** A rewrite (any Improve with AI item) is running. */
+  protected readonly isRewriting = computed(() => IMPROVE_ACTIONS.some((a) => a.action === this.busy()));
+  /** Who the preview shows as the author: the chosen account, else the workspace. */
+  protected readonly previewName = computed(() => this.accounts().find((a) => a.id === this.accountId())?.displayName
+    ?? this.workspace.memberships().find((m) => m.organizationId === this.workspace.orgId())?.organizationName ?? 'Your brand');
   protected readonly changesRequested = computed(() => this.reviews().find((r) => r.status === 'CHANGES_REQUESTED') ?? null);
 
   constructor() {
@@ -160,7 +175,7 @@ export class ComposerPage {
     if (file.size > MAX_IMAGE_BYTES) return this.fail('Images must be at most 8 MB.');
     await this.run('upload', async () => {
       this.setImage(await firstValueFrom(this.media.upload(orgId, file)));
-      this.notice.set('Image attached. Save Draft to keep it.');
+      this.toast.success('Image attached. Save Draft to keep it.');
     });
   }
 
@@ -168,12 +183,28 @@ export class ComposerPage {
     this.setImage(null);
   }
 
-  // ---- Write with AI --------------------------------------------------------------------------------
+  // ---- Improve with AI / Image menus -----------------------------------------------------------------
 
-  protected addPreset(text: string): void {
-    const current = this.aiInstruction().trim();
-    this.aiInstruction.set(current ? `${current.replace(/[.\s]+$/, '')}. ${text}` : text);
+  protected toggleMenu(which: 'publish' | 'improve' | 'image'): void {
+    this.menu.set(this.menu() === which ? null : which);
   }
+
+  protected closeMenus(event: Event): void {
+    if (this.menu() && !(event.target instanceof Element && event.target.closest('.cmp-pop'))) this.menu.set(null);
+  }
+
+  protected async improve(action: RewriteAction, instruction: string | null): Promise<void> {
+    this.menu.set(null);
+    await this.aiEdit(action, instruction);
+  }
+
+  /** Generates a (replacement) image that illustrates the post. */
+  protected async newImage(instruction: string | null): Promise<void> {
+    this.menu.set(null);
+    await this.run('image', () => this.addAiImage(instruction));
+  }
+
+  // ---- Write with AI --------------------------------------------------------------------------------
 
   /**
    * With post text: an AI edit following the description (saved as a new version). Without text: the AI writes a new
@@ -183,6 +214,7 @@ export class ComposerPage {
   protected async generateWithAi(): Promise<void> {
     const instruction = this.aiInstruction().trim();
     if (!instruction || this.busy()) return;
+    // Existing text is revised in place; images are added from the Image menu.
     if (this.canEdit() && this.text().trim()) {
       await this.aiEdit('Custom', instruction);
       if (!this.problem()) this.aiInstruction.set('');
@@ -207,7 +239,7 @@ export class ComposerPage {
       if (image) this.setImage(image);
       if (accountId) this.accountId.set(accountId);
       this.aiInstruction.set('');
-      this.notice.set('AI wrote a draft. Edit it if you like, then Save Draft or Submit for Review.');
+      this.toast.success('AI wrote a draft. Edit it if you like, then Save Draft or Submit for Review.');
     });
   }
 
@@ -217,11 +249,34 @@ export class ComposerPage {
       const post = await this.ensureSaved();
       if (!orgId || !post) return;
       const queued = await firstValueFrom(this.ai.requestRewrite(orgId, post.id, action, instruction, post.rowVersion));
+      const imageBefore = post.currentVersion.mediaAssetId;
       const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed);
       await this.load(orgId, post.id);
-      if (final.status === 'FAILED') throw new Error(this.aiFailure(final.failureCode));
-      this.notice.set(`AI edit saved as version ${this.version()?.versionNumber}. The previous version is kept.`);
+      if (final.status === 'FAILED') {
+        // An image-only request that failed explains why (e.g. the image model refused); other failures stay generic.
+        throw new Error(final.failureCode === 'AI_PROVIDER_REJECTED' && final.failureMessage ? final.failureMessage : this.aiFailure(final.failureCode));
+      }
+      const newImage = this.version()?.mediaAssetId !== imageBefore;
+      this.toast.success(`AI edit saved as version ${this.version()?.versionNumber}${newImage ? ' with a new image' : ''}. The previous version is kept.`
+        + (final.warning ? ` ${final.warning}` : ''));
     });
+  }
+
+  /** Generates an image (with the chosen Hugging Face model, when a choice is offered) as a new version of the open post. */
+  private async addAiImage(instruction: string | null): Promise<void> {
+    const orgId = this.workspace.orgId();
+    const post = await this.ensureSaved();
+    if (!orgId || !post) return;
+    const model = this.caps().imageModels.length ? this.imageModel() || null : null;
+    const queued = await firstValueFrom(this.ai.requestImage(orgId, post.id, instruction, post.rowVersion, model));
+    const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed, 3000);
+    await this.load(orgId, post.id);
+    if (final.status === 'FAILED') {
+      throw new Error(final.failureCode === 'AI_NOT_CONFIGURED' || final.failureCode === 'AI_PROVIDER_AUTH'
+        ? 'Image generation is temporarily unavailable. Please try again later.'
+        : final.failureMessage || 'The image could not be generated. Please try again.');
+    }
+    this.toast.success(`AI image added as version ${this.version()?.versionNumber}. Add alt text if you like; the previous version is kept.`);
   }
 
   private aiFailure(code: string | null): string {
@@ -236,7 +291,7 @@ export class ComposerPage {
       const before = this.post()?.currentVersionId;
       const post = await this.ensureSaved(true);
       if (post && !this.isNew()) {
-        this.notice.set(post.currentVersionId !== before ? `Saved as version ${post.currentVersion.versionNumber}.` : 'No changes to save.');
+        this.toast.success(post.currentVersionId !== before ? `Saved as version ${post.currentVersion.versionNumber}.` : 'No changes to save.');
       }
     });
   }
@@ -286,8 +341,7 @@ export class ComposerPage {
       this.apply(created);
       // Same page instance keeps running (e.g. an AI edit that needed the draft saved first); only the URL changes.
       this.location.replaceState(`/${this.workspace.slug()}/composer/${created.id}`);
-      this.notice.set('Draft saved.');
-      void this.loadDrafts(orgId);
+      this.toast.success('Draft saved.');
       return created;
     }
     const saved = await firstValueFrom(this.postsApi.saveNewVersion(orgId, current.id, this.content(current.currentVersion), current.rowVersion));
@@ -321,6 +375,10 @@ export class ComposerPage {
   }
 
   private async loadWorkspaceData(orgId: string): Promise<void> {
+    void firstValueFrom(this.ai.capabilities(orgId)).then((c) => {
+      this.caps.set(c);
+      this.imageModel.set(c.imageModels[0] ?? '');
+    }, () => undefined);
     const accounts = await firstValueFrom(this.accountsApi.list(orgId)).catch(() => []);
     this.accounts.set(accounts);
     if (this.isNew() && !this.platform()) {
@@ -328,15 +386,6 @@ export class ComposerPage {
       if (first) this.choosePlatform(first);
     }
     this.preselectAccount();
-    await this.loadDrafts(orgId);
-  }
-
-  private async loadDrafts(orgId: string): Promise<void> {
-    const current = this.post()?.id;
-    this.drafts.set((await firstValueFrom(this.postsApi.listAll(orgId)).catch(() => []))
-      .filter((p) => (p.editorialState === 'DRAFT' || p.editorialState === 'CHANGES_REQUESTED') && p.id !== current)
-      .sort((a, b) => b.updatedAtUtc.localeCompare(a.updatedAtUtc))
-      .slice(0, 5));
   }
 
   private async load(orgId: string, postId: string): Promise<void> {
@@ -348,7 +397,6 @@ export class ComposerPage {
       ]);
       this.reviews.set(reviews);
       this.apply(post);
-      void this.loadDrafts(orgId);
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
@@ -379,7 +427,6 @@ export class ComposerPage {
   private async run(what: string, action: () => Promise<void>): Promise<void> {
     this.busy.set(what);
     this.problem.set(null);
-    this.notice.set(null);
     try {
       await action();
     } catch (error) {

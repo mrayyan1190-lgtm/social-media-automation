@@ -45,7 +45,8 @@ internal sealed class ProviderAppSource(IConfiguration configuration, IServiceSc
         var redirect = platform == SocialPlatform.Instagram
             ? SocialProviderConfigurationService.InstagramRedirect(config.RedirectUri) ?? config.RedirectUri
             : config.RedirectUri;
-        return new ProviderApp(config.ClientId, stored.Secret ?? "", redirect, config.ApiVersion ?? fallback.ApiVersion);
+        return new ProviderApp(config.ClientId, stored.Secret ?? "", redirect, config.ApiVersion ?? fallback.ApiVersion,
+            config.ConfigurationId ?? fallback.ConfigurationId);
     }
 
     public async Task RefreshAsync(CancellationToken cancellationToken)

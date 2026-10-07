@@ -65,12 +65,38 @@ public sealed class AiConnectionResolver(SystemAiOptions system, IAiRepository a
     {
         if (await platform.GetAiConfigurationAsync(cancellationToken) is not { ImageEnabled: true, ImageProvider: { } provider, ImageModel: { Length: > 0 } model } config)
             return null;
-        var key = config.HasImageApiKey
-            ? await secretStore.GetAsync(PlatformAiConfiguration.ImageApiKeySecretName, cancellationToken)
-            : await PlatformApiKeyAsync(cancellationToken);
+        var key = config.HasImageApiKey ? await secretStore.GetAsync(PlatformAiConfiguration.ImageApiKeySecretName, cancellationToken)
+            : config.ImageCanUseLlmKey ? await PlatformApiKeyAsync(cancellationToken)
+            : null;
         return string.IsNullOrWhiteSpace(key)
             ? null
             : new ImageConnection(provider, AiProviderSettings.ResolveBaseUrl(provider, config.ImageBaseUrl), model, key.Trim(), config.ImageSize ?? "1024x1024");
+    }
+
+    /// <summary>
+    /// A Hugging Face chat connection for a vision model, using the Hugging Face token already configured in /internal/ai:
+    /// the image key when image generation uses Hugging Face, otherwise the AI / LLM key when the LLM is Hugging Face.
+    /// Null when no enabled Hugging Face token exists.
+    /// </summary>
+    public async Task<LlmConnection?> ResolveHuggingFaceAsync(string model, CancellationToken cancellationToken)
+    {
+        var config = await platform.GetAiConfigurationAsync(cancellationToken);
+        var key = config is { VisionEnabled: true, HuggingFaceTokenSecretName: { } secretName }
+            ? await secretStore.GetAsync(secretName, cancellationToken)
+            : null;
+        return string.IsNullOrWhiteSpace(key)
+            ? null
+            : new LlmConnection(AiProvider.HuggingFace, AiProviderSettings.ResolveBaseUrl(AiProvider.HuggingFace, null), model, key.Trim(),
+                config!.MaxOutputTokens, config.RequestTimeoutSeconds ?? AiModelCatalog.VisionTimeoutSeconds);
+    }
+
+    /// <summary>The vision models users may pick (operator's default first); empty when image understanding is not usable.</summary>
+    public async Task<IReadOnlyList<string>> VisionModelsAsync(CancellationToken cancellationToken)
+    {
+        var config = await platform.GetAiConfigurationAsync(cancellationToken);
+        return config is { VisionEnabled: true, HuggingFaceTokenSecretName: not null }
+            ? AiModelCatalog.WithDefault(AiModelCatalog.HuggingFaceVisionModels, AiModelCatalog.VisionModelOrDefault(config.VisionModel))
+            : [];
     }
 
     /// <summary>Null when no LLM is configured for this workspace (or the platform LLM is disabled).</summary>

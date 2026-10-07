@@ -361,7 +361,7 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
         var llm = await (from c in calls
                          join r in db.AiGenerationRequests on c.RequestId equals r.Id
                          orderby c.CreatedAtUtc descending
-                         select new { c.Id, c.CreatedAtUtc, c.Provider, c.ErrorCode, c.HttpStatus, c.Model, r.CorrelationId })
+                         select new { c.Id, c.CreatedAtUtc, c.Provider, c.ErrorCode, c.HttpStatus, c.Model, c.Diagnostic, r.CorrelationId })
             .Take(take).ToListAsync(cancellationToken);
         var provider = await (from a in attempts
                               join j in db.PublicationJobs on a.PublicationJobId equals j.Id
@@ -371,7 +371,8 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
 
         var items = recorded
             .Concat(llm.Select(c => new SystemLogItemDto(c.Id, c.CreatedAtUtc, SystemEventLevels.Warning, c.Provider == AiProvider.OpenAI ? "OpenAI" : c.Provider.ToString(),
-                "LLM_CALL_FAILED", $"{c.ErrorCode}{(c.HttpStatus is { } s ? $" (HTTP {s})" : "")} calling model {c.Model}", c.CorrelationId)))
+                "LLM_CALL_FAILED", $"{c.ErrorCode}{(c.HttpStatus is { } s ? $" (HTTP {s})" : "")} calling model {c.Model}{(c.Diagnostic is { Length: > 0 } d ? $": {d}" : "")}",
+                c.CorrelationId)))
             .Concat(provider.Select(a => new SystemLogItemDto(a.Id, a.At,
                 a.ErrorCategory is PublishErrorCategory.UNCERTAIN or PublishErrorCategory.PERMANENT ? SystemEventLevels.Error : SystemEventLevels.Warning,
                 a.Platform == SocialPlatform.LinkedIn ? "LinkedIn" : "Meta", "PROVIDER_REQUEST_FAILED",

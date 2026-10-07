@@ -112,4 +112,13 @@ public class AiValidationTests
     [Fact]
     public void Instagram_without_image_gets_media_warning() =>
         Assert.Contains(Check("Visual copy.", platform: SocialPlatform.Instagram), i => i is { Severity: IssueSeverity.WARNING, Category: "MEDIA" });
+
+    [Fact]
+    public void All_platforms_prompt_asks_for_one_post_within_the_strictest_limit()
+    {
+        var prompt = SocialMediaAutomation.Application.AiGeneration.Prompts.PromptBuilder.Generation(Snapshot() with { Unified = true }).SystemPrompt;
+        Assert.Contains("ONE single post", prompt);
+        Assert.Contains("2200", prompt); // Instagram is the strictest of the three
+        Assert.DoesNotContain("ONE INDEPENDENT version", prompt);
+    }
 }

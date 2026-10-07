@@ -1,70 +1,82 @@
 import { Component, ViewEncapsulation, computed, effect, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { AppNotification, NotificationApiService } from '../../core/services/notification-api.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
-import { PROBLEM_DELIVERY, UPCOMING_DELIVERY } from '../../shared/models/states';
+import { MODE_LABELS, PROBLEM_DELIVERY, UPCOMING_DELIVERY, customerStatus } from '../../shared/models/states';
 import { ReviewSummary } from '../approvals/models/review.model';
-import { SOCIAL_PLATFORMS } from '../campaigns/models/campaign.model';
-import { PostListItem } from '../content/models/post.model';
-import { PostApiService } from '../content/services/post-api.service';
 import { ReviewApiService } from '../approvals/services/review-api.service';
+import { SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
+import { PostListItem } from '../content/models/post.model';
+import { MediaApiService } from '../content/services/media-api.service';
+import { PostApiService } from '../content/services/post-api.service';
 import { AuditEntry, Dashboard, DashboardApiService } from '../dashboard/dashboard-api.service';
-import { PublicationJob } from '../publications/models/publication.model';
-import { dayKeyInZone, formatInZone } from '../publications/models/time-zones';
+import { formatInZone } from '../publications/models/time-zones';
 
 const DAY = 864e5;
+const WEEK = 7 * DAY;
+
+type Tone = 'blue' | 'amber' | 'slate' | 'green' | 'rose' | 'violet';
+type Chip = 'sched' | 'review' | 'draft' | 'ready' | 'attn' | 'fail';
 
 interface Kpi {
   label: string;
   value: number;
-  unit: string;
-  accent: 'green' | 'blue' | 'amber' | 'rose';
-  icon: 'check' | 'calendar' | 'clock' | 'alert';
-  delta: string;
-  dir: 'up' | 'down' | 'flat';
-  sub: string;
+  tone: Tone;
+  icon: 'calendar' | 'clock' | 'doc' | 'bars' | 'trend';
+  /** Shown after the value (e.g. %). */
+  unit?: string;
+  title?: string;
+  delta: { text: string; dir: 'up' | 'down' | 'flat'; good: boolean } | null;
+  bars: number[];
+  /** Which bar is the current period (the darker one). */
+  current: number;
   link: string;
   query?: Record<string, string>;
 }
 
-interface TodoRow {
-  label: string;
-  count: number;
+interface Row {
+  id: string;
+  title: string;
+  platform: SocialPlatform;
+  mediaId: string | null;
+  /** Which design illustration stands in when the post has no image (stable per post). */
+  art: number;
+  chip: Chip;
+  chipLabel: string;
   link: string;
   query?: Record<string, string>;
-  tile: 'amber' | 'blue' | 'orange' | 'rose';
-  icon: 'clock' | 'check' | 'alert' | 'reject';
+  /** Pipeline: date and time; attention: "by …" and a relative time. */
+  date?: string;
+  time?: string;
+  by?: string;
+  ago?: string;
 }
 
 interface Activity {
   id: string;
-  actor: string | null;
+  actor: string;
   text: string;
   at: string;
 }
 
-/** Chart geometry (SVG user units). */
-const CW = 780, CH = 250, PL = 40, PR = 16, PT = 16, PB = 30;
+const COLORS: Record<Tone, string> = { blue: '#2f6fed', amber: '#e08a1e', slate: '#5b6a86', green: '#12a05f', rose: '#dc4d5b', violet: '#7c5cff' };
+const SPARK: Record<SocialPlatform, string> = { LinkedIn: '#12a05f', Facebook: '#2f6fed', Instagram: '#7c5cff' };
 
-const SEGMENTS = [
-  { key: 'published', label: 'Published', color: '#22c55e' },
-  { key: 'scheduled', label: 'Scheduled', color: '#3b82f6' },
-  { key: 'review', label: 'In Review', color: '#f59e0b' },
-  { key: 'changes', label: 'Changes', color: '#8b5cf6' },
-  { key: 'failed', label: 'Failed', color: '#ef4444' },
-] as const;
+/** Chart geometry (SVG user units; the SVG scales to its box). */
+const CW = 520, CH = 146, PL = 34, PR = 10, PT = 8, PB = 18;
 
 /**
- * Home: KPI cards, a posting-activity chart, publishing breakdown, to-do, upcoming publications and recent activity.
- * Every number comes from the workspace's posts, reviews and publication jobs; nothing is estimated or invented.
+ * Home: KPIs, the content pipeline, what needs attention, connected channels, publishing activity and recent team
+ * activity. Every number comes from the workspace's posts, reviews, publication jobs and accounts; nothing is
+ * estimated (the app does not track followers or engagement, so channels and the chart show publishing instead).
  */
 @Component({
   selector: 'app-home-page',
-  imports: [ProblemBannerComponent, RouterLink],
+  imports: [ProblemBannerComponent, RouterLink, NgTemplateOutlet],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles out of it.
@@ -75,90 +87,144 @@ export class HomePage {
   private readonly postsApi = inject(PostApiService);
   private readonly reviewsApi = inject(ReviewApiService);
   private readonly notificationsApi = inject(NotificationApiService);
-  protected readonly auth = inject(AuthService);
+  private readonly mediaApi = inject(MediaApiService);
   protected readonly workspace = inject(WorkspaceService);
 
   protected readonly problem = signal<ApiProblem | null>(null);
+  protected readonly loaded = signal(false);
   protected readonly dashboard = signal<Dashboard | null>(null);
   protected readonly posts = signal<PostListItem[]>([]);
   protected readonly reviews = signal<ReviewSummary[]>([]);
   protected readonly activity = signal<Activity[]>([]);
-  protected readonly chartRange = signal<7 | 30 | 90>(30);
-  protected readonly pubRange = signal<7 | 30>(7);
-  /** Index of the hovered day in the chart, or null. */
+  protected readonly range = signal<7 | 30 | 90>(30);
   protected readonly hover = signal<number | null>(null);
+  protected readonly colors = COLORS;
   protected readonly cw = CW;
   protected readonly ch = CH;
 
   private readonly zone = computed(() => this.workspace.timeZone());
-  private readonly today = computed(() => dayKeyInZone(new Date().toISOString(), this.zone()));
+  private readonly byId = computed(() => new Map(this.posts().map((p) => [p.id, p])));
 
-  // ---- KPI cards ----------------------------------------------------------------------------------
+  // ---- KPIs -----------------------------------------------------------------------------------------
 
   protected readonly kpis = computed<Kpi[]>(() => {
     const posts = this.posts();
     const now = Date.now();
-    const publishedBetween = (from: number, to: number) => posts.filter((p) => p.latestDeliveryState === 'PUBLISHED' && p.latestPublishAtUtc
-      && utcMs(p.latestPublishAtUtc) >= from && utcMs(p.latestPublishAtUtc) < to).length;
-    const published = publishedBetween(now - 30 * DAY, now + 1);
-    const before = publishedBetween(now - 60 * DAY, now - 30 * DAY);
-    const scheduled = posts.filter((p) => p.latestDeliveryState && UPCOMING_DELIVERY.includes(p.latestDeliveryState)).length;
-    const thisWeek = posts.filter((p) => p.latestDeliveryState && UPCOMING_DELIVERY.includes(p.latestDeliveryState) && p.latestPublishAtUtc
-      && utcMs(p.latestPublishAtUtc) < now + 7 * DAY).length;
+    const status = (p: PostListItem) => customerStatus(p.editorialState, p.latestDeliveryState);
+    const published = posts.filter((p) => p.latestDeliveryState === 'PUBLISHED' && p.latestPublishAtUtc).map((p) => p.latestPublishAtUtc!);
+    const failed = posts.filter((p) => status(p) === 'Failed');
+    const upcoming = posts.filter((p) => status(p) === 'Scheduled' && p.latestPublishAtUtc);
+    const drafts = posts.filter((p) => p.editorialState === 'DRAFT');
     const pending = this.reviews().filter((r) => r.status === 'PENDING');
-    const fresh = pending.filter((r) => utcMs(r.submittedAtUtc) >= now - DAY).length;
-    const failed = posts.filter((p) => p.latestDeliveryState && PROBLEM_DELIVERY.includes(p.latestDeliveryState)).length;
-    const pct = before ? Math.round(((published - before) / before) * 1000) / 10 : null;
+    const admin = this.workspace.isAdmin();
+    const success = successRate(posts, now);
+
+    // Scheduled looks ahead: posts going out in each of the next six weeks (this week first).
+    const ahead = Array.from({ length: 6 }, (_, i) =>
+      upcoming.filter((p) => { const t = utcMs(p.latestPublishAtUtc!); return t >= now + i * WEEK && t < now + (i + 1) * WEEK; }).length);
     return [
-      { label: 'Published', value: published, unit: 'posts', accent: 'green', icon: 'check',
-        delta: pct === null ? (published ? `+${published}` : '0') : `${pct > 0 ? '+' : ''}${pct}%`,
-        dir: pct === null ? (published ? 'up' : 'flat') : pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat',
-        sub: 'last 30 days', link: '/planner', query: { status: 'Published' } },
-      { label: 'Scheduled', value: scheduled, unit: 'queued', accent: 'blue', icon: 'calendar',
-        delta: `${thisWeek} this week`, dir: 'flat', sub: 'waiting to go out', link: '/planner', query: { status: 'Scheduled' } },
-      { label: 'In review', value: pending.length, unit: 'waiting', accent: 'amber', icon: 'clock',
-        delta: `${fresh} new`, dir: fresh ? 'up' : 'flat', sub: 'needs an approver',
-        link: this.workspace.isAdmin() ? '/approvals' : '/planner', query: this.workspace.isAdmin() ? undefined : { status: 'In Review' } },
-      { label: 'Failed', value: failed, unit: failed === 1 ? 'error' : 'errors', accent: 'rose', icon: 'alert',
-        delta: failed ? 'needs action' : 'all clear', dir: failed ? 'down' : 'flat',
-        sub: this.workspace.isAdmin() ? 'check Approvals or Settings' : 'your Admin is notified', link: '/planner', query: { status: 'Failed' } },
+      { label: 'Scheduled', title: 'Going out in the next 7 days compared with the 7 days after', value: upcoming.length, tone: 'blue', icon: 'calendar',
+        bars: [...ahead].reverse(), current: 5, delta: { ...pct(ahead[0], ahead[1]), good: true }, link: '/planner', query: { status: 'Scheduled' } },
+      { label: 'Awaiting approval', value: pending.length, tone: 'amber', icon: 'clock', ...trend(this.reviews().map((r) => r.submittedAtUtc), now, false),
+        link: admin ? '/approvals' : '/planner', query: admin ? undefined : { status: 'In Review' } },
+      { label: 'Drafts', value: drafts.length, tone: 'slate', icon: 'doc', ...trend(posts.map((p) => p.createdAtUtc), now, true),
+        link: '/planner', query: { status: 'Draft' } },
+      { label: 'Published', title: 'Published in the last 30 days', value: published.filter((t) => utcMs(t) >= now - 30 * DAY).length, tone: 'green',
+        icon: 'bars', ...trend(published, now, true), link: '/planner', query: { status: 'Published' } },
+      { label: 'Publish success', title: 'Published out of all publish attempts that finished (not scheduled)', unit: '%', tone: 'violet', icon: 'trend',
+        value: success.rate, delta: success.delta, bars: success.bars, current: 5, link: '/planner', query: { status: 'Failed' } },
     ];
   });
 
-  // ---- Posting activity chart ---------------------------------------------------------------------
+  // ---- Content pipeline ----------------------------------------------------------------------------
 
-  /** Per day in the workspace zone: posts published and posts drafted (created). */
+  /** What is coming: scheduled posts by publish time, then approved-but-unscheduled, in review, changes and drafts. */
+  protected readonly pipeline = computed<Row[]>(() => {
+    const order: Record<string, number> = { Scheduled: 0, Approved: 1, 'In Review': 2, 'Changes Requested': 3, Draft: 4 };
+    return this.posts()
+      .map((p) => ({ p, s: customerStatus(p.editorialState, p.latestDeliveryState) }))
+      .filter(({ s }) => s in order)
+      .sort((a, b) => order[a.s] - order[b.s]
+        || (a.s === 'Scheduled' ? a.p.latestPublishAtUtc!.localeCompare(b.p.latestPublishAtUtc!) : b.p.updatedAtUtc.localeCompare(a.p.updatedAtUtc)))
+      .slice(0, 5)
+      .map(({ p, s }) => {
+        const at = s === 'Scheduled' && p.latestPublishAtUtc ? p.latestPublishAtUtc : p.updatedAtUtc;
+        const [chip, chipLabel]: [Chip, string] = s === 'Scheduled' ? ['sched', 'Scheduled'] : s === 'Approved' ? ['ready', 'Ready']
+          : s === 'In Review' ? ['review', 'Review'] : s === 'Changes Requested' ? ['attn', 'Changes'] : ['draft', 'Draft'];
+        return { id: p.id, title: p.hook || p.bodyExcerpt, platform: p.platform, mediaId: p.mediaAssetId ?? null, art: art(p.id), chip, chipLabel,
+          link: `/composer/${p.id}`, date: this.fmt(at, { month: 'short', day: 'numeric', year: 'numeric' }), time: this.fmt(at, { timeStyle: 'short' }) };
+      });
+  });
+
+  // ---- Needs attention -----------------------------------------------------------------------------
+
+  protected readonly attention = computed<Row[]>(() => {
+    const admin = this.workspace.isAdmin();
+    const posts = this.byId();
+    const reviews: Row[] = admin
+      ? this.reviews().filter((r) => r.status === 'PENDING').map((r) => ({
+          id: r.id, title: r.excerpt, platform: r.platform, mediaId: posts.get(r.postId)?.mediaAssetId ?? null, art: art(r.postId), chip: 'attn' as Chip,
+          chipLabel: 'Needs approval', link: `/approvals/${r.id}`, by: r.submittedByName, ago: this.ago(r.submittedAtUtc) }))
+      : this.posts().filter((p) => p.editorialState === 'CHANGES_REQUESTED').map((p) => ({
+          id: p.id, title: p.hook || p.bodyExcerpt, platform: p.platform, mediaId: p.mediaAssetId ?? null, art: art(p.id), chip: 'attn' as Chip,
+          chipLabel: 'Changes requested', link: `/composer/${p.id}`, by: p.createdByName, ago: this.ago(p.updatedAtUtc) }));
+    const failed: Row[] = this.posts()
+      .filter((p) => p.latestDeliveryState && PROBLEM_DELIVERY.includes(p.latestDeliveryState))
+      .map((p) => ({ id: p.id, title: p.hook || p.bodyExcerpt, platform: p.platform, mediaId: p.mediaAssetId ?? null, art: art(p.id), chip: 'fail' as Chip,
+        chipLabel: 'Not published', link: admin ? '/approvals' : '/planner', query: admin ? undefined : { status: 'Failed' },
+        by: p.createdByName, ago: this.ago(p.latestPublishAtUtc ?? p.updatedAtUtc) }));
+    return [...failed, ...reviews].slice(0, 2);
+  });
+
+  // ---- Channels ------------------------------------------------------------------------------------
+
+  /** Per platform: connection status and posts published (the app does not read follower counts). */
+  protected readonly channels = computed(() => {
+    const accounts = this.dashboard()?.destinations ?? [];
+    const now = Date.now();
+    return SOCIAL_PLATFORMS.map((platform) => {
+      const account = accounts.find((a) => a.platform === platform && a.isEligibleDestination) ?? null;
+      const times = this.posts().filter((p) => p.platform === platform && p.latestDeliveryState === 'PUBLISHED' && p.latestPublishAtUtc)
+        .map((p) => utcMs(p.latestPublishAtUtc!));
+      const last30 = times.filter((t) => t >= now - 30 * DAY).length;
+      const prev30 = times.filter((t) => t >= now - 60 * DAY && t < now - 30 * DAY).length;
+      const weeks = Array.from({ length: 8 }, (_, i) => times.filter((t) => t >= now - (8 - i) * WEEK && t < now - (7 - i) * WEEK).length);
+      return {
+        platform,
+        status: account ? MODE_LABELS[account.executionMode] ?? 'Connected' : 'Not connected',
+        connected: !!account,
+        published: last30,
+        delta: pct(last30, prev30),
+        spark: sparkline(weeks, 120, 32),
+        color: SPARK[platform],
+      };
+    });
+  });
+
+  // ---- Publishing activity chart -------------------------------------------------------------------
+
   protected readonly chart = computed(() => {
-    const days = this.chartRange();
-    const zone = this.zone();
-    const keys = Array.from({ length: days }, (_, i) => dayKeyInZone(new Date(Date.now() - (days - 1 - i) * DAY).toISOString(), zone));
-    const index = new Map(keys.map((k, i) => [k, i]));
-    const published = keys.map(() => 0);
-    const drafted = keys.map(() => 0);
-    for (const p of this.posts()) {
-      const created = index.get(dayKeyInZone(p.createdAtUtc, zone));
-      if (created !== undefined) drafted[created]++;
-      if (p.latestDeliveryState === 'PUBLISHED' && p.latestPublishAtUtc) {
-        const done = index.get(dayKeyInZone(p.latestPublishAtUtc, zone));
-        if (done !== undefined) published[done]++;
-      }
-    }
-    const max = Math.max(4, ...published, ...drafted);
-    const top = Math.ceil(max / 4) * 4;
-    const innerW = CW - PL - PR, innerH = CH - PT - PB;
-    const x = (i: number) => PL + (i * innerW) / (days - 1);
-    const y = (v: number) => PT + innerH - (v / top) * innerH;
-    const line = (values: number[]) => smooth(values.map((v, i) => [x(i), y(v)]), PT + innerH);
-    const area = (d: string) => `${d} L${CW - PR},${PT + innerH} L${PL},${PT + innerH} Z`;
-    const pubLine = line(published), draftLine = line(drafted);
-    const every = Math.max(1, Math.round(days / 6));
+    const range = this.range();
+    const step = range === 7 ? DAY : range === 30 ? 2 * DAY : WEEK;
+    const n = range === 7 ? 7 : range === 30 ? 15 : 13;
+    const now = Date.now();
+    const times = this.posts().filter((p) => p.latestDeliveryState === 'PUBLISHED' && p.latestPublishAtUtc).map((p) => utcMs(p.latestPublishAtUtc!));
+    // Rolling windows that end now; each point counts the posts published in its window.
+    const keys = Array.from({ length: n }, (_, i) => now - (n - 1 - i) * step);
+    const values = keys.map((end) => times.filter((t) => t > end - step && t <= end).length);
+    const total = times.filter((t) => t > now - range * DAY).length;
+    const before = times.filter((t) => t > now - 2 * range * DAY && t <= now - range * DAY).length;
+    const top = Math.max(2, Math.ceil(Math.max(...values) / 2) * 2);
+    const iw = CW - PL - PR, ih = CH - PT - PB;
+    const x = (i: number) => PL + (i * iw) / (n - 1);
+    const y = (v: number) => PT + ih - (v / top) * ih;
+    const pts: [number, number][] = values.map((v, i) => [x(i), y(v)]);
+    const line = smooth(pts, PT + ih);
     return {
-      keys, published, drafted, x, y, innerW, innerH,
-      pubLine, draftLine, pubArea: area(pubLine), draftArea: area(draftLine),
-      grid: Array.from({ length: 5 }, (_, t) => ({ y: PT + (innerH / 4) * t, label: top - (top / 4) * t })),
-      labels: keys.map((k, i) => ({ i, k })).filter(({ i }) => i % every === 0).map(({ i, k }) => ({ x: x(i), text: shortDay(k) })),
-      totalPublished: published.reduce((a, b) => a + b, 0),
-      totalDrafted: drafted.reduce((a, b) => a + b, 0),
+      n, values, keys, step, total, delta: pct(total, before), x, y,
+      line, area: `${line} L${x(n - 1)},${PT + ih} L${PL},${PT + ih} Z`,
+      ticks: [0, top / 2, top].map((v) => ({ v, y: y(v) })),
+      end: pts[n - 1], base: PT + ih,
     };
   });
 
@@ -166,89 +232,26 @@ export class HomePage {
     const i = this.hover();
     const c = this.chart();
     if (i === null) return null;
-    return { x: c.x(i), left: (c.x(i) / CW) * 100, date: shortDay(c.keys[i]), published: c.published[i], drafted: c.drafted[i],
-      yPub: c.y(c.published[i]), yDraft: c.y(c.drafted[i]) };
+    const day = (t: number) => this.fmt(new Date(t).toISOString(), { month: 'short', day: 'numeric' });
+    const end = c.keys[i];
+    const label = c.step === DAY
+      ? this.fmt(new Date(end).toISOString(), { weekday: 'short', month: 'short', day: 'numeric' })
+      : `${day(end - c.step + DAY)} – ${day(end)}`;
+    return { x: c.x(i), y: c.y(c.values[i]), left: (c.x(i) / CW) * 100, top: (c.y(c.values[i]) / CH) * 100, label, value: c.values[i] };
   });
 
   protected onChartMove(event: MouseEvent): void {
-    const svg = (event.currentTarget as SVGElement).ownerSVGElement ?? (event.currentTarget as SVGSVGElement);
-    const rect = svg.getBoundingClientRect();
+    const rect = (event.currentTarget as Element).getBoundingClientRect();
     const sx = ((event.clientX - rect.left) / rect.width) * CW;
-    const days = this.chartRange();
-    const step = (CW - PL - PR) / Math.max(1, days - 1);
-    this.hover.set(Math.max(0, Math.min(days - 1, Math.round((sx - PL) / step))));
+    const c = this.chart();
+    const step = (CW - PL - PR) / Math.max(1, c.n - 1);
+    this.hover.set(Math.max(0, Math.min(c.n - 1, Math.round((sx - PL) / step))));
   }
 
-  // ---- Publishing card ----------------------------------------------------------------------------
-
-  protected readonly publishing = computed(() => {
-    const zone = this.zone();
-    const days = this.pubRange();
-    const today = this.today();
-    const shift = (n: number) => dayKeyInZone(new Date(Date.now() + n * DAY).toISOString(), zone);
-    const pastFrom = shift(-days), futureTo = shift(days);
-    const counts = { published: 0, scheduled: 0, review: 0, changes: 0, failed: 0 };
-    const perPlatform = new Map<string, number>();
-    for (const p of this.posts()) {
-      const state = p.latestDeliveryState;
-      const day = p.latestPublishAtUtc ? dayKeyInZone(p.latestPublishAtUtc, zone) : null;
-      let counted = true;
-      if (state === 'PUBLISHED' && day && day >= pastFrom && day <= today) counts.published++;
-      else if (state && UPCOMING_DELIVERY.includes(state) && day && day <= futureTo) counts.scheduled++;
-      else if (state && PROBLEM_DELIVERY.includes(state) && day && day >= pastFrom) counts.failed++;
-      else if (p.editorialState === 'IN_REVIEW') counts.review++;
-      else if (p.editorialState === 'CHANGES_REQUESTED') counts.changes++;
-      else counted = false;
-      if (counted) perPlatform.set(p.platform, (perPlatform.get(p.platform) ?? 0) + 1);
-    }
-    const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    return {
-      total,
-      segments: SEGMENTS.map((s) => ({ ...s, value: counts[s.key], width: total ? (counts[s.key] / total) * 100 : 0 })),
-      platforms: SOCIAL_PLATFORMS.map((platform) => ({ platform, count: perPlatform.get(platform) ?? 0 })),
-    };
-  });
-
-  /** This month: published out of everything planned for the month (published + still scheduled). */
-  protected readonly month = computed(() => {
-    const zone = this.zone();
-    const month = this.today().slice(0, 7);
-    let done = 0, planned = 0;
-    for (const p of this.posts()) {
-      if (!p.latestPublishAtUtc || dayKeyInZone(p.latestPublishAtUtc, zone).slice(0, 7) !== month) continue;
-      if (p.latestDeliveryState === 'PUBLISHED') { done++; planned++; }
-      else if (p.latestDeliveryState && UPCOMING_DELIVERY.includes(p.latestDeliveryState)) planned++;
-    }
-    return { done, planned, pct: planned ? Math.round((done / planned) * 100) : 0 };
-  });
-
-  // ---- To do, upcoming, activity ------------------------------------------------------------------
-
-  protected readonly todo = computed<TodoRow[]>(() => {
-    const pending = this.reviews().filter((r) => r.status === 'PENDING');
-    const overdue = Date.now() - DAY;
-    const admin = this.workspace.isAdmin();
-    return [
-      { label: 'Drafts', count: this.posts().filter((p) => p.editorialState === 'DRAFT').length, link: '/planner', query: { status: 'Draft' }, tile: 'amber', icon: 'clock' },
-      admin
-        ? { label: 'To approve', count: pending.length, link: '/approvals', tile: 'blue', icon: 'check' }
-        // Creators do not open Approvals; they follow their submitted posts in the Planner.
-        : { label: 'Waiting for approval', count: pending.length, link: '/planner', query: { status: 'In Review' }, tile: 'blue', icon: 'check' },
-      // Waiting more than a day for a decision.
-      { label: 'Missed', count: pending.filter((r) => utcMs(r.submittedAtUtc) < overdue).length,
-        link: admin ? '/approvals' : '/planner', query: admin ? undefined : { status: 'In Review' }, tile: 'orange', icon: 'alert' },
-      { label: 'Rejected', count: this.posts().filter((p) => p.editorialState === 'CHANGES_REQUESTED').length,
-        link: '/planner', query: { status: 'Changes Requested' }, tile: 'rose', icon: 'reject' },
-    ];
-  });
-
-  /** Problems first (flagged), then the next publications. */
-  protected readonly upcoming = computed(() => {
-    const d = this.dashboard();
-    const attention = (d?.needsAttention ?? []).map((job) => ({ job, flag: true }));
-    const next = (d?.upcoming ?? []).filter((j) => !attention.some((a) => a.job.id === j.id)).map((job) => ({ job, flag: false }));
-    return [...attention, ...next].slice(0, 4);
-  });
+  protected setRange(value: string): void {
+    this.range.set(Number(value) as 7 | 30 | 90);
+    this.hover.set(null);
+  }
 
   constructor() {
     effect(() => {
@@ -258,32 +261,41 @@ export class HomePage {
     });
   }
 
-  protected jobTitle(job: PublicationJob): string {
-    const post = this.posts().find((p) => p.id === job.postId);
-    return post ? post.hook || post.bodyExcerpt : `${job.platform} post`;
+  protected ws(path: string): string {
+    return `/${this.workspace.slug()}${path}`;
   }
 
-  protected when(utc: string): string {
-    const zone = this.zone();
-    const day = dayKeyInZone(utc, zone);
-    const tomorrow = dayKeyInZone(new Date(Date.now() + DAY).toISOString(), zone);
-    const date = day === this.today() ? 'Today' : day === tomorrow ? 'Tomorrow' : formatInZone(utc, zone, { month: 'short', day: 'numeric' });
-    return `${date} ${formatInZone(utc, zone, { timeStyle: 'short' })}`;
+  protected preview(mediaId: string): string {
+    return this.mediaApi.previewUrl(this.workspace.orgId()!, mediaId);
+  }
+
+  protected kbar(values: number[], i: number): { y: number; h: number } {
+    const max = Math.max(1, ...values);
+    const h = 4 + (values[i] / max) * 22;
+    return { y: 30 - h, h };
+  }
+
+  protected avatar(name: string): string {
+    return ['r', 'b', 'g'][name.charCodeAt(0) % 3];
+  }
+
+  protected fresh(utc: string): boolean {
+    return Date.now() - utcMs(utc) < 60 * 60 * 1000;
   }
 
   protected ago(utc: string): string {
     const minutes = Math.round((Date.now() - utcMs(utc)) / 60000);
     if (minutes < 1) return 'now';
-    if (minutes < 60) return `${minutes}m`;
+    if (minutes < 60) return `${minutes}m ago`;
     const hours = Math.round(minutes / 60);
-    if (hours < 24) return `${hours}h`;
+    if (hours < 24) return `${hours}h ago`;
     const days = Math.round(hours / 24);
-    if (days < 7) return `${days}d`;
-    return formatInZone(utc, this.zone(), { month: 'short', day: 'numeric' });
+    if (days < 7) return `${days}d ago`;
+    return this.fmt(utc, { month: 'short', day: 'numeric' });
   }
 
-  protected initial(name: string | null): string {
-    return (name ?? '•').trim().charAt(0).toUpperCase() || '•';
+  private fmt(utc: string, options: Intl.DateTimeFormatOptions): string {
+    return formatInZone(utc, this.zone(), options);
   }
 
   private async load(orgId: string, admin: boolean): Promise<void> {
@@ -299,17 +311,19 @@ export class HomePage {
       this.reviews.set(reviews);
       // Admins see the workspace's business events; others see their own notifications.
       this.activity.set(admin
-        ? (await firstValueFrom(this.dashboardApi.audit(orgId))).map((e) => this.fromAudit(e)).filter((a): a is Activity => a !== null).slice(0, 5)
-        : (await firstValueFrom(this.notificationsApi.list(orgId))).slice(0, 5).map(fromNotification));
+        ? (await firstValueFrom(this.dashboardApi.audit(orgId))).map((e) => this.fromAudit(e)).filter((a): a is Activity => a !== null).slice(0, 3)
+        : (await firstValueFrom(this.notificationsApi.list(orgId))).slice(0, 3).map(fromNotification));
     } catch (error) {
       this.problem.set(toApiProblem(error));
+    } finally {
+      this.loaded.set(true);
     }
   }
 
   /** Business events in plain language; technical events are left out. */
   private fromAudit(e: AuditEntry): Activity | null {
-    const post = e.resourceType === 'Post' ? this.posts().find((p) => p.id === e.resourceId) : null;
-    const postName = post ? `${post.platform} post` : 'a post';
+    const post = e.resourceType === 'Post' ? this.byId().get(e.resourceId) : null;
+    const postName = post ? `a ${post.platform} post` : 'a post';
     const text = ((): string | null => {
       switch (e.action) {
         case 'WORKSPACE_CREATED': return 'created the workspace';
@@ -317,7 +331,7 @@ export class HomePage {
         case 'CAMPAIGN_CREATED': return 'created a campaign';
         case 'CAMPAIGN_UPDATED': return 'updated a campaign';
         case 'POST_VERSION_CREATED': return e.metadata['source']?.startsWith('Ai') ? `generated ${postName}` : `edited ${postName}`;
-        case 'REVIEW_SUBMITTED': return 'submitted for review';
+        case 'REVIEW_SUBMITTED': return 'submitted content for review';
         case 'CONTENT_APPROVED': return `approved ${postName}`;
         case 'CHANGES_REQUESTED': return `requested changes on ${postName}`;
         case 'PUBLICATION_SCHEDULED': return `scheduled ${postName}`;
@@ -338,16 +352,56 @@ function utcMs(utc: string): number {
 }
 
 function fromNotification(n: AppNotification): Activity {
-  return { id: n.id, actor: null, text: n.title, at: n.createdAtUtc };
+  return { id: n.id, actor: 'You', text: n.title, at: n.createdAtUtc };
 }
 
-/** "2026-10-06" → "Oct 6". */
-function shortDay(key: string): string {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, d)));
+/** One of the six design illustrations, picked from the id so a post always gets the same one. */
+function art(id: string): number {
+  let h = 0;
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0;
+  return Math.abs(h) % 6;
 }
 
-/** Smooth path through the points (Catmull-Rom as cubic Béziers); control points never dip below the baseline (zero). */
+/**
+ * Share of finished publications that were published (failed ones count against it), over the last 30 days; weekly
+ * rates for the bars. 100% when nothing failed, and 0 with no finished publications at all.
+ */
+function successRate(posts: PostListItem[], now: number): { rate: number; delta: Kpi['delta']; bars: number[] } {
+  const done = posts.filter((p) => p.latestPublishAtUtc && (p.latestDeliveryState === 'PUBLISHED' || PROBLEM_DELIVERY.includes(p.latestDeliveryState ?? '')))
+    .map((p) => ({ ok: p.latestDeliveryState === 'PUBLISHED', t: utcMs(p.latestPublishAtUtc!) }));
+  const rate = (from: number, to: number) => {
+    const inRange = done.filter((d) => d.t > from && d.t <= to);
+    return inRange.length ? Math.round((inRange.filter((d) => d.ok).length / inRange.length) * 100) : 0;
+  };
+  const bars = Array.from({ length: 6 }, (_, i) => rate(now - (6 - i) * WEEK, now - (5 - i) * WEEK));
+  const current = rate(now - 30 * DAY, now), before = rate(now - 60 * DAY, now - 30 * DAY);
+  const diff = current - before;
+  return { rate: current, bars, delta: { text: `${Math.abs(diff)}%`, dir: diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat', good: diff >= 0 } };
+}
+
+/** Change from `before` to `now` as a percentage ("+3" when there was nothing before). */
+function pct(now: number, before: number): { text: string; dir: 'up' | 'down' | 'flat' } {
+  if (!before) return now ? { text: `+${now}`, dir: 'up' } : { text: '0', dir: 'flat' };
+  const p = Math.round(((now - before) / before) * 100);
+  return { text: `${Math.abs(p)}%`, dir: p > 0 ? 'up' : p < 0 ? 'down' : 'flat' };
+}
+
+/** Six weekly buckets ending now, and this week compared with last week. `upIsGood` colours the change. */
+function trend(times: string[], now: number, upIsGood: boolean): Pick<Kpi, 'bars' | 'current' | 'delta'> {
+  const ms = times.map(utcMs);
+  const bars = Array.from({ length: 6 }, (_, i) => ms.filter((t) => t > now - (6 - i) * WEEK && t <= now - (5 - i) * WEEK).length);
+  const d = pct(bars[5], bars[4]);
+  return { bars, current: 5, delta: { ...d, good: d.dir === 'flat' || (d.dir === 'up') === upIsGood } };
+}
+
+function sparkline(values: number[], w: number, h: number): { line: string; area: string; end: [number, number] } {
+  const max = Math.max(1, ...values);
+  const pts: [number, number][] = values.map((v, i) => [(i * w) / (values.length - 1), h - 4 - (v / max) * (h - 8)]);
+  const line = smooth(pts, h);
+  return { line, area: `${line} L${w},${h} L0,${h} Z`, end: pts[pts.length - 1] };
+}
+
+/** Smooth path through the points (Catmull-Rom as cubic Béziers); control points never dip below the baseline. */
 function smooth(pts: [number, number][], baseline: number): string {
   if (!pts.length) return '';
   let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;

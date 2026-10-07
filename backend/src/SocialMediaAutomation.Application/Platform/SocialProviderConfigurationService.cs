@@ -13,11 +13,11 @@ namespace SocialMediaAutomation.Application.Platform;
 /// Status: CONFIGURED, INCOMPLETE, DISABLED or NOT_CONFIGURED.
 /// </summary>
 public sealed record SocialProviderDto(
-    PlatformProvider Provider, string Source, string ClientId, string RedirectUri, string? DerivedRedirectUri, string? ApiVersion, bool Enabled,
+    PlatformProvider Provider, string Source, string ClientId, string RedirectUri, string? DerivedRedirectUri, string? ApiVersion, string? ConfigurationId, bool Enabled,
     bool SecretConfigured, DateTime? SecretUpdatedAtUtc, DateTime? UpdatedAtUtc, string? RowVersion, string ConfigurationStatus,
     DateTime? LastSuccessAtUtc, DateTime? LastFailureAtUtc, string? LastFailure, int FailuresLast24Hours);
 
-public sealed record SaveSocialProviderCommand(PlatformProvider Provider, string ClientId, string? RedirectUri, string? ApiVersion, bool Enabled, byte[]? ExpectedRowVersion);
+public sealed record SaveSocialProviderCommand(PlatformProvider Provider, string ClientId, string? RedirectUri, string? ApiVersion, string? ConfigurationId, bool Enabled, byte[]? ExpectedRowVersion);
 
 public sealed record ProviderValidationDto(bool Valid, string Message);
 
@@ -54,9 +54,9 @@ public sealed class SocialProviderConfigurationService(
         var (config, now, userId) = await LoadOrCreateAsync(command.Provider, cancellationToken);
         if (config.RowVersion.Length > 0)
             ConcurrencyGuard.EnsureCurrent(config.RowVersion, command.ExpectedRowVersion);
-        config.Update(command.ClientId, command.RedirectUri, command.ApiVersion, command.Enabled, userId, now);
+        config.Update(command.ClientId, command.RedirectUri, command.ApiVersion, command.ConfigurationId, command.Enabled, userId, now);
         audit.Record(PlatformAuditActions.SocialProviderUpdated, "SocialProvider", command.Provider.ToString(), Label(command.Provider),
-            metadata: new Dictionary<string, string?> { ["enabled"] = config.Enabled.ToString(), ["redirectUri"] = config.RedirectUri, ["apiVersion"] = config.ApiVersion });
+            metadata: new Dictionary<string, string?> { ["enabled"] = config.Enabled.ToString(), ["redirectUri"] = config.RedirectUri, ["apiVersion"] = config.ApiVersion, ["configurationId"] = config.ConfigurationId });
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await cache.RefreshAsync(cancellationToken);
         return await ToDtoAsync(config.Provider, config, cancellationToken);
@@ -129,7 +129,7 @@ public sealed class SocialProviderConfigurationService(
         if (config is null)
         {
             var fromEnvironment = Platforms(provider).Any(gateway.IsConfigured);
-            return new SocialProviderDto(provider, fromEnvironment ? "ENVIRONMENT" : "NONE", "", "", null, null, fromEnvironment, fromEnvironment, null, null, null,
+            return new SocialProviderDto(provider, fromEnvironment ? "ENVIRONMENT" : "NONE", "", "", null, null, null, fromEnvironment, fromEnvironment, null, null, null,
                 fromEnvironment ? "CONFIGURED" : "NOT_CONFIGURED", activity.LastSuccessAtUtc, activity.LastFailureAtUtc, activity.LastFailure,
                 activity.FailuresLast24Hours);
         }
@@ -137,7 +137,7 @@ public sealed class SocialProviderConfigurationService(
         var complete = config.ClientId.Length > 0 && config.HasSecret && config.RedirectUri.Length > 0;
         var status = !complete ? "INCOMPLETE" : !config.Enabled ? "DISABLED" : "CONFIGURED";
         return new SocialProviderDto(provider, "PLATFORM", config.ClientId, config.RedirectUri,
-            provider == PlatformProvider.META ? InstagramRedirect(config.RedirectUri) : null, config.ApiVersion, config.Enabled, config.HasSecret,
+            provider == PlatformProvider.META ? InstagramRedirect(config.RedirectUri) : null, config.ApiVersion, config.ConfigurationId, config.Enabled, config.HasSecret,
             config.SecretUpdatedAtUtc, config.UpdatedAtUtc, config.RowVersion.Length > 0 ? Convert.ToBase64String(config.RowVersion) : null, status,
             activity.LastSuccessAtUtc, activity.LastFailureAtUtc, activity.LastFailure, activity.FailuresLast24Hours);
     }

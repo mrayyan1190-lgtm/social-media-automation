@@ -24,7 +24,12 @@ public sealed record RequestGenerationCommand(
     BrandTone? Tone,
     ContentLength Length = ContentLength.MEDIUM,
     HashtagMode Hashtags = HashtagMode.AUTO,
-    EmojiMode Emojis = EmojiMode.AUTO);
+    EmojiMode Emojis = EmojiMode.AUTO,
+    IReadOnlyList<Guid>? MediaAssetIds = null,
+    string? VisionModel = null,
+    bool WithImage = false,
+    string? ImageModel = null,
+    bool Unified = false);
 
 /// <summary>
 /// API side of AI work: validates access and inputs, freezes an input snapshot and enqueues a durable request.
@@ -39,6 +44,7 @@ public sealed class AiGenerationService(
     IBrandProfileRepository brandProfiles,
     IOrganizationRepository organizations,
     IPostRepository posts,
+    IMediaRepository media,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
 {
@@ -63,10 +69,39 @@ public sealed class AiGenerationService(
             campaign.EnsureEditable();
         }
 
-        var llm = await RequireLlmAsync(access, cancellationToken);
+        // Uploaded images are read by a Hugging Face vision model; otherwise the platform LLM writes the text.
+        // Text + Image: an uploaded image is attached as it is; without uploads the LLM plans an image that an image model renders.
+        var vision = await VisionAsync(access, command.MediaAssetIds, platforms, command.WithImage, cancellationToken);
+        ImagePlanSnapshot? imagePlan = null;
+        if (vision is null && command.WithImage)
+        {
+            var image = await llmConnections.ResolveImageAsync(cancellationToken)
+                ?? throw new BusinessException(ErrorCodes.AiNotConfigured, "AI image generation is not available yet. Choose Text, or contact support.");
+            imagePlan = new ImagePlanSnapshot(image.Provider,
+                image.Provider == AiProvider.HuggingFace
+                    ? ChooseModel(command.ImageModel, AiModelCatalog.WithDefault(AiModelCatalog.HuggingFaceImageModels, image.Model), "Image model")
+                    : image.Model,
+                image.Size);
+        }
+        else if (vision is null)
+        {
+            imagePlan = await OnRequestImagePlanAsync(cancellationToken);
+        }
+        var visionModels = vision is null ? [] : await llmConnections.VisionModelsAsync(cancellationToken);
+        var llm = vision is null
+            ? await RequireLlmAsync(access, cancellationToken)
+            : visionModels.Count > 0
+                && await llmConnections.ResolveHuggingFaceAsync(ChooseModel(command.VisionModel, visionModels, "Vision model"), cancellationToken) is { } visionLlm
+                ? visionLlm
+                : throw new BusinessException(ErrorCodes.AiNotConfigured, "Image understanding is not available right now. Remove the images, or contact support.");
         var brief = await BriefAsync(access, prompt, command.Tone is { } tone ? Guard.Defined(tone, "Tone") : null,
             Guard.Defined(command.Length, "Length"), Guard.Defined(command.Hashtags, "Hashtags"), Guard.Defined(command.Emojis, "Emojis"), cancellationToken);
-        var snapshot = JsonSerializer.Serialize(await SnapshotAsync(access, brief, platforms, rewrite: null, cancellationToken), AiVersions.Json);
+        var snapshot = JsonSerializer.Serialize(await SnapshotAsync(access, brief, platforms, rewrite: null, cancellationToken) with
+            {
+                Vision = vision, ImagePlan = imagePlan,
+                Unified = command.Unified && platforms.Count > 1 ? true : null,
+            },
+            AiVersions.Json);
         if (await ai.FindActiveGenerationAsync(access.OrganizationId, access.UserId, campaign?.Id, snapshot, cancellationToken) is { } active)
             return await ToDtoAsync(access, active, cancellationToken);
 
@@ -91,7 +126,9 @@ public sealed class AiGenerationService(
         var llm = await RequireLlmAsync(access, cancellationToken);
         var source = await CurrentVersionAsync(access, post, cancellationToken);
         var rewrite = new RewriteSnapshot(post.Platform, action, customInstruction?.Trim(), SourceContent(source));
-        var snapshot = await SnapshotAsync(access, await BriefAsync(access, null, null, cancellationToken: cancellationToken), [post.Platform], rewrite, cancellationToken);
+        // A custom instruction may ask for a new or changed image ("make the image brighter"); the model decides.
+        var snapshot = await SnapshotAsync(access, await BriefAsync(access, null, null, cancellationToken: cancellationToken), [post.Platform], rewrite, cancellationToken)
+            with { ImagePlan = action == RewriteAction.Custom ? await OnRequestImagePlanAsync(cancellationToken) : null };
 
         var request = AiGenerationRequest.CreateRewrite(
             Guid.NewGuid(), post, source.Id, action, customInstruction, JsonSerializer.Serialize(snapshot, AiVersions.Json),
@@ -107,7 +144,7 @@ public sealed class AiGenerationService(
     /// AI-generated MediaAsset and attaches it as a new version, which needs review like any other change.
     /// </summary>
     public async Task<AiGenerationRequestDto> RequestImageAsync(
-        Guid organizationId, Guid postId, string? instruction, byte[]? expectedRowVersion, CancellationToken cancellationToken)
+        Guid organizationId, Guid postId, string? instruction, byte[]? expectedRowVersion, CancellationToken cancellationToken, string? model = null)
     {
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
         var post = await LoadEditablePostAsync(access, postId, expectedRowVersion, "given a new image", cancellationToken);
@@ -116,6 +153,12 @@ public sealed class AiGenerationService(
 
         var image = await llmConnections.ResolveImageAsync(cancellationToken)
             ?? throw new BusinessException(ErrorCodes.AiNotConfigured, "AI image generation is not available yet. Please contact support.");
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            if (image.Provider != AiProvider.HuggingFace)
+                throw Guard.Invalid("Image model", "can only be chosen when image generation uses Hugging Face");
+            image = image with { Model = ChooseModel(model, AiModelCatalog.WithDefault(AiModelCatalog.HuggingFaceImageModels, image.Model), "Image model") };
+        }
         var source = await CurrentVersionAsync(access, post, cancellationToken);
         var imageSnapshot = new ImageSnapshot(post.Platform, instruction?.Trim(), SourceContent(source), image.Size);
         var snapshot = await SnapshotAsync(access, await BriefAsync(access, null, null, cancellationToken: cancellationToken), [post.Platform], null, cancellationToken)
@@ -133,9 +176,14 @@ public sealed class AiGenerationService(
     public async Task<AiCapabilitiesDto> CapabilitiesAsync(Guid organizationId, CancellationToken cancellationToken)
     {
         var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var image = await llmConnections.ResolveImageAsync(cancellationToken);
+        var visionModels = await llmConnections.VisionModelsAsync(cancellationToken);
         return new AiCapabilitiesDto(
             await llmConnections.ResolveAsync(access.OrganizationId, cancellationToken) is not null,
-            await llmConnections.ResolveImageAsync(cancellationToken) is not null);
+            image is not null,
+            visionModels.Count > 0,
+            image?.Provider == AiProvider.HuggingFace ? AiModelCatalog.WithDefault(AiModelCatalog.HuggingFaceImageModels, image.Model) : [],
+            visionModels);
     }
 
     public async Task<AiGenerationRequestDto> GetAsync(Guid organizationId, Guid requestId, CancellationToken cancellationToken)
@@ -156,6 +204,44 @@ public sealed class AiGenerationService(
     }
 
     private DateTime Now => timeProvider.GetUtcNow().UtcDateTime;
+
+    /// <summary>An image only if the user's words ask for one (configured default model); null when image generation is off.</summary>
+    private async Task<ImagePlanSnapshot?> OnRequestImagePlanAsync(CancellationToken cancellationToken) =>
+        await llmConnections.ResolveImageAsync(cancellationToken) is { } image
+            ? new ImagePlanSnapshot(image.Provider, image.Model, image.Size, OnlyIfRequested: true)
+            : null;
+
+    /// <summary>The chosen model when it is on the list (first entry when none was chosen).</summary>
+    private static string ChooseModel(string? model, IReadOnlyList<string> allowed, string field) =>
+        string.IsNullOrWhiteSpace(model) ? allowed[0]
+        : allowed.Contains(model.Trim()) ? model.Trim()
+        : throw Guard.Invalid(field, $"must be one of {string.Join(", ", allowed)}");
+
+    /// <summary>
+    /// Uploaded images for a vision model: this workspace's own assets, a few at most, small enough to send inline. When
+    /// attached (Text + Image) the first one must already suit every requested platform (e.g. JPEG for Instagram).
+    /// </summary>
+    private async Task<VisionSnapshot?> VisionAsync(
+        OrganizationAccess access, IReadOnlyList<Guid>? mediaAssetIds, IReadOnlyList<SocialPlatform> platforms, bool attach, CancellationToken cancellationToken)
+    {
+        var ids = (mediaAssetIds ?? []).Distinct().ToList();
+        if (ids.Count == 0)
+            return null;
+        if (ids.Count > AiModelCatalog.MaxVisionImages)
+            throw Guard.Invalid("Images", $"at most {AiModelCatalog.MaxVisionImages} images can be analysed at once");
+        long total = 0;
+        foreach (var id in ids)
+        {
+            var asset = await media.GetAsync(id, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Image not found.");
+            access.EnsureOwns(asset.OrganizationId, "Image");
+            total += asset.SizeBytes;
+            if (attach && id == ids[0])
+                platforms.ToList().ForEach(asset.EnsureSuitableFor);
+        }
+        if (total > AiModelCatalog.MaxVisionBytes)
+            throw Guard.Invalid("Images", $"are too large to analyse together (max {AiModelCatalog.MaxVisionBytes / 1024 / 1024} MB in total); use fewer or smaller images");
+        return new VisionSnapshot(ids, attach);
+    }
 
     private async Task<Post> LoadEditablePostAsync(
         OrganizationAccess access, Guid postId, byte[]? expectedRowVersion, string what, CancellationToken cancellationToken)

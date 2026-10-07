@@ -81,6 +81,28 @@ public sealed class AccountService(
     }
 
     /// <summary>
+    /// Google sign-in. Google has verified that the person owns the email, so it signs in the account with that email, or
+    /// creates the account without a workspace: onboarding then asks for the workspace (the WORKSPACE step), with the email
+    /// fixed to the Google one. Same result shape as <see cref="CheckCredentialsAsync"/>.
+    /// </summary>
+    public async Task<(Guid? UserId, Guid? KnownUserId, string? Failure)> SignInWithGoogleAsync(string? email, bool emailVerified,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(email) || !emailVerified)
+            return (null, null, Domain.Entities.SignInEvents.InvalidCredentials);
+        if (await users.FindByNormalizedEmailAsync(User.NormalizeEmail(email), cancellationToken) is { } user)
+            return user.IsActive ? (user.Id, user.Id, null) : (null, user.Id, Domain.Entities.SignInEvents.AccountDisabled);
+
+        // A random password nobody knows: the account signs in with Google only.
+        var unusable = passwordHasher.Hash(Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)));
+        var created = User.Create(Guid.NewGuid(), Guard.Required(email, "Email", 256), "", unusable, timeProvider.GetUtcNow().UtcDateTime);
+        users.Add(created);
+        // A concurrent first sign-in with the same email hits the unique NormalizedEmail index and surfaces as a conflict.
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return (created.Id, created.Id, null);
+    }
+
+    /// <summary>
     /// Onboarding profile step: the user's full name and the workspace time zone. The time zone is a workspace setting,
     /// so it is only changed when the caller may manage that workspace's settings.
     /// </summary>
@@ -147,7 +169,7 @@ public sealed class AccountService(
     private async Task<OnboardingStatusDto> OnboardingAsync(
         User user, IReadOnlyList<Organizations.DTOs.MembershipSummaryDto> memberships, Guid? organizationId, CancellationToken cancellationToken)
     {
-        // Sign-up always creates a workspace; this only covers accounts left without any active membership.
+        // Accounts without a workspace yet: a first Google sign-in, or a user whose memberships were all removed.
         if (memberships.Count == 0 && organizationId is null)
             return new OnboardingStatusDto(null, true, false, user.ProfileCompleted, false, false, false, OnboardingSteps.Workspace);
 

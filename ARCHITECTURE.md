@@ -836,6 +836,11 @@ AI image generation is **not required for the one-week MVP**, but the architectu
 > (OpenAI-compatible `images/generations`), a durable `ImageGeneration` AiGenerationRequest processed by the AI worker,
 > an `AI_GENERATED` MediaAsset (bytes in object storage, metadata in SQL), and a new PostVersion (`AiImage` source) that
 > goes through human review. Configuration lives in `/internal/ai`; the key is in the secret store.
+> **2026-10-07:** a second adapter, `HuggingFaceImageClient`, serves Hugging Face text-to-image models (default
+> `Tongyi-MAI/Z-Image-Turbo`; also `black-forest-labs/FLUX.1-schnell`, `Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers`)
+> through the HF Inference Providers router (fal-ai route). `ImageGenerationRouter` picks the adapter by provider; the
+> governance flow above is unchanged. A Hugging Face image model needs a Hugging Face token (the image key, or the LLM key
+> only when the LLM provider is also Hugging Face).
 
 ## 21.1 Design principle
 

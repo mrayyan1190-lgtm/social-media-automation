@@ -14,6 +14,7 @@ public sealed class AiGenerationRequest
 {
     public const int DefaultMaxAttempts = 3;
     public const int CustomInstructionMax = 500;
+    public const int WarningMax = 500;
 
     private AiGenerationRequest() { }
 
@@ -46,6 +47,10 @@ public sealed class AiGenerationRequest
     public DateTime? LeaseExpiresAtUtc { get; private set; }
     public string? FailureCode { get; private set; }
     public string? FailureMessage { get; private set; }
+    /// <summary>Progress while PROCESSING; cleared when the attempt ends.</summary>
+    public AiRequestStage? Stage { get; private set; }
+    /// <summary>A completed request whose optional part did not work (e.g. the drafts were written but the image failed).</summary>
+    public string? Warning { get; private set; }
 
     public Guid RequestedByUserId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
@@ -110,11 +115,19 @@ public sealed class AiGenerationRequest
         return request;
     }
 
-    public void Complete(Guid leaseToken, DateTime utcNow)
+    public void ReportStage(Guid leaseToken, AiRequestStage stage)
+    {
+        EnsureLease(leaseToken);
+        Stage = Guard.Defined(stage, "Stage");
+    }
+
+    public void Complete(Guid leaseToken, DateTime utcNow, string? warning = null)
     {
         EnsureLease(leaseToken);
         Status = AiRequestStatus.COMPLETED;
         CompletedAtUtc = utcNow;
+        Stage = null;
+        Warning = warning is { Length: > WarningMax } ? warning[..WarningMax] : warning;
         ReleaseLease();
     }
 
@@ -124,6 +137,7 @@ public sealed class AiGenerationRequest
         EnsureLease(leaseToken);
         FailureCode = code;
         FailureMessage = message.Length > 1000 ? message[..1000] : message;
+        Stage = null;
         if (retryable && AttemptCount < MaxAttempts)
         {
             // AI calls have no external side effects, so retrying a failed generation is always safe.

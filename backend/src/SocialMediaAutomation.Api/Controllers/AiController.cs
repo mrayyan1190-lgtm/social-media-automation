@@ -14,12 +14,14 @@ public sealed record ListAiModelsRequest([Required] AiProvider? Provider, string
 
 /// <summary>AI Studio: the prompt and platforms are required; tone defaults to the brand tone and the other options to Medium/Auto.</summary>
 public sealed record RequestGenerationRequest(
-    string? Prompt, SocialPlatform[]? Platforms, Guid? CampaignId, BrandTone? Tone, ContentLength? Length, HashtagMode? Hashtags, EmojiMode? Emojis);
+    string? Prompt, SocialPlatform[]? Platforms, Guid? CampaignId, BrandTone? Tone, ContentLength? Length, HashtagMode? Hashtags, EmojiMode? Emojis,
+    Guid[]? MediaAssetIds = null, [MaxLength(200)] string? VisionModel = null, bool? WithImage = null, [MaxLength(200)] string? ImageModel = null,
+    bool? Unified = null);
 
 public sealed record RequestRewriteRequest([Required] RewriteAction? Action, string? CustomInstruction);
 
 /// <summary>Optional visual direction for the image (style only, never a source of facts).</summary>
-public sealed record RequestImageRequest([MaxLength(500)] string? Instruction);
+public sealed record RequestImageRequest([MaxLength(500)] string? Instruction, [MaxLength(200)] string? Model = null);
 
 [ApiController]
 [Route("api/v1/organizations/{orgId:guid}")]
@@ -53,7 +55,8 @@ public sealed class AiController(AiSettingsService settings, AiGenerationService
     {
         var queued = await generation.RequestGenerationAsync(new RequestGenerationCommand(
             orgId, request.Prompt, request.Platforms, request.CampaignId, request.Tone, request.Length ?? ContentLength.MEDIUM,
-            request.Hashtags ?? HashtagMode.AUTO, request.Emojis ?? EmojiMode.AUTO), cancellationToken);
+            request.Hashtags ?? HashtagMode.AUTO, request.Emojis ?? EmojiMode.AUTO, request.MediaAssetIds, request.VisionModel,
+            request.WithImage ?? false, request.ImageModel, request.Unified ?? false), cancellationToken);
         return AcceptedAtAction(nameof(GetRequest), new { orgId, requestId = queued.Id }, queued);
     }
 
@@ -77,7 +80,7 @@ public sealed class AiController(AiSettingsService settings, AiGenerationService
     [HttpPost("posts/{postId:guid}/image-generations")]
     public async Task<ActionResult<AiGenerationRequestDto>> RequestImage(Guid orgId, Guid postId, RequestImageRequest? request, CancellationToken cancellationToken)
     {
-        var queued = await generation.RequestImageAsync(orgId, postId, request?.Instruction, RowVersionHeaders.ReadIfMatch(Request), cancellationToken);
+        var queued = await generation.RequestImageAsync(orgId, postId, request?.Instruction, RowVersionHeaders.ReadIfMatch(Request), cancellationToken, request?.Model);
         return AcceptedAtAction(nameof(GetRequest), new { orgId, requestId = queued.Id }, queued);
     }
 

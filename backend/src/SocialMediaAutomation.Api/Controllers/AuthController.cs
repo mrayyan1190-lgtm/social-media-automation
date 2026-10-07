@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -48,6 +49,15 @@ public sealed class AuthController(AccountService accounts, SignInRecorder signI
         return StatusCode(StatusCodes.Status201Created, user);
     }
 
+    /// <summary>Starts "Continue with Google"; Google returns to /auth/google/callback, which the Google handler completes.</summary>
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.Login)]
+    [HttpGet("google")]
+    public async Task<IActionResult> Google([FromServices] IAuthenticationSchemeProvider schemes) =>
+        await schemes.GetSchemeAsync(GoogleDefaults.AuthenticationScheme) is null
+            ? Redirect(GoogleSignIn.LoginPage(HttpContext, "google_not_configured"))
+            : Challenge(GoogleDefaults.AuthenticationScheme);
+
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
@@ -57,10 +67,6 @@ public sealed class AuthController(AccountService accounts, SignInRecorder signI
         return NoContent();
     }
 
-    // The session carries only the user id; organization access is re-checked against the database on every request.
-    private Task SignInAsync(Guid userId)
-    {
-        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], CookieAuthenticationDefaults.AuthenticationScheme);
-        return HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-    }
+    private Task SignInAsync(Guid userId) =>
+        HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, AuthenticationExtensions.SessionPrincipal(userId));
 }

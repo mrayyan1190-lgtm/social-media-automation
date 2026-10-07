@@ -66,7 +66,10 @@ public sealed class MediaService(
     /// type and size come from the bytes; the image must suit the target platform before anything is written. Bytes go
     /// to storage first; the metadata row joins the caller's unit of work.
     /// </summary>
-    public async Task<MediaAsset> StoreGeneratedAsync(AiGenerationRequest request, SocialPlatform platform, byte[] bytes, CancellationToken cancellationToken)
+    /// <param name="platform">Checked here when the image is for one post; null when the caller checks each platform itself.</param>
+    /// <param name="provider">The image provider and model when they differ from the request's (a text request that also made an image).</param>
+    public async Task<MediaAsset> StoreGeneratedAsync(
+        AiGenerationRequest request, SocialPlatform? platform, byte[] bytes, CancellationToken cancellationToken, string? provider = null, string? model = null)
     {
         if (bytes.Length > PlatformRules.MaxImageBytes)
             throw Guard.Invalid("Image", $"must be at most {PlatformRules.MaxImageBytes / (1024 * 1024)} MB");
@@ -75,9 +78,10 @@ public sealed class MediaService(
         var id = Guid.NewGuid();
         var objectKey = $"organizations/{request.OrganizationId:N}/media/{id:N}{image.Extension}";
         var asset = MediaAsset.CreateGenerated(id, request.OrganizationId, image.ContentType, bytes.Length, image.Width, image.Height,
-            Convert.ToHexStringLower(SHA256.HashData(bytes)), objectKey, request.Id, request.Provider.ToString(), request.Model,
+            Convert.ToHexStringLower(SHA256.HashData(bytes)), objectKey, request.Id, provider ?? request.Provider.ToString(), model ?? request.Model,
             request.RequestedByUserId, timeProvider.GetUtcNow().UtcDateTime);
-        asset.EnsureSuitableFor(platform);
+        if (platform is { } target)
+            asset.EnsureSuitableFor(target);
 
         await storage.SaveNewAsync(objectKey, bytes, asset.ContentType, cancellationToken);
         media.Add(asset);

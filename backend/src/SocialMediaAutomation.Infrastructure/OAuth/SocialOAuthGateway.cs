@@ -7,7 +7,7 @@ using SocialMediaAutomation.Domain.Enums;
 namespace SocialMediaAutomation.Infrastructure.OAuth;
 
 /// <summary>App credentials for one provider ("SocialProviders:{Platform}"). Secrets come from user-secrets or environment only.</summary>
-public sealed record ProviderApp(string ClientId, string ClientSecret, string RedirectUri, string ApiVersion)
+public sealed record ProviderApp(string ClientId, string ClientSecret, string RedirectUri, string ApiVersion, string? ConfigurationId = null)
 {
     public bool IsComplete => ClientId.Length > 0 && ClientSecret.Length > 0 && RedirectUri.Length > 0;
 
@@ -18,7 +18,8 @@ public sealed record ProviderApp(string ClientId, string ClientSecret, string Re
             section["ClientId"] ?? section["AppId"] ?? "",
             section["ClientSecret"] ?? section["AppSecret"] ?? "",
             section["RedirectUri"] ?? "",
-            section["ApiVersion"] ?? section["GraphApiVersion"] ?? "");
+            section["ApiVersion"] ?? section["GraphApiVersion"] ?? "",
+            section["ConfigurationId"]);
     }
 }
 

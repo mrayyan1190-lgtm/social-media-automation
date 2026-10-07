@@ -20,7 +20,10 @@ internal sealed class MetaOAuthClient(ProviderApp app, HttpClient http, bool ins
     public string BuildAuthorizationUrl(string state) =>
         $"https://www.facebook.com/{Version}/dialog/oauth?response_type=code&client_id={Uri.EscapeDataString(app.ClientId)}" +
         $"&redirect_uri={Uri.EscapeDataString(app.RedirectUri)}&state={Uri.EscapeDataString(state)}" +
-        $"&scope={Uri.EscapeDataString(string.Join(',', instagram ? InstagramScopes : FacebookScopes))}";
+        // Facebook Login for Business: the configuration (set up in the Meta app) defines the permissions instead of scope.
+        (string.IsNullOrWhiteSpace(app.ConfigurationId)
+            ? $"&scope={Uri.EscapeDataString(string.Join(',', instagram ? InstagramScopes : FacebookScopes))}"
+            : $"&config_id={Uri.EscapeDataString(app.ConfigurationId)}");
 
     public async Task<OAuthGrant> ExchangeCodeAsync(string code, CancellationToken cancellationToken)
     {

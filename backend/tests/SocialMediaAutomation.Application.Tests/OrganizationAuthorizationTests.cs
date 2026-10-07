@@ -17,7 +17,7 @@ public class OrganizationAuthorizationTests
 
     // Role changes use only the authorizer, repository and unit of work; adding members and audit are not exercised here.
     private OrganizationMemberService MemberService(Guid adminId, FakeUnitOfWork unitOfWork) =>
-        new(AuthorizerFor(adminId), repository, null!, null!, unitOfWork, TimeProvider.System);
+        new(AuthorizerFor(adminId), repository, null!, null!, null!, unitOfWork, TimeProvider.System);
 
     [Fact]
     public async Task Anonymous_caller_is_unauthorized()

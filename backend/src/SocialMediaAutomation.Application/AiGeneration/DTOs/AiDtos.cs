@@ -1,3 +1,4 @@
+using SocialMediaAutomation.Domain.Constants;
 using SocialMediaAutomation.Domain.Entities;
 using SocialMediaAutomation.Domain.Enums;
 
@@ -34,11 +35,30 @@ public sealed record AiGenerationRequestDto(
     string Model,
     DateTime CreatedAtUtc,
     DateTime? CompletedAtUtc,
-    IReadOnlyList<AiOutputDto> Outputs)
+    IReadOnlyList<AiOutputDto> Outputs,
+    AiRequestStage? Stage,
+    string? Warning)
 {
     public static AiGenerationRequestDto From(AiGenerationRequest r, IReadOnlyList<AiOutputDto> outputs) => new(
         r.Id, r.CampaignId, r.Kind, r.Platforms, r.PostId, r.SourceVersionId, r.RewriteAction, r.Status, r.AttemptCount, r.MaxAttempts,
-        r.FailureCode, r.FailureMessage, r.Provider, r.Model, r.CreatedAtUtc, r.CompletedAtUtc, outputs);
+        r.FailureCode, CustomerFailureMessage(r.FailureCode, r.FailureMessage), r.Provider, r.Model, r.CreatedAtUtc, r.CompletedAtUtc,
+        outputs, r.Stage, r.Warning);
+
+    /// <summary>
+    /// Workspace users see a plain sentence for provider-side failures; the provider's own text (HTTP status, billing,
+    /// model errors) stays in the stored request and the AI call log, which only system administrators see.
+    /// Messages the application writes itself (e.g. "An uploaded image is no longer available") are kept.
+    /// </summary>
+    private static string? CustomerFailureMessage(string? code, string? message) => code switch
+    {
+        AiFailureCodes.ProviderAuth or AiFailureCodes.NotConfigured => "AI is not available right now. Please contact your administrator.",
+        AiFailureCodes.ProviderRejected => "The AI service could not complete this request. Please try again later.",
+        AiFailureCodes.ProviderUnavailable => "The AI service is busy or unavailable. Please try again in a moment.",
+        AiFailureCodes.OutputInvalid => "The AI returned a result that could not be used. Please try again.",
+        AiFailureCodes.WorkerLost => "The request was interrupted. Please try again.",
+        AiFailureCodes.Unexpected => "Something went wrong while writing the posts. Please try again.",
+        _ => message,
+    };
 }
 
 public sealed record ContentEvaluationDto(
@@ -55,4 +75,6 @@ public sealed record ContentEvaluationDto(
     DateTime CreatedAtUtc);
 
 /// <summary>Which AI actions are available to the workspace right now (configured and enabled by the platform operator).</summary>
-public sealed record AiCapabilitiesDto(bool TextGeneration, bool ImageGeneration);
+/// <summary>ImageModels / VisionModels: the Hugging Face models a user may pick (empty when that choice is not available).</summary>
+public sealed record AiCapabilitiesDto(
+    bool TextGeneration, bool ImageGeneration, bool ImageAnalysis, IReadOnlyList<string> ImageModels, IReadOnlyList<string> VisionModels);

@@ -48,6 +48,13 @@ export interface AiConfiguration {
     lastFailureAtUtc: string | null; lastFailure: string | null; requestsToday: number; failedToday: number;
   };
   image: AiImageConfiguration;
+  vision: AiVisionConfiguration;
+}
+
+/** Image understanding: its own token or a saved Hugging Face token (tokenSource says which); never carries the token. */
+export interface AiVisionConfiguration {
+  enabled: boolean; model: string; models: string[]; tokenSource: 'VISION_KEY' | 'IMAGE_KEY' | 'LLM_KEY' | 'NONE'; usable: boolean;
+  hasOwnApiKey: boolean; apiKeyUpdatedAtUtc: string | null;
 }
 
 export interface AiImageConfiguration {
@@ -61,7 +68,7 @@ export interface AiConfigurationInput {
 }
 
 export interface SocialProvider {
-  provider: 'LINKEDIN' | 'META'; source: 'PLATFORM' | 'ENVIRONMENT' | 'NONE'; clientId: string; redirectUri: string; derivedRedirectUri: string | null;
+  provider: 'LINKEDIN' | 'META'; source: 'PLATFORM' | 'ENVIRONMENT' | 'NONE'; clientId: string; redirectUri: string; derivedRedirectUri: string | null; configurationId: string | null;
   apiVersion: string | null; enabled: boolean; secretConfigured: boolean; secretUpdatedAtUtc: string | null; updatedAtUtc: string | null;
   rowVersion: string | null; configurationStatus: 'CONFIGURED' | 'INCOMPLETE' | 'DISABLED' | 'NOT_CONFIGURED';
   lastSuccessAtUtc: string | null; lastFailureAtUtc: string | null; lastFailure: string | null; failuresLast24Hours: number;
@@ -164,15 +171,22 @@ export class InternalApiService {
     return this.http.put<AiConfiguration>(`${this.base}/ai/image-configuration`, input);
   }
   replaceAiImageKey(value: string): Observable<AiConfiguration> { return this.http.put<AiConfiguration>(`${this.base}/ai/image-api-key`, { value }); }
+  replaceAiVisionKey(value: string): Observable<AiConfiguration> { return this.http.put<AiConfiguration>(`${this.base}/ai/vision-api-key`, { value }); }
   testAiImage(input: { provider: string; baseUrl: string | null; model: string | null; apiKey: string | null }): Observable<{ succeeded: boolean; message: string; modelAvailable: boolean; modelCount: number }> {
     return this.http.post<{ succeeded: boolean; message: string; modelAvailable: boolean; modelCount: number }>(`${this.base}/ai/image-test`, input);
+  }
+  saveAiVision(input: { model: string; enabled: boolean; rowVersion: string | null }): Observable<AiConfiguration> {
+    return this.http.put<AiConfiguration>(`${this.base}/ai/vision-configuration`, input);
+  }
+  testAiVision(model: string): Observable<{ succeeded: boolean; message: string; modelAvailable: boolean; modelCount: number }> {
+    return this.http.post<{ succeeded: boolean; message: string; modelAvailable: boolean; modelCount: number }>(`${this.base}/ai/vision-test`, { model });
   }
   testAi(input: { provider: string; baseUrl: string | null; model: string | null; apiKey: string | null }): Observable<{ succeeded: boolean; message: string; modelAvailable: boolean; modelCount: number }> {
     return this.http.post<{ succeeded: boolean; message: string; modelAvailable: boolean; modelCount: number }>(`${this.base}/ai/test`, input);
   }
 
   socialProviders(): Observable<SocialProvider[]> { return this.http.get<SocialProvider[]>(`${this.base}/social-providers`); }
-  saveSocialProvider(provider: 'linkedin' | 'meta', input: { clientId: string; redirectUri: string | null; enabled: boolean; rowVersion: string | null }): Observable<SocialProvider> {
+  saveSocialProvider(provider: 'linkedin' | 'meta', input: { clientId: string; redirectUri: string | null; configurationId: string | null; enabled: boolean; rowVersion: string | null }): Observable<SocialProvider> {
     return this.http.put<SocialProvider>(`${this.base}/social-providers/${provider}`, input);
   }
   replaceProviderSecret(provider: 'linkedin' | 'meta', value: string): Observable<SocialProvider> {

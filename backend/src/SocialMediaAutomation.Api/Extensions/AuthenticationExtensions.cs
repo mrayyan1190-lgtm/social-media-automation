@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using SocialMediaAutomation.Api.Authorization;
 using SocialMediaAutomation.Api.Middleware;
+using System.Security.Claims;
 using SocialMediaAutomation.Application.Abstractions;
+using SocialMediaAutomation.Application.Authentication.Services;
+using SocialMediaAutomation.Application.Platform;
+using SocialMediaAutomation.Domain.Entities;
 using SocialMediaAutomation.Domain.Constants;
 
 namespace SocialMediaAutomation.Api.Extensions;
@@ -16,9 +21,9 @@ internal static class AuthenticationExtensions
     /// Server-issued HttpOnly session cookie: no auth token is ever readable by browser script or stored in localStorage.
     /// Every endpoint requires an authenticated user unless it opts out with [AllowAnonymous].
     /// </summary>
-    public static IServiceCollection AddSessionAuthentication(this IServiceCollection services, IHostEnvironment environment)
+    public static IServiceCollection AddSessionAuthentication(this IServiceCollection services, IHostEnvironment environment, IConfiguration configuration)
     {
-        services
+        var authentication = services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options =>
             {
@@ -47,6 +52,25 @@ internal static class AuthenticationExtensions
                 };
             });
 
+        // "Continue with Google" exists only when the deployment has a Google OAuth client (Authentication:Google).
+        if (configuration["Authentication:Google:ClientId"] is { Length: > 0 } googleClientId)
+            authentication.AddGoogle(options =>
+            {
+                options.ClientId = googleClientId;
+                options.ClientSecret = configuration["Authentication:Google:ClientSecret"] ?? "";
+                options.CallbackPath = "/api/v1/auth/google/callback";
+                options.ClaimActions.MapJsonKey("email_verified", "email_verified");
+                // Lax, not None: browsers drop SameSite=None cookies on plain-http localhost, which would break the callback.
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                options.Events.OnTicketReceived = GoogleSignIn.CompleteAsync;
+                options.Events.OnRemoteFailure = context =>
+                {
+                    context.Response.Redirect(GoogleSignIn.LoginPage(context.HttpContext, "google_failed"));
+                    context.HandleResponse();
+                    return Task.CompletedTask;
+                };
+            });
+
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
             .AddPolicy(SystemRoles.RequireSystemAdminPolicy, policy => policy.RequireAuthenticatedUser().AddRequirements(new SystemAdminRequirement()));
@@ -56,4 +80,42 @@ internal static class AuthenticationExtensions
         services.AddScoped<ICurrentUser, HttpCurrentUser>();
         return services;
     }
+
+    /// <summary>The session carries only the user id; organization access is re-checked against the database on every request.</summary>
+    public static ClaimsPrincipal SessionPrincipal(Guid userId) =>
+        new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], CookieAuthenticationDefaults.AuthenticationScheme));
+}
+
+/// <summary>
+/// Ends the Google sign-in: the verified email becomes our own session cookie (no Google token is kept), then the browser
+/// returns to the web app. Failures land on the login page with a stable error code, never the provider's raw message.
+/// </summary>
+internal static class GoogleSignIn
+{
+    public static async Task CompleteAsync(TicketReceivedContext context)
+    {
+        var http = context.HttpContext;
+        var email = context.Principal?.FindFirstValue(ClaimTypes.Email);
+        var verified = string.Equals(context.Principal?.FindFirstValue("email_verified"), "true", StringComparison.OrdinalIgnoreCase);
+        var accounts = http.RequestServices.GetRequiredService<AccountService>();
+        var (userId, knownUserId, failure) = await accounts.SignInWithGoogleAsync(email, verified, http.RequestAborted);
+        await http.RequestServices.GetRequiredService<SignInRecorder>().RecordAsync(knownUserId, email ?? "", SignInRecorder.CustomerArea,
+            failure ?? SignInEvents.Succeeded, SignInClient.From(http), http.RequestAborted);
+
+        if (userId is { } id)
+        {
+            await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, AuthenticationExtensions.SessionPrincipal(id));
+            context.Response.Redirect($"{WebBase(http)}/home");
+        }
+        else
+        {
+            context.Response.Redirect(LoginPage(http, failure == SignInEvents.AccountDisabled ? "account_disabled" : "google_email_unverified"));
+        }
+        context.HandleResponse();
+    }
+
+    public static string LoginPage(HttpContext http, string error) => $"{WebBase(http)}/login?error={error}";
+
+    private static string WebBase(HttpContext http) =>
+        (http.RequestServices.GetRequiredService<IConfiguration>()["App:WebBaseUrl"] ?? "").TrimEnd('/');
 }

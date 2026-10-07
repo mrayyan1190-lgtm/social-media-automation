@@ -91,7 +91,7 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                     b.ToTable("AiCallLogs", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AiCallLogs_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible')");
+                            t.HasCheckConstraint("CK_AiCallLogs_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
 
                             t.HasCheckConstraint("CK_AiCallLogs_Purpose", "[Purpose] IN ('Generation', 'Evaluation', 'Rewrite', 'ModelListing', 'ImageGeneration')");
                         });
@@ -205,6 +205,11 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("SourceVersionId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Stage")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("Stage");
+
                     b.Property<DateTime?>("StartedAtUtc")
                         .HasColumnType("datetime2(3)");
 
@@ -213,6 +218,10 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("Status");
+
+                    b.Property<string>("Warning")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.HasKey("Id");
 
@@ -232,9 +241,11 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_AiGenerationRequests_Platforms_Json", "ISJSON([Platforms]) = 1");
 
-                            t.HasCheckConstraint("CK_AiGenerationRequests_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible')");
+                            t.HasCheckConstraint("CK_AiGenerationRequests_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
 
                             t.HasCheckConstraint("CK_AiGenerationRequests_RewriteAction", "[RewriteAction] IN ('Rewrite', 'Regenerate', 'Shorten', 'Expand', 'MoreProfessional', 'ImproveHook', 'LessPromotional', 'Custom')");
+
+                            t.HasCheckConstraint("CK_AiGenerationRequests_Stage", "[Stage] IN ('ANALYZING_IMAGES', 'WRITING', 'GENERATING_IMAGE')");
 
                             t.HasCheckConstraint("CK_AiGenerationRequests_Status", "[Status] IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')");
                         });
@@ -295,7 +306,7 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                     b.ToTable("AiProviderSettings", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AiProviderSettings_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible')");
+                            t.HasCheckConstraint("CK_AiProviderSettings_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
                         });
                 });
 
@@ -1040,13 +1051,27 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UpdatedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("VisionApiKeySecretRef")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("VisionApiKeyUpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("VisionEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("VisionModel")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.HasKey("Id");
 
                     b.ToTable("PlatformAiConfigurations", null, t =>
                         {
-                            t.HasCheckConstraint("CK_PlatformAiConfigurations_ImageProvider", "[ImageProvider] IN ('OpenAI', 'Groq', 'OpenAICompatible')");
+                            t.HasCheckConstraint("CK_PlatformAiConfigurations_ImageProvider", "[ImageProvider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
 
-                            t.HasCheckConstraint("CK_PlatformAiConfigurations_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible')");
+                            t.HasCheckConstraint("CK_PlatformAiConfigurations_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
                         });
                 });
 
@@ -1812,6 +1837,10 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                     b.Property<string>("ClientSecretRef")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ConfigurationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("bit");

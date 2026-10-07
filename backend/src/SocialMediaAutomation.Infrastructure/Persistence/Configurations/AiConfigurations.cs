@@ -44,6 +44,8 @@ internal sealed class AiGenerationRequestConfiguration : IEntityTypeConfiguratio
         builder.Property(r => r.LeasedBy).HasMaxLength(200);
         builder.Property(r => r.FailureCode).HasMaxLength(50);
         builder.Property(r => r.FailureMessage).HasMaxLength(1000);
+        builder.Property(r => r.Warning).HasMaxLength(AiGenerationRequest.WarningMax);
+        builder.IsEnumString<AiGenerationRequest, AiRequestStage>(r => r.Stage, "Stage");
         builder.Property(r => r.CorrelationId).HasMaxLength(SocialMediaAutomation.Domain.Common.CorrelationIds.MaxLength);
         foreach (var column in new[] { "NextAttemptAtUtc", "LeaseExpiresAtUtc", "CreatedAtUtc", "StartedAtUtc", "CompletedAtUtc" })
             builder.Property(column).HasColumnType("datetime2(3)");

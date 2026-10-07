@@ -1,11 +1,15 @@
 namespace SocialMediaAutomation.Domain.Enums;
 
-/// <summary>Hosted LLM providers. All speak the OpenAI chat-completions protocol; OpenAICompatible takes a custom base URL.</summary>
+/// <summary>
+/// Hosted AI providers. All speak the OpenAI chat-completions protocol; OpenAICompatible takes a custom base URL.
+/// HuggingFace (Inference Providers router) also serves text-to-image models through its own image protocol.
+/// </summary>
 public enum AiProvider
 {
     OpenAI,
     Groq,
     OpenAICompatible,
+    HuggingFace,
 }
 
 public enum AiRequestKind
@@ -40,6 +44,14 @@ public enum RewriteAction
     ImproveHook,
     LessPromotional,
     Custom,
+}
+
+/// <summary>What a PROCESSING request is doing right now (shown to the user as progress).</summary>
+public enum AiRequestStage
+{
+    ANALYZING_IMAGES,
+    WRITING,
+    GENERATING_IMAGE,
 }
 
 public enum AiCallPurpose

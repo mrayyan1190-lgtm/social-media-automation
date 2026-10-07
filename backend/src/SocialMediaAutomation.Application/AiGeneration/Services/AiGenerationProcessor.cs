@@ -6,6 +6,7 @@ using SocialMediaAutomation.Application.Media.Services;
 using SocialMediaAutomation.Application.AiGeneration.Prompts;
 using SocialMediaAutomation.Application.AiGeneration.Validation;
 using SocialMediaAutomation.Application.Publications.Services;
+using SocialMediaAutomation.Domain.Common;
 using SocialMediaAutomation.Domain.Constants;
 using SocialMediaAutomation.Domain.Entities;
 using SocialMediaAutomation.Domain.Enums;
@@ -30,6 +31,7 @@ public sealed class AiGenerationProcessor(
     AiConnectionResolver llmConnections,
     ILlmClient llm,
     IImageGenerationProvider images,
+    IMediaStorage mediaStorage,
     MediaService mediaService,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
@@ -58,27 +60,30 @@ public sealed class AiGenerationProcessor(
         if (request is null || request.Status != AiRequestStatus.PROCESSING || request.LeaseToken != leaseToken)
             return; // claimed by someone else meanwhile; nothing to do
 
+        var readsImages = false;
         try
         {
             var snapshot = JsonSerializer.Deserialize<AiInputSnapshot>(request.InputSnapshot, AiVersions.Json)
                 ?? throw new InvalidOperationException("Input snapshot is empty.");
+            readsImages = snapshot.Vision is not null;
             if (snapshot.SchemaVersion != AiVersions.Snapshot)
                 throw new NonRetryableAiFailure(AiFailureCodes.SourceChanged, "This request was created by an earlier version of the app. Request it again.");
 
+            string? warning = null;
             if (request.Kind == AiRequestKind.ImageGeneration)
             {
                 await ImageAsync(request, snapshot, cancellationToken);
             }
             else
             {
-                var connection = await ConnectionAsync(request, cancellationToken);
+                var connection = await ConnectionAsync(request, snapshot, cancellationToken);
                 if (request.Kind == AiRequestKind.Generation)
-                    await GenerateAsync(request, snapshot, connection, cancellationToken);
+                    warning = await GenerateAsync(request, snapshot, connection, cancellationToken);
                 else
-                    await RewriteAsync(request, snapshot, connection, cancellationToken);
+                    warning = await RewriteAsync(request, snapshot, connection, cancellationToken);
             }
 
-            request.Complete(leaseToken, Now);
+            request.Complete(leaseToken, Now, warning);
             callLogs.ForEach(ai.Add);
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
@@ -90,7 +95,10 @@ public sealed class AiGenerationProcessor(
                 LlmErrorKind.Rejected => AiFailureCodes.ProviderRejected,
                 _ => AiFailureCodes.ProviderUnavailable,
             };
-            await FailAsync(requestId, leaseToken, code, ex.Message, retryable: ex.Kind == LlmErrorKind.Transient, cancellationToken);
+            // A vision model that timed out will most likely time out again: fail at once (the user can pick another
+            // model) instead of retrying for several minutes while the page shows "Analyzing images".
+            var retryable = ex.Kind == LlmErrorKind.Transient && !readsImages;
+            await FailAsync(requestId, leaseToken, code, ex.Message, retryable, cancellationToken);
         }
         catch (AiOutputInvalidException ex)
         {
@@ -105,13 +113,41 @@ public sealed class AiGenerationProcessor(
             // The generated text broke a deterministic rule enforced by the domain (e.g. length or hashtag limits).
             await FailAsync(requestId, leaseToken, AiFailureCodes.OutputInvalid, ex.Message, retryable: true, cancellationToken);
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Anything unexpected still ends the request at once (not retried: a bug would fail the same way again),
+            // instead of leaving it PROCESSING until the lease expires and the page spins for minutes. The worker logs it.
+            await FailAsync(requestId, leaseToken, AiFailureCodes.Unexpected, $"{ex.GetType().Name}: {ex.Message}", retryable: false, CancellationToken.None);
+            throw;
+        }
     }
 
-    private async Task GenerateAsync(AiGenerationRequest request, AiInputSnapshot snapshot, LlmConnection connection, CancellationToken cancellationToken)
+    /// <summary>
+    /// Writes one draft per platform. With uploaded images a vision model writes them (the first image is attached for
+    /// Text + Image); with an image plan the LLM-written image prompt is rendered and attached. Returns a warning when the
+    /// drafts were saved but their image could not be made or used.
+    /// </summary>
+    private async Task<string?> GenerateAsync(AiGenerationRequest request, AiInputSnapshot snapshot, LlmConnection connection, CancellationToken cancellationToken)
     {
-        var raw = await CallAsync(request, AiCallPurpose.Generation, AiVersions.GenerationPrompt, connection, PromptBuilder.Generation(snapshot), cancellationToken);
+        await ReportAsync(request, snapshot.Vision is null ? AiRequestStage.WRITING : AiRequestStage.ANALYZING_IMAGES, cancellationToken);
+        var (imageUrls, uploaded) = await VisionImagesAsync(request, snapshot, cancellationToken);
+        var raw = await CallAsync(request, AiCallPurpose.Generation, AiVersions.GenerationPrompt, connection,
+            PromptBuilder.Generation(snapshot) with { ImageUrls = imageUrls }, cancellationToken);
         var variants = ParseLogged(request, () => OutputParser.ParseContent(raw, request.Platforms), raw);
-        var evaluations = await EvaluateAsync(request, snapshot, variants, connection, cancellationToken);
+        // "All platforms": the model is asked for identical variants; enforce it so every draft carries the same post.
+        if (snapshot.Unified == true)
+        {
+            var shared = variants.Values.First();
+            variants = variants.Keys.ToDictionary(p => p, _ => shared);
+        }
+        if (snapshot.Vision is not null)
+            await ReportAsync(request, AiRequestStage.WRITING, cancellationToken);
+        var evaluations = await EvaluateAsync(request, snapshot, variants, connection, cancellationToken, imageUrls);
+
+        var imagePrompt = ImagePromptOf(raw);
+        var (image, warning) = snapshot.ImagePlan is { } plan && (!plan.OnlyIfRequested || imagePrompt is not null)
+            ? await PlannedImageAsync(request, snapshot, plan, imagePrompt, variants.Values.First(), cancellationToken)
+            : (snapshot.Vision is { Attach: true } ? uploaded : null, null);
         // The campaign is only a folder: if it was archived meanwhile, the drafts are still kept, just unfiled.
         var campaign = request.CampaignId is { } campaignId ? await campaigns.GetAsync(campaignId, cancellationToken) : null;
         if (campaign is { IsArchived: true } || campaign?.OrganizationId != request.OrganizationId)
@@ -120,16 +156,77 @@ public sealed class AiGenerationProcessor(
         // Every generation writes new drafts; nothing already under review or approved is touched.
         foreach (var (platform, variant) in variants)
         {
-            var (post, version) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), request.OrganizationId, campaign, platform, Content(variant, null),
-                null, null, PostVersionSource.AiGeneration, request.RequestedByUserId, Now);
+            // One image per version: the same image goes on every draft whose platform accepts it.
+            var media = image is not null && Suits(image, platform) ? image : null;
+            if (image is not null && media is null)
+                warning ??= $"The image was not attached to the {platform} draft because {platform} does not accept it.";
+            var (post, version) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), request.OrganizationId, campaign, platform,
+                Content(variant, null) with { MediaAssetId = media?.Id }, media, null, PostVersionSource.AiGeneration, request.RequestedByUserId, Now);
             posts.Add(post);
             posts.Add(version);
             activity.VersionCreated(post, version, request.RequestedByUserId, revokedApprovalId: null);
             Record(request, snapshot, platform, variant, version, evaluations);
         }
+        return warning;
     }
 
-    private async Task RewriteAsync(AiGenerationRequest request, AiInputSnapshot snapshot, LlmConnection connection, CancellationToken cancellationToken)
+    /// <summary>
+    /// Text + Image: renders the LLM-written image prompt with the chosen image model (no transaction open). A failure does
+    /// not lose the drafts: they are saved without an image and the request completes with a warning the user sees.
+    /// </summary>
+    private async Task<(MediaAsset? Image, string? Warning)> PlannedImageAsync(
+        AiGenerationRequest request, AiInputSnapshot snapshot, ImagePlanSnapshot plan, string? llmPrompt, GeneratedVariant firstPost, CancellationToken cancellationToken)
+    {
+        var connection = await llmConnections.ResolveImageAsync(cancellationToken);
+        if (connection is null || connection.Provider != plan.Provider)
+            return (null, "No image was added: image generation was switched off or changed meanwhile.");
+
+        await ReportAsync(request, AiRequestStage.GENERATING_IMAGE, cancellationToken);
+        try
+        {
+            var generated = await images.GenerateAsync(connection with { Model = plan.Model, Size = plan.Size },
+                PromptBuilder.GeneratedImage(snapshot, llmPrompt, firstPost), cancellationToken);
+            callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.GeneratedImagePrompt, true, null, generated.HttpStatus,
+                null, null, generated.LatencyMs, null, null, Now));
+            return (await mediaService.StoreGeneratedAsync(request, null, generated.Bytes, cancellationToken, plan.Provider.ToString(), plan.Model), null);
+        }
+        catch (LlmException ex)
+        {
+            callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.GeneratedImagePrompt, false, ex.Kind.ToString(), ex.HttpStatus,
+                null, null, ex.LatencyMs, null, ex.Diagnostic ?? ex.Message, Now));
+            // The provider's reason (model, HTTP status, billing text) is in the AI call log for system administrators only.
+            return (null, "The image could not be generated right now, so the posts were saved without one.");
+        }
+        catch (BusinessException ex) when (ex.Code == ErrorCodes.ValidationFailed)
+        {
+            return (null, $"The generated image could not be used: {ex.Message}");
+        }
+    }
+
+    private static bool Suits(MediaAsset image, SocialPlatform platform)
+    {
+        try
+        {
+            image.EnsureSuitableFor(platform);
+            return true;
+        }
+        catch (BusinessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Saves the progress stage on its own so the page can show it. Called only before anything else is added to the unit
+    /// of work, so it never commits partial results.
+    /// </summary>
+    private async Task ReportAsync(AiGenerationRequest request, AiRequestStage stage, CancellationToken cancellationToken)
+    {
+        request.ReportStage(request.LeaseToken!.Value, stage);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<string?> RewriteAsync(AiGenerationRequest request, AiInputSnapshot snapshot, LlmConnection connection, CancellationToken cancellationToken)
     {
         var post = await posts.GetAsync(request.PostId!.Value, cancellationToken);
         if (post is null || post.OrganizationId != request.OrganizationId)
@@ -143,8 +240,44 @@ public sealed class AiGenerationProcessor(
         var evaluations = await EvaluateAsync(request, snapshot, variants, connection, cancellationToken);
 
         var (platform, variant) = variants.Single();
-        var version = await ReviseWithAsync(request, post, current => Content(variant, current), newImage: null, PostVersionSource.AiRewrite, cancellationToken);
+
+        // The instruction asked for a new or changed image: render it and put it on the new version (alt text starts empty).
+        MediaAsset? newImage = null;
+        string? warning = null;
+        if (snapshot.ImagePlan is { } plan && ImagePromptOf(raw) is { } imagePrompt)
+        {
+            (newImage, warning) = await PlannedImageAsync(request, snapshot, plan, imagePrompt, variant, cancellationToken);
+            if (newImage is not null && !Suits(newImage, platform))
+                (newImage, warning) = (null, $"The new image was not used because {platform} does not accept it.");
+        }
+
+        PostVersion version;
+        try
+        {
+            version = await ReviseWithAsync(request, post,
+                current => newImage is null ? Content(variant, current) : Content(variant, current) with { MediaAssetId = newImage.Id, AltText = null },
+                newImage, PostVersionSource.AiRewrite, cancellationToken);
+        }
+        catch (AiOutputInvalidException) when (warning is not null)
+        {
+            // Only the image was asked for and it failed: report that instead of retrying an unchanged text.
+            throw new NonRetryableAiFailure(AiFailureCodes.ProviderRejected, warning);
+        }
         Record(request, snapshot, platform, variant, version, evaluations);
+        return warning;
+    }
+
+    /// <summary>The LLM-written image prompt, or null when it wrote none (or "" because the user did not ask for an image).</summary>
+    private static string? ImagePromptOf(string raw)
+    {
+        try
+        {
+            return OutputParser.ParseImagePrompt(raw);
+        }
+        catch (AiOutputInvalidException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -230,12 +363,12 @@ public sealed class AiGenerationProcessor(
     /// <summary>One advisory evaluation call for all variants. Its failure never blocks the drafts; it becomes a visible warning.</summary>
     private async Task<IReadOnlyDictionary<SocialPlatform, VariantEvaluation>?> EvaluateAsync(
         AiGenerationRequest request, AiInputSnapshot snapshot, IReadOnlyDictionary<SocialPlatform, GeneratedVariant> variants,
-        LlmConnection connection, CancellationToken cancellationToken)
+        LlmConnection connection, CancellationToken cancellationToken, IReadOnlyList<string>? imageUrls = null)
     {
         try
         {
             var raw = await CallAsync(request, AiCallPurpose.Evaluation, AiVersions.EvaluationPrompt, connection,
-                PromptBuilder.Evaluation(snapshot, variants), cancellationToken);
+                PromptBuilder.Evaluation(snapshot, variants) with { ImageUrls = imageUrls }, cancellationToken);
             return OutputParser.ParseEvaluation(raw);
         }
         catch (Exception ex) when (ex is LlmException or AiOutputInvalidException)
@@ -359,12 +492,40 @@ public sealed class AiGenerationProcessor(
         }
     }
 
-    private async Task<LlmConnection> ConnectionAsync(AiGenerationRequest request, CancellationToken cancellationToken)
+    private async Task<LlmConnection> ConnectionAsync(AiGenerationRequest request, AiInputSnapshot snapshot, CancellationToken cancellationToken)
     {
+        if (snapshot.Vision is not null)
+            return await llmConnections.ResolveHuggingFaceAsync(request.Model, cancellationToken)
+                ?? throw new NonRetryableAiFailure(AiFailureCodes.NotConfigured, "The Hugging Face token was removed after this request. Request it again.");
         var connection = await llmConnections.ResolveAsync(request.OrganizationId, cancellationToken);
         if (connection is null || connection.Provider != request.Provider)
             throw new NonRetryableAiFailure(AiFailureCodes.NotConfigured, "The AI provider changed or was removed after this request. Request it again.");
         return connection with { Model = request.Model };
+    }
+
+    /// <summary>
+    /// The uploaded images as data URIs for the vision model (read from storage on every attempt, never logged), and the
+    /// first image, which the new post keeps.
+    /// </summary>
+    private async Task<(IReadOnlyList<string>? Urls, MediaAsset? First)> VisionImagesAsync(
+        AiGenerationRequest request, AiInputSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        if (snapshot.Vision is not { } vision)
+            return (null, null);
+        var urls = new List<string>();
+        MediaAsset? first = null;
+        foreach (var id in vision.MediaAssetIds)
+        {
+            var asset = await media.GetAsync(id, cancellationToken);
+            if (asset is null || asset.OrganizationId != request.OrganizationId)
+                throw new NonRetryableAiFailure(AiFailureCodes.SourceChanged, "An uploaded image is no longer available. Upload it again.");
+            await using var stream = await mediaStorage.OpenReadAsync(asset.ObjectKey, cancellationToken);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken);
+            urls.Add($"data:{asset.ContentType};base64,{Convert.ToBase64String(buffer.GetBuffer(), 0, (int)buffer.Length)}");
+            first ??= asset;
+        }
+        return (urls, first);
     }
 
     /// <summary>Drops any partial work, then records the failure (and the call logs) under the lease.</summary>

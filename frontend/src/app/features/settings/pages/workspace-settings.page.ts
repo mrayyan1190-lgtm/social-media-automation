@@ -34,6 +34,7 @@ export class WorkspaceSettingsPage {
   private readonly toast = inject(ToastService);
   private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
   protected readonly oauthStatus = this.query.get('status');
+  protected readonly oauthMessage = this.query.get('message');
   protected readonly workspace = inject(WorkspaceService);
   protected readonly zones = supportedTimeZones();
   protected readonly organization = signal<Organization | null>(null);
