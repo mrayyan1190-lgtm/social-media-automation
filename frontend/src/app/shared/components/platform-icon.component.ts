@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import { SocialPlatform } from '../../features/campaigns/models/campaign.model';
+import { SocialPlatform } from '../models/platform.model';
 
 /** Small platform mark with an accessible name, optionally followed by the platform label. */
 @Component({

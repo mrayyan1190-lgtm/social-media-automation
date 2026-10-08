@@ -16,7 +16,7 @@ export interface OnboardingStatus {
   profileCompleted: boolean;
   brandProfileCompleted: boolean;
   socialAccountsConnected: boolean;
-  canCreateCampaign: boolean;
+  canCreateContent: boolean;
   nextStep: OnboardingStep;
 }
 

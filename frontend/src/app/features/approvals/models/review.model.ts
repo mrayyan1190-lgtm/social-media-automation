@@ -1,4 +1,4 @@
-import { SocialPlatform } from '../../campaigns/models/campaign.model';
+import { SocialPlatform } from '../../../shared/models/platform.model';
 import { ContentEvaluation } from '../../content/models/ai.model';
 import { EditorialState, PostVersion } from '../../content/models/post.model';
 import { SocialAccount } from '../../social-accounts/models/social-account.model';
@@ -11,9 +11,6 @@ export interface ReviewSummary {
   postVersionId: string;
   versionNumber: number;
   platform: SocialPlatform;
-  campaignId: string | null;
-  campaignName: string | null;
-  campaignColor: string | null;
   /** Hook or start of the body of the reviewed version. */
   excerpt: string;
   status: ReviewStatus;

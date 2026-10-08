@@ -41,6 +41,9 @@ builder.Services
         var problem = new ValidationProblemDetails(context.ModelState) { Status = StatusCodes.Status400BadRequest, Title = code };
         problem.Extensions["code"] = code;
         problem.Extensions["correlationId"] = context.HttpContext.TraceIdentifier;
+        var fields = string.Join(", ", context.ModelState.Where(e => e.Value!.Errors.Count > 0).Select(e => e.Key));
+        // The writer has its own scope and swallows its own errors, so not awaiting it cannot break the response.
+        _ = ProblemResponses.RecordFailureAsync(context.HttpContext, StatusCodes.Status400BadRequest, code, $"Invalid fields: {fields}");
         return new BadRequestObjectResult(problem);
     });
 builder.Services.AddHealthChecks()

@@ -16,8 +16,3 @@ public sealed record SaveBrandProfileRequest(
     public BrandProfileDetails ToDetails() => new(BusinessDescription, TargetAudience, BrandTone!.Value, Website, ProhibitedTerms);
 }
 
-/// <summary>A campaign folder: name and colour (defaults to blue when omitted), optional short description.</summary>
-public sealed record SaveCampaignRequest(string Name, string? Color, string? Description)
-{
-    public CampaignDetails ToDetails() => new(Name, Color, Description);
-}

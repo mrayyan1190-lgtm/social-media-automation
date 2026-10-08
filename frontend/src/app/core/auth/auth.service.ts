@@ -6,7 +6,8 @@ import { CompleteProfileRequest, Me, OnboardingStep, RegisterRequest } from './a
 
 /** Where each onboarding step lives; the API decides which step is next. */
 export const ONBOARDING_ROUTES: Record<OnboardingStep, string> = {
-  WORKSPACE: '/onboarding/workspace',
+  // A Google account without a workspace finishes sign-up on the sign-up page (email locked), then continues normally.
+  WORKSPACE: '/signup',
   PROFILE: '/onboarding/profile',
   BRAND_PROFILE: '/onboarding/brand',
   SOCIAL_CONNECTIONS: '/onboarding/social-connections',
@@ -59,7 +60,11 @@ export class AuthService {
   /** Reloads the session and returns the route of the next required onboarding step (or the dashboard). */
   async nextOnboardingRoute(): Promise<string> {
     const me = await this.loadMe();
-    return me ? ONBOARDING_ROUTES[me.onboarding.nextStep] : '/login';
+    return me ? this.routeFor(me) : '/login';
+  }
+
+  routeFor(me: Me): string {
+    return ONBOARDING_ROUTES[me.onboarding.nextStep];
   }
 
   /** Full-page navigation: the server runs the Google sign-in and comes back to /home (or /login?error=...). */

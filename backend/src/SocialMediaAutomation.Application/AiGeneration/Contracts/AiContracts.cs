@@ -10,8 +10,8 @@ public static class AiVersions
     public const string Snapshot = "snapshot-v3";
     public const string ContentSchema = "content-v2";
     public const string EvaluationSchema = "evaluation-v2";
-    public const string GenerationPrompt = "generation-v4";
-    public const string RewritePrompt = "rewrite-v2";
+    public const string GenerationPrompt = "generation-v5";
+    public const string RewritePrompt = "rewrite-v3";
     public const string EvaluationPrompt = "evaluation-v2";
     public const string ImagePrompt = "image-v2";
     /// <summary>An image prompt written by the LLM during generation, wrapped with the fixed safety rules.</summary>
@@ -59,20 +59,24 @@ public sealed record RewriteSnapshot(SocialPlatform Platform, RewriteAction Acti
 
 public sealed record SourceContentSnapshot(int VersionNumber, string? Hook, string Body, string? CallToAction, IReadOnlyList<string> Hashtags, bool HasImage);
 
-/// <summary>An image request for one post: the post text it should illustrate and the user's optional visual direction.</summary>
-public sealed record ImageSnapshot(SocialPlatform Platform, string? Instruction, SourceContentSnapshot SourceVersion, string Size);
+/// <summary>
+/// An image request for one post: the post text it should illustrate, the user's optional visual direction and how many
+/// images to make (null = 1, so earlier snapshots read unchanged).
+/// </summary>
+public sealed record ImageSnapshot(SocialPlatform Platform, string? Instruction, SourceContentSnapshot SourceVersion, string Size, int? Count = null);
 
 /// <summary>
 /// Uploaded images a vision model reads to write the post (ids only; the worker loads the bytes). With Attach (Text + Image)
-/// the first one becomes the drafts' image; with Text only it is analysed but not attached.
+/// all of them become the drafts' images, in order; with Text only they are analysed but not attached.
 /// </summary>
 public sealed record VisionSnapshot(IReadOnlyList<Guid> MediaAssetIds, bool Attach = true);
 
 /// <summary>
 /// The LLM also writes an image prompt, which this image model renders. Text + Image always plans an image; with
 /// OnlyIfRequested (Text, or a Composer edit) the LLM writes a prompt only when the user's own words ask for an image.
+/// Count is how many images to render from that prompt (null = 1, so earlier snapshots and duplicate matching are unchanged).
 /// </summary>
-public sealed record ImagePlanSnapshot(AiProvider Provider, string Model, string Size, bool OnlyIfRequested = false);
+public sealed record ImagePlanSnapshot(AiProvider Provider, string Model, string Size, bool OnlyIfRequested = false, int? Count = null);
 
 // ---- Model output (parsed leniently, then validated strictly) ----------------------------------------------------------
 
@@ -82,6 +86,8 @@ public sealed class GeneratedContent
     public List<GeneratedVariant>? Variants { get; set; }
     /// <summary>Only when an image is planned: the LLM-written prompt for one image that suits every variant.</summary>
     public string? ImagePrompt { get; set; }
+    /// <summary>How many images the user's words ask for (1-4); clamped by the parser.</summary>
+    public int? ImageCount { get; set; }
 }
 
 public sealed class GeneratedVariant

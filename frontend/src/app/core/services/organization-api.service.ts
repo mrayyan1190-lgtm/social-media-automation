@@ -41,7 +41,7 @@ export class OrganizationApiService {
   private readonly http = inject(HttpClient);
 
   /** Workspace setup: the caller becomes its Admin. Language defaults to "en" on the server. */
-  create(input: { name: string; industry: string; timeZoneId: string }): Observable<Organization> {
+  create(input: { name: string; industry?: string; timeZoneId: string; requireDistinctReviewer?: boolean }): Observable<Organization> {
     return this.http.post<Organization>(`${environment.apiBaseUrl}/organizations`, input);
   }
 

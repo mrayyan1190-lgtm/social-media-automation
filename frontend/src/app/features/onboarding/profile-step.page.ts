@@ -1,3 +1,4 @@
+import { OnboardingMenuComponent } from './onboarding-menu.component';
 import { Component, ViewEncapsulation, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -9,7 +10,7 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
 /** Onboarding step 1: the user's name and the workspace time zone (detected from the browser, editable). */
 @Component({
   selector: 'app-onboarding-profile',
-  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
+  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink, OnboardingMenuComponent],
   templateUrl: './profile-step.page.html',
   styleUrl: './profile-step.page.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.

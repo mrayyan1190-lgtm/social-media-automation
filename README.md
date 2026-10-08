@@ -43,7 +43,7 @@ AI assists with content generation and evaluation. Deterministic business rules 
 - One brand per workspace
 - One review stage
 - One destination account per post version
-- One image per version
+- Up to 4 images per version (LinkedIn multi-image, Facebook multi-photo, Instagram carousel)
 - One post per selected platform by default
 - Operational metrics only
 - One reliable end-to-end vertical slice before secondary features

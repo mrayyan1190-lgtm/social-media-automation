@@ -2631,3 +2631,902 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DROP TABLE [CampaignFacts];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DROP TABLE [CampaignPlatforms];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DROP INDEX [IX_Posts_OrganizationId_CampaignId_Platform] ON [Posts];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [Campaigns] DROP CONSTRAINT [CK_Campaigns_CallToAction];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [Campaigns] DROP CONSTRAINT [CK_Campaigns_ContentLength];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [Campaigns] DROP CONSTRAINT [CK_Campaigns_EmojiMode];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [Campaigns] DROP CONSTRAINT [CK_Campaigns_HashtagMode];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [Campaigns] DROP CONSTRAINT [CK_Campaigns_Objective];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [Campaigns] DROP CONSTRAINT [CK_Campaigns_ToneOverride];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [AiGenerationRequests] DROP CONSTRAINT [CK_AiGenerationRequests_RewriteAction];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var29 nvarchar(max);
+    SELECT @var29 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'CallToAction');
+    IF @var29 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var29 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [CallToAction];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var30 nvarchar(max);
+    SELECT @var30 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'CallToActionUrl');
+    IF @var30 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var30 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [CallToActionUrl];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var31 nvarchar(max);
+    SELECT @var31 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'ContentLength');
+    IF @var31 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var31 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [ContentLength];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var32 nvarchar(max);
+    SELECT @var32 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'EmojiMode');
+    IF @var32 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var32 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [EmojiMode];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var33 nvarchar(max);
+    SELECT @var33 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'HashtagMode');
+    IF @var33 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var33 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [HashtagMode];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var34 nvarchar(max);
+    SELECT @var34 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'Objective');
+    IF @var34 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var34 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [Objective];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var35 nvarchar(max);
+    SELECT @var35 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'TargetAudience');
+    IF @var35 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var35 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [TargetAudience];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var36 nvarchar(max);
+    SELECT @var36 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'ToneOverride');
+    IF @var36 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var36 + ';');
+    ALTER TABLE [Campaigns] DROP COLUMN [ToneOverride];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [ReviewRequests] ADD [AssignedReviewerUserId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var37 nvarchar(max);
+    SELECT @var37 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Posts]') AND [c].[name] = N'CampaignId');
+    IF @var37 IS NOT NULL EXEC(N'ALTER TABLE [Posts] DROP CONSTRAINT ' + @var37 + ';');
+    ALTER TABLE [Posts] ALTER COLUMN [CampaignId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var38 nvarchar(max);
+    SELECT @var38 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Campaigns]') AND [c].[name] = N'Description');
+    IF @var38 IS NOT NULL EXEC(N'ALTER TABLE [Campaigns] DROP CONSTRAINT ' + @var38 + ';');
+    ALTER TABLE [Campaigns] ALTER COLUMN [Description] nvarchar(2000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [Campaigns] ADD [Color] varchar(7) NOT NULL DEFAULT '#2563EB';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    DECLARE @var39 nvarchar(max);
+    SELECT @var39 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[AiGenerationRequests]') AND [c].[name] = N'CampaignId');
+    IF @var39 IS NOT NULL EXEC(N'ALTER TABLE [AiGenerationRequests] DROP CONSTRAINT ' + @var39 + ';');
+    ALTER TABLE [AiGenerationRequests] ALTER COLUMN [CampaignId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    CREATE INDEX [IX_ReviewRequests_OrganizationId_AssignedReviewerUserId] ON [ReviewRequests] ([OrganizationId], [AssignedReviewerUserId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    CREATE INDEX [IX_Posts_OrganizationId_CampaignId] ON [Posts] ([OrganizationId], [CampaignId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Campaigns] ADD CONSTRAINT [CK_Campaigns_Color] CHECK ([Color] LIKE ''#[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]'')');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiGenerationRequests] ADD CONSTRAINT [CK_AiGenerationRequests_RewriteAction] CHECK ([RewriteAction] IN (''Rewrite'', ''Regenerate'', ''Shorten'', ''Expand'', ''MoreProfessional'', ''ImproveHook'', ''LessPromotional'', ''Custom''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    ALTER TABLE [ReviewRequests] ADD CONSTRAINT [FK_ReviewRequests_OrganizationMembers_OrganizationId_AssignedReviewerUserId] FOREIGN KEY ([OrganizationId], [AssignedReviewerUserId]) REFERENCES [OrganizationMembers] ([OrganizationId], [UserId]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261006071212_SimplifiedWorkflow'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261006071212_SimplifiedWorkflow', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] DROP CONSTRAINT [CK_PlatformAiConfigurations_ImageProvider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] DROP CONSTRAINT [CK_PlatformAiConfigurations_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    ALTER TABLE [AiProviderSettings] DROP CONSTRAINT [CK_AiProviderSettings_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    ALTER TABLE [AiGenerationRequests] DROP CONSTRAINT [CK_AiGenerationRequests_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    ALTER TABLE [AiCallLogs] DROP CONSTRAINT [CK_AiCallLogs_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PlatformAiConfigurations] ADD CONSTRAINT [CK_PlatformAiConfigurations_ImageProvider] CHECK ([ImageProvider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PlatformAiConfigurations] ADD CONSTRAINT [CK_PlatformAiConfigurations_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiProviderSettings] ADD CONSTRAINT [CK_AiProviderSettings_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiGenerationRequests] ADD CONSTRAINT [CK_AiGenerationRequests_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiCallLogs] ADD CONSTRAINT [CK_AiCallLogs_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007090023_HuggingFaceProvider'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261007090023_HuggingFaceProvider', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007095327_AiRequestProgress'
+)
+BEGIN
+    ALTER TABLE [AiGenerationRequests] ADD [Stage] nvarchar(32) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007095327_AiRequestProgress'
+)
+BEGIN
+    ALTER TABLE [AiGenerationRequests] ADD [Warning] nvarchar(500) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007095327_AiRequestProgress'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiGenerationRequests] ADD CONSTRAINT [CK_AiGenerationRequests_Stage] CHECK ([Stage] IN (''ANALYZING_IMAGES'', ''WRITING'', ''GENERATING_IMAGE''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007095327_AiRequestProgress'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261007095327_AiRequestProgress', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007100130_AiVisionSettings'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] ADD [VisionEnabled] bit NOT NULL DEFAULT CAST(1 AS bit);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007100130_AiVisionSettings'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] ADD [VisionModel] nvarchar(200) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007100130_AiVisionSettings'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261007100130_AiVisionSettings', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007125419_VisionApiKey'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] ADD [VisionApiKeySecretRef] nvarchar(200) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007125419_VisionApiKey'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] ADD [VisionApiKeyUpdatedAtUtc] datetime2 NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007125419_VisionApiKey'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261007125419_VisionApiKey', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007162849_MetaConfigurationId'
+)
+BEGIN
+    ALTER TABLE [SocialProviderConfigurations] ADD [ConfigurationId] nvarchar(100) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007162849_MetaConfigurationId'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261007162849_MetaConfigurationId', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    ALTER TABLE [AiGenerationRequests] DROP CONSTRAINT [FK_AiGenerationRequests_Campaigns_OrganizationId_CampaignId];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    ALTER TABLE [Posts] DROP CONSTRAINT [FK_Posts_Campaigns_OrganizationId_CampaignId];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    DROP TABLE [Campaigns];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    DROP INDEX [IX_Posts_OrganizationId_CampaignId] ON [Posts];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    DROP INDEX [IX_AiGenerationRequests_OrganizationId_CampaignId_CreatedAtUtc] ON [AiGenerationRequests];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    DECLARE @var40 nvarchar(max);
+    SELECT @var40 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Posts]') AND [c].[name] = N'CampaignId');
+    IF @var40 IS NOT NULL EXEC(N'ALTER TABLE [Posts] DROP CONSTRAINT ' + @var40 + ';');
+    ALTER TABLE [Posts] DROP COLUMN [CampaignId];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    DECLARE @var41 nvarchar(max);
+    SELECT @var41 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[AiGenerationRequests]') AND [c].[name] = N'CampaignId');
+    IF @var41 IS NOT NULL EXEC(N'ALTER TABLE [AiGenerationRequests] DROP CONSTRAINT ' + @var41 + ';');
+    ALTER TABLE [AiGenerationRequests] DROP COLUMN [CampaignId];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    CREATE INDEX [IX_AiGenerationRequests_OrganizationId_CreatedAtUtc] ON [AiGenerationRequests] ([OrganizationId], [CreatedAtUtc]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008102833_RemoveCampaigns'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008102833_RemoveCampaigns', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] DROP CONSTRAINT [CK_PlatformAiConfigurations_ImageProvider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] DROP CONSTRAINT [CK_PlatformAiConfigurations_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    ALTER TABLE [AiProviderSettings] DROP CONSTRAINT [CK_AiProviderSettings_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    ALTER TABLE [AiGenerationRequests] DROP CONSTRAINT [CK_AiGenerationRequests_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    ALTER TABLE [AiCallLogs] DROP CONSTRAINT [CK_AiCallLogs_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PlatformAiConfigurations] ADD CONSTRAINT [CK_PlatformAiConfigurations_ImageProvider] CHECK ([ImageProvider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PlatformAiConfigurations] ADD CONSTRAINT [CK_PlatformAiConfigurations_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiProviderSettings] ADD CONSTRAINT [CK_AiProviderSettings_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiGenerationRequests] ADD CONSTRAINT [CK_AiGenerationRequests_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiCallLogs] ADD CONSTRAINT [CK_AiCallLogs_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008104317_StabilityImageProvider'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008104317_StabilityImageProvider', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] DROP CONSTRAINT [CK_PlatformAiConfigurations_ImageProvider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    ALTER TABLE [PlatformAiConfigurations] DROP CONSTRAINT [CK_PlatformAiConfigurations_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    ALTER TABLE [AiProviderSettings] DROP CONSTRAINT [CK_AiProviderSettings_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    ALTER TABLE [AiGenerationRequests] DROP CONSTRAINT [CK_AiGenerationRequests_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    ALTER TABLE [AiCallLogs] DROP CONSTRAINT [CK_AiCallLogs_Provider];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PlatformAiConfigurations] ADD CONSTRAINT [CK_PlatformAiConfigurations_ImageProvider] CHECK ([ImageProvider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI'', ''CloudflareWorkersAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PlatformAiConfigurations] ADD CONSTRAINT [CK_PlatformAiConfigurations_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI'', ''CloudflareWorkersAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiProviderSettings] ADD CONSTRAINT [CK_AiProviderSettings_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI'', ''CloudflareWorkersAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiGenerationRequests] ADD CONSTRAINT [CK_AiGenerationRequests_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI'', ''CloudflareWorkersAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AiCallLogs] ADD CONSTRAINT [CK_AiCallLogs_Provider] CHECK ([Provider] IN (''OpenAI'', ''Groq'', ''OpenAICompatible'', ''HuggingFace'', ''StabilityAI'', ''CloudflareWorkersAI''))');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008110416_CloudflareImageProvider'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008110416_CloudflareImageProvider', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    CREATE TABLE [PostVersionImages] (
+        [Position] int NOT NULL,
+        [PostVersionId] uniqueidentifier NOT NULL,
+        [OrganizationId] uniqueidentifier NOT NULL,
+        [MediaAssetId] uniqueidentifier NOT NULL,
+        [AltText] nvarchar(1000) NULL,
+        CONSTRAINT [PK_PostVersionImages] PRIMARY KEY ([PostVersionId], [Position]),
+        CONSTRAINT [CK_PostVersionImages_Position] CHECK ([Position] >= 0 AND [Position] < 4),
+        CONSTRAINT [FK_PostVersionImages_MediaAssets_OrganizationId_MediaAssetId] FOREIGN KEY ([OrganizationId], [MediaAssetId]) REFERENCES [MediaAssets] ([OrganizationId], [Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_PostVersionImages_PostVersions_PostVersionId] FOREIGN KEY ([PostVersionId]) REFERENCES [PostVersions] ([Id]) ON DELETE CASCADE
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    CREATE INDEX [IX_PostVersionImages_OrganizationId_MediaAssetId] ON [PostVersionImages] ([OrganizationId], [MediaAssetId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_PostVersionImages_PostVersionId_MediaAssetId] ON [PostVersionImages] ([PostVersionId], [MediaAssetId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    INSERT INTO [PostVersionImages] ([PostVersionId], [Position], [OrganizationId], [MediaAssetId], [AltText])
+    SELECT [Id], 0, [OrganizationId], [MediaAssetId], [AltText] FROM [PostVersions] WHERE [MediaAssetId] IS NOT NULL
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    EXEC(N'CREATE TRIGGER [dbo].[TR_PostVersionImages_Immutable] ON [dbo].[PostVersionImages] AFTER UPDATE, DELETE AS
+    BEGIN
+        SET NOCOUNT ON;
+        THROW 51000, ''PostVersionImages are immutable. Create a new version instead.'', 1;
+    END')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    ALTER TABLE [PostVersions] DROP CONSTRAINT [FK_PostVersions_MediaAssets_OrganizationId_MediaAssetId];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    DROP INDEX [IX_PostVersions_OrganizationId_MediaAssetId] ON [PostVersions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    DECLARE @var42 nvarchar(max);
+    SELECT @var42 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[PostVersions]') AND [c].[name] = N'AltText');
+    IF @var42 IS NOT NULL EXEC(N'ALTER TABLE [PostVersions] DROP CONSTRAINT ' + @var42 + ';');
+    ALTER TABLE [PostVersions] DROP COLUMN [AltText];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    DECLARE @var43 nvarchar(max);
+    SELECT @var43 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[PostVersions]') AND [c].[name] = N'MediaAssetId');
+    IF @var43 IS NOT NULL EXEC(N'ALTER TABLE [PostVersions] DROP CONSTRAINT ' + @var43 + ';');
+    ALTER TABLE [PostVersions] DROP COLUMN [MediaAssetId];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008112426_MultiImagePosts'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008112426_MultiImagePosts', N'10.0.12');
+END;
+
+COMMIT;
+GO
+

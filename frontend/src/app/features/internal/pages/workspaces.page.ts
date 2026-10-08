@@ -22,13 +22,13 @@ import { AuditLogItem, InternalApiService, WorkspaceDetail, WorkspaceListItem, a
     <app-problem-banner [problem]="problem()" />
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>Workspace</th><th>Primary Admin</th><th>Members</th><th>Campaigns</th><th>Social Accounts</th><th>Status</th><th>Created</th><th>Last Activity</th></tr></thead>
+        <thead><tr><th>Workspace</th><th>Primary Admin</th><th>Members</th><th>Social Accounts</th><th>Status</th><th>Created</th><th>Last Activity</th></tr></thead>
         <tbody>
           @for (w of rows(); track w.id) {
             <tr>
               <td><a [routerLink]="['/internal/workspaces', w.id]">{{ w.name }}</a></td>
               <td>{{ w.primaryAdminName || '—' }}<br /><span class="hint">{{ w.primaryAdminEmail }}</span></td>
-              <td>{{ w.members }}</td><td>{{ w.campaigns }}</td><td>{{ w.socialAccounts }}</td>
+              <td>{{ w.members }}</td><td>{{ w.socialAccounts }}</td>
               <td><span [class]="'badge delivery ' + tone(w.status)">{{ w.status }}</span></td>
               <td>{{ when(w.createdAtUtc) }}</td><td>{{ ago(w.lastActivityAtUtc) }}</td>
             </tr>
@@ -99,7 +99,6 @@ export class WorkspacesPage implements OnInit {
           <h2>Usage</h2>
           <ul class="kv">
             <li><span>Members</span><strong>{{ d.usage.members }}</strong></li>
-            <li><span>Campaigns</span><strong>{{ d.usage.campaigns }}</strong></li>
             <li><span>Posts</span><strong>{{ d.usage.posts }}</strong></li>
             <li><span>Connected social accounts</span><strong>{{ d.usage.connectedSocialAccounts }}</strong></li>
             <li><span>AI requests</span><strong>{{ d.usage.aiRequests }}</strong></li>

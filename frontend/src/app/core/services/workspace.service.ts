@@ -27,7 +27,7 @@ export class WorkspaceService {
     const current = this.current();
     return current ? workspaceSlug(current, this.memberships()) : null;
   });
-  readonly canManageCampaigns = computed(() => this.current()?.role === 'Admin' || this.current()?.role === 'Creator');
+  readonly canManageContent = computed(() => this.current()?.role === 'Admin' || this.current()?.role === 'Creator');
   readonly canManageBrand = computed(() => this.current()?.role === 'Admin');
   readonly isAdmin = computed(() => this.current()?.role === 'Admin');
   readonly canReview = computed(() => this.current()?.role === 'Admin' || this.current()?.role === 'Reviewer');

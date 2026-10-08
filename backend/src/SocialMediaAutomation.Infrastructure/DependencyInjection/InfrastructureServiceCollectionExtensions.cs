@@ -35,7 +35,6 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IBrandProfileRepository, BrandProfileRepository>();
-        services.AddScoped<ICampaignRepository, CampaignRepository>();
         services.AddScoped<IPostRepository, PostRepository>();
         services.AddScoped<IMediaRepository, MediaRepository>();
         var mediaStorage = CreateMediaStorage(configuration, contentRootPath);
@@ -52,6 +51,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHttpClient(OpenAiImageClient.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(180));
         services.AddSingleton<OpenAiImageClient>();
         services.AddSingleton<HuggingFaceImageClient>();
+        services.AddSingleton<StabilityImageClient>();
+        services.AddSingleton<CloudflareImageClient>();
         services.AddSingleton<IImageGenerationProvider, ImageGenerationRouter>();
         // The system LLM comes from configuration/environment (Ai__ApiKey etc.); users never configure it.
         var ai = configuration.GetSection(SystemAiOptions.SectionName);

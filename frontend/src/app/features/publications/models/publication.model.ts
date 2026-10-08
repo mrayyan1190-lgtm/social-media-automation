@@ -1,4 +1,4 @@
-import { SocialPlatform } from '../../campaigns/models/campaign.model';
+import { SocialPlatform } from '../../../shared/models/platform.model';
 import { ExecutionMode } from '../../social-accounts/models/social-account.model';
 
 export type DeliveryState =
@@ -19,8 +19,6 @@ export interface PublicationJob {
   postId: string;
   postVersionId: string;
   versionNumber: number;
-  campaignId: string | null;
-  campaignName: string | null;
   platform: SocialPlatform;
   socialAccountId: string;
   destinationName: string;

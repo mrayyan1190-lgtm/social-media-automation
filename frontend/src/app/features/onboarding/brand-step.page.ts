@@ -1,3 +1,4 @@
+import { OnboardingMenuComponent } from './onboarding-menu.component';
 import { Component, ViewEncapsulation, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -12,7 +13,7 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
 /** Onboarding step 2: the four brand inputs. Advanced brand settings stay in Settings for later. */
 @Component({
   selector: 'app-onboarding-brand',
-  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
+  imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink, OnboardingMenuComponent],
   templateUrl: './brand-step.page.html',
   styleUrl: './brand-step.page.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.

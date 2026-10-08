@@ -105,7 +105,7 @@ public sealed class PublicationProcessor(
                 {
                     case MediaContainerStatus.Failed:
                         throw new PublishFailure(PublishErrorCategory.ACTION_REQUIRED, PublicationErrorCodes.MediaProcessingFailed,
-                            "The provider could not process the image. Replace the image (new version) or check the destination.");
+                            "The provider could not process an image. Replace it (new version) or check the destination.");
                     case MediaContainerStatus.InProgress when job.MediaWaitExpired(Now):
                         throw new PublishFailure(PublishErrorCategory.ACTION_REQUIRED, PublicationErrorCodes.MediaProcessingTimeout,
                             $"The provider did not finish processing the image within {PublicationJob.MaxMediaWait.TotalMinutes:0} minutes.");
@@ -175,12 +175,12 @@ public sealed class PublicationProcessor(
         if (!account.IsEligibleDestination)
             throw Blocked(ErrorCodes.SocialAccountNotReady, $"The destination \"{account.DisplayName}\" is {account.ConnectionStatus}; reconnect it.");
 
-        MediaAsset? image = null;
-        if (version.MediaAssetId is { } mediaId)
+        var images = await media.GetImagesAsync(version, cancellationToken)
+            ?? throw Blocked(PublicationErrorCodes.MediaMissing, "An approved image no longer exists.");
+        if (images.Count == 0 && PlatformRules.For(job.Platform).RequiresImage)
+            throw Blocked(PublicationErrorCodes.MediaMissing, $"{job.Platform} posts require at least one image.");
+        foreach (var image in images)
         {
-            image = await media.GetAsync(mediaId, cancellationToken);
-            if (image is null || image.OrganizationId != job.OrganizationId)
-                throw Blocked(PublicationErrorCodes.MediaMissing, "The approved image no longer exists.");
             try
             {
                 image.EnsureSuitableFor(job.Platform);
@@ -192,22 +192,20 @@ public sealed class PublicationProcessor(
             }
             catch (IOException)
             {
-                throw Blocked(PublicationErrorCodes.MediaMissing, "The approved image file is missing from storage.");
+                throw Blocked(PublicationErrorCodes.MediaMissing, "An approved image file is missing from storage.");
             }
-        }
-        else if (PlatformRules.For(job.Platform).RequiresImage)
-        {
-            throw Blocked(PublicationErrorCodes.MediaMissing, $"{job.Platform} posts require one image.");
         }
 
         // The stored data must still hash to the approval, and so must the frozen snapshot the publisher will send.
         var frozen = JsonSerializer.Deserialize<ApprovalPayload>(job.PayloadJson, PayloadJson);
-        if (!ApprovalPayload.From(post, version, account, image).Matches(job.PayloadHash) || frozen is null || !frozen.Matches(job.PayloadHash))
+        if (!ApprovalPayload.From(post, version, account, images).Matches(job.PayloadHash) || frozen is null || !frozen.Matches(job.PayloadHash))
             throw Blocked(ErrorCodes.ApprovalStale, "The content no longer matches the approved payload.");
 
+        var altTexts = version.Images.ToDictionary(i => i.MediaAssetId, i => i.AltText);
+        var publishMedia = images.Select(image => new PublishMedia(image.Id, image.ContentType, image.Sha256, altTexts[image.Id],
+            ct => storage.OpenReadAsync(image.ObjectKey, ct), null)).ToList();
         return new PublishContext(job.Id, job.Platform, job.ExecutionMode, account.ExternalAccountId, account.Capabilities, frozen,
-            image is null ? null : new PublishMedia(image.Id, image.ContentType, image.Sha256, version.AltText, ct => storage.OpenReadAsync(image.ObjectKey, ct), null),
-            await AccessTokenAsync(job, account, cancellationToken), job.ProviderContainerId);
+            publishMedia, await AccessTokenAsync(job, account, cancellationToken), job.ProviderContainerId);
     }
 
     private async Task<string?> AccessTokenAsync(PublicationJob job, SocialAccount account, CancellationToken cancellationToken)
@@ -326,7 +324,7 @@ public sealed class PublicationProcessor(
         {
             DeliveryState.PUBLISHED => receipt?.ExternalUrl is { } url ? $"The approved version is live: {url}" : "The approved version was published.",
             DeliveryState.SIMULATED => receipt?.Detail ?? "The simulated destination completed; nothing was posted externally.",
-            _ => job.LastErrorMessage ?? job.DeliveryState.ToString(),
+            _ => PublicationErrorText.ForCustomer(job.Platform, job.LastErrorCode, job.LastErrorMessage) ?? job.DeliveryState.ToString(),
         };
         activity.Notify(job.OrganizationId, [job.CreatedByUserId], type, title, message, PublicationService.JobResource, job.Id);
         activity.Audit(job.OrganizationId, null, action, PublicationService.JobResource, job.Id, new Dictionary<string, string?>

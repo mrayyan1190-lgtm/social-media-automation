@@ -32,8 +32,9 @@ public abstract class MetaPublisher(HttpClient http, IConfiguration configuratio
 }
 
 /// <summary>
-/// Facebook Page publishing: text/link via /feed or a single photo via /photos, using a Page token fetched with the
-/// connected user's token right before the call (the fetch creates nothing).
+/// Facebook Page publishing: text/link via /feed, a single photo via /photos, or a multi-photo post (photos uploaded
+/// unpublished, then one /feed post with attached_media), using a Page token fetched with the connected user's token
+/// right before the call (the fetch creates nothing).
 /// </summary>
 public sealed class FacebookPublisher(HttpClient http, IConfiguration configuration) : MetaPublisher(http, configuration)
 {
@@ -41,7 +42,7 @@ public sealed class FacebookPublisher(HttpClient http, IConfiguration configurat
 
     public override Task ValidateCapabilityAsync(PublishContext context, CancellationToken cancellationToken)
     {
-        RequireCapability(context, context.Media is null ? "publish_text" : "publish_image", "Facebook Page");
+        RequireCapability(context, context.Media.Count == 0 ? "publish_text" : "publish_image", "Facebook Page");
         return Task.CompletedTask;
     }
 
@@ -53,17 +54,24 @@ public sealed class FacebookPublisher(HttpClient http, IConfiguration configurat
             ?? throw NotCapable("PERMISSION_MISSING", "Facebook did not issue a Page token; the connection cannot post to this Page.");
 
         ProviderResponse created;
-        if (context.Media is { } media)
+        if (context.Media.Count == 1)
         {
-            await using var bytes = await OpenMediaAsync(media, cancellationToken);
-            var image = new StreamContent(bytes);
-            image.Headers.ContentType = new MediaTypeHeaderValue(media.ContentType);
-            var form = new MultipartFormDataContent
-            {
-                { new StringContent(PublicationText.Compose(context.Payload, includeUrl: true)), "caption" },
-                { image, "source", media.ContentType == "image/png" ? "image.png" : "image.jpg" },
-            };
+            using var form = PhotoForm(context.Media[0], await OpenMediaAsync(context.Media[0], cancellationToken),
+                ("caption", PublicationText.Compose(context.Payload, includeUrl: true)));
             created = await SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{Graph}/{page}/photos") { Content = form }, pageToken, mayCreatePost: true, cancellationToken);
+        }
+        else if (context.Media.Count > 1)
+        {
+            // Unpublished photos are invisible until the feed post attaches them, so these uploads cannot create a post.
+            var fields = new List<(string, string?)> { ("message", PublicationText.Compose(context.Payload, includeUrl: true)) };
+            for (var i = 0; i < context.Media.Count; i++)
+            {
+                using var form = PhotoForm(context.Media[i], await OpenMediaAsync(context.Media[i], cancellationToken), ("published", "false"));
+                var photo = await SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{Graph}/{page}/photos") { Content = form }, pageToken, mayCreatePost: false, cancellationToken);
+                var photoId = photo.Body?["id"]?.GetValue<string>() ?? throw NotCapable("PROVIDER_REJECTED", "Facebook did not return a photo id.");
+                fields.Add(($"attached_media[{i}]", $"{{\"media_fbid\":\"{photoId}\"}}"));
+            }
+            created = await SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{Graph}/{page}/feed") { Content = Form([.. fields]) }, pageToken, mayCreatePost: true, cancellationToken);
         }
         else
         {
@@ -73,13 +81,26 @@ public sealed class FacebookPublisher(HttpClient http, IConfiguration configurat
 
         var id = created.Body?["post_id"]?.GetValue<string>() ?? created.Body?["id"]?.GetValue<string>();
         return new PublishReceipt(id, id is null ? null : $"https://www.facebook.com/{id}", created.RequestId,
-            context.Media is null ? "Facebook Page post created." : "Facebook Page photo post created.");
+            context.Media.Count switch { 0 => "Facebook Page post created.", 1 => "Facebook Page photo post created.", var n => $"Facebook Page post with {n} photos created." });
+    }
+
+    /// <summary>A multipart photo upload; the form owns (and disposes) the image stream.</summary>
+    private static MultipartFormDataContent PhotoForm(PublishMedia media, Stream bytes, (string Key, string Value) field)
+    {
+        var image = new StreamContent(bytes);
+        image.Headers.ContentType = new MediaTypeHeaderValue(media.ContentType);
+        return new MultipartFormDataContent
+        {
+            { new StringContent(field.Value), field.Key },
+            { image, "source", media.ContentType == "image/png" ? "image.png" : "image.jpg" },
+        };
     }
 }
 
 /// <summary>
-/// Instagram professional account publishing (single image + caption) as a durable multi-step flow: create a media
-/// container from a public image URL (invisible), poll its status_code across worker runs, then media_publish.
+/// Instagram professional account publishing (single image or a 2-4 image carousel, with caption) as a durable
+/// multi-step flow: create a media container from public image URLs (a carousel is one item container per image plus
+/// the carousel container; all invisible), poll its status_code across worker runs, then media_publish.
 /// </summary>
 public sealed class InstagramPublisher(HttpClient http, IConfiguration configuration) : MetaPublisher(http, configuration)
 {
@@ -90,10 +111,10 @@ public sealed class InstagramPublisher(HttpClient http, IConfiguration configura
     public override Task ValidateCapabilityAsync(PublishContext context, CancellationToken cancellationToken)
     {
         RequireCapability(context, "publish_image", "Instagram");
-        if (context.Media is null)
-            throw NotCapable("MEDIA_MISSING", "Instagram posts require one image.");
+        if (context.Media.Count == 0)
+            throw NotCapable("MEDIA_MISSING", "Instagram posts require at least one image.");
         // Instagram downloads the image itself, so it needs a public URL; private local storage cannot provide one.
-        if (context.Media.PublicUrl is null)
+        if (context.Media.Any(m => m.PublicUrl is null))
             throw NotCapable("MEDIA_URL_UNAVAILABLE",
                 "Instagram fetches the image from a public URL, and the configured media storage does not provide one. Configure public object storage.");
         return Task.CompletedTask;
@@ -101,9 +122,20 @@ public sealed class InstagramPublisher(HttpClient http, IConfiguration configura
 
     public override async Task<string> PrepareAsync(PublishContext context, CancellationToken cancellationToken)
     {
-        var form = Form(("image_url", context.Media!.PublicUrl), ("caption", PublicationText.Compose(context.Payload, includeUrl: true)),
-            ("alt_text", context.Media.AltText));
-        // A container is not visible to anyone, so even an unanswered request here is safe to repeat.
+        var caption = PublicationText.Compose(context.Payload, includeUrl: true);
+        // Containers are not visible to anyone, so even an unanswered request here is safe to repeat. Only the returned
+        // (carousel) container id is checkpointed; item containers are recreated if the worker restarts before that.
+        if (context.Media.Count == 1)
+            return await CreateContainerAsync(context, Form(("image_url", context.Media[0].PublicUrl), ("caption", caption), ("alt_text", context.Media[0].AltText)), cancellationToken);
+
+        var children = new List<string>();
+        foreach (var media in context.Media)
+            children.Add(await CreateContainerAsync(context, Form(("image_url", media.PublicUrl), ("is_carousel_item", "true"), ("alt_text", media.AltText)), cancellationToken));
+        return await CreateContainerAsync(context, Form(("media_type", "CAROUSEL"), ("children", string.Join(',', children)), ("caption", caption)), cancellationToken);
+    }
+
+    private async Task<string> CreateContainerAsync(PublishContext context, FormUrlEncodedContent form, CancellationToken cancellationToken)
+    {
         var created = await SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{Graph}/{context.ExternalAccountId}/media") { Content = form },
             context.AccessToken!, mayCreatePost: false, cancellationToken);
         return created.Body?["id"]?.GetValue<string>() ?? throw NotCapable("PROVIDER_REJECTED", "Instagram did not return a media container id.");

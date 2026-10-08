@@ -50,7 +50,6 @@
               <span class="ap-vpill">v{{ r.versionNumber }}</span>
               @if (tab() !== 'pending') { {{ r.submittedByName }} <span class="sep">·</span> }
               {{ time(r.submittedAtUtc) }}
-              @if (r.campaignName) { <span class="sep">·</span> <span class="color-dot sm" [style.background]="r.campaignColor"></span>{{ r.campaignName }} }
               @if (r.assignedReviewerName) { <span class="sep">·</span> Reviewer: {{ r.assignedReviewerName }} }
             </div>
             @if (r.decisionComment) { <div class="ap-quote">“{{ r.decisionComment }}”</div> }
@@ -58,7 +57,7 @@
           <span [class]="'ap-chip ' + statusText[r.status].tone"><span class="dot"></span>{{ statusText[r.status].label }}</span>
           @if (tab() === 'pending') {
             <a class="ap-btn" [routerLink]="['/approvals', r.id]">Review</a>
-          } @else if (r.status === 'CHANGES_REQUESTED' && workspace.canManageCampaigns()) {
+          } @else if (r.status === 'CHANGES_REQUESTED' && workspace.canManageContent()) {
             <a class="ap-btn ghost" [routerLink]="['/composer', r.postId]">Edit</a>
           } @else {
             <a class="ap-btn ghost" [routerLink]="['/approvals', r.id]">Open</a>

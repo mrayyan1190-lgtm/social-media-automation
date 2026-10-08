@@ -33,7 +33,5 @@ public static class ErrorCodes
     public const string EmailAlreadyRegistered = "EMAIL_ALREADY_REGISTERED";
     public const string InvalidCredentials = "INVALID_CREDENTIALS";
     public const string InvalidTimeZone = "INVALID_TIMEZONE";
-    public const string InvalidCampaignObjective = "INVALID_CAMPAIGN_OBJECTIVE";
     public const string InvalidPlatform = "INVALID_PLATFORM";
-    public const string CampaignNotReadyForGeneration = "CAMPAIGN_NOT_READY_FOR_GENERATION";
 }

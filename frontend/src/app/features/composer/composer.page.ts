@@ -1,4 +1,4 @@
-import { Location, NgTemplateOutlet } from '@angular/common';
+import { DatePipe, Location, NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -10,9 +10,9 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
-import { SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
+import { SOCIAL_PLATFORMS, SocialPlatform } from '../../shared/models/platform.model';
 import { AiCapabilities, RewriteAction } from '../content/models/ai.model';
-import { MediaAsset, PLATFORM_TEXT_LIMITS, Post, PostContent, PostVersion, postText } from '../content/models/post.model';
+import { MAX_POST_IMAGES, MediaAsset, PLATFORM_TEXT_LIMITS, Post, PostContent, PostVersion, postText } from '../content/models/post.model';
 import { AiApiService } from '../content/services/ai-api.service';
 import { MediaApiService } from '../content/services/media-api.service';
 import { PostApiService } from '../content/services/post-api.service';
@@ -20,6 +20,16 @@ import { SocialAccount } from '../social-accounts/models/social-account.model';
 import { SocialAccountApiService } from '../social-accounts/services/social-account-api.service';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+
+/** One attached image on screen; alt text has no field here but is kept unchanged on every save. */
+interface AttachedImage {
+  asset: MediaAsset;
+  altText: string;
+}
+
+/** Identity of the attached images (order and alt text included), to tell whether they changed. */
+const imagesKey = (images: { mediaAssetId: string; altText: string | null }[]): string =>
+  images.map((i) => `${i.mediaAssetId}|${(i.altText ?? '').trim()}`).join(',');
 
 /**
  * "Improve with AI" menu. Each item is an AI rewrite of the current version, saved as a new version (the old one is
@@ -37,13 +47,13 @@ const IMPROVE_ACTIONS: { label: string; icon: string; action: RewriteAction; ins
 ];
 
 /**
- * Composer: where a real post is prepared. A new post (/composer, optionally ?campaignId=) is created on Save Draft or
+ * Composer: where a real post is prepared. A new post (/composer) is created on Save Draft or
  * by Generate with AI; an existing one (/composer/{id}) is edited by saving a new immutable version. Review, approval
  * and publishing all apply to the exact current version; the server enforces every rule, the page only guides.
  */
 @Component({
   selector: 'app-composer-page',
-  imports: [FormsModule, RouterLink, NgTemplateOutlet, ProblemBannerComponent],
+  imports: [FormsModule, RouterLink, NgTemplateOutlet, DatePipe, ProblemBannerComponent],
   templateUrl: './composer.page.html',
   styleUrl: './composer.page.css',
   // Close an open Improve / Image menu when clicking anywhere else; a pasted image is uploaded like a dropped one.
@@ -62,14 +72,13 @@ export class ComposerPage {
   private readonly topbar = inject(TopbarActionService);
   private destroyed = false;
 
-  /** Route parameter (existing post) and query parameter (campaign to file a new post in). */
+  /** Route parameter (existing post). */
   readonly postId = input<string>();
-  readonly campaignId = input<string>();
 
   protected readonly platforms = SOCIAL_PLATFORMS;
   protected readonly improveActions = IMPROVE_ACTIONS;
   /** The open toolbar menu (Publish to / Improve / Media). */
-  protected readonly menu = signal<'publish' | 'improve' | 'image' | null>(null);
+  protected readonly menu = signal<'publish' | 'improve' | 'changes' | null>(null);
   /** Preview "See more" toggle and dropzone drag highlight. */
   protected readonly expanded = signal(false);
   protected readonly dragging = signal(false);
@@ -84,31 +93,29 @@ export class ComposerPage {
   protected readonly accountId = signal<string>('');
   protected readonly text = signal('');
   protected readonly link = signal('');
-  protected readonly image = signal<MediaAsset | null>(null);
-  protected readonly altText = signal('');
-  protected readonly campaign = signal<string>('');
+  /** Attached images in publishing order (the first is the cover). */
+  protected readonly images = signal<AttachedImage[]>([]);
+  protected readonly maxImages = MAX_POST_IMAGES;
   protected readonly aiInstruction = signal('');
   /** What the platform offers (/internal/ai); only working modes and model choices are shown. */
   protected readonly caps = signal<AiCapabilities>({ textGeneration: false, imageGeneration: false, imageAnalysis: false, imageModels: [], visionModels: [] });
-  protected readonly imageAvailable = computed(() => this.caps().imageGeneration);
-  protected readonly imageModel = signal('');
 
   // Activity
   protected readonly loading = signal(false);
   protected readonly busy = signal<string | null>(null);
   protected readonly problem = signal<ApiProblem | null>(null);
 
-  private readonly original = signal<{ text: string; link: string; imageId: string | null; altText: string; accountId: string } | null>(null);
+  private readonly original = signal<{ text: string; link: string; images: string; accountId: string } | null>(null);
 
   protected readonly isNew = computed(() => !this.post());
   protected readonly version = computed(() => this.post()?.currentVersion ?? null);
   protected readonly state = computed(() => this.post()?.editorialState ?? 'DRAFT');
-  protected readonly canEdit = computed(() => this.workspace.canManageCampaigns() && this.state() !== 'IN_REVIEW' && this.state() !== 'ARCHIVED');
+  protected readonly canEdit = computed(() => this.workspace.canManageContent() && this.state() !== 'IN_REVIEW' && this.state() !== 'ARCHIVED');
   protected readonly dirty = computed(() => {
     const o = this.original();
-    if (!o) return !!this.text().trim() || !!this.image();
-    return o.text !== this.text() || o.link !== this.link().trim() || o.imageId !== (this.image()?.id ?? null)
-      || o.altText !== this.altText().trim() || o.accountId !== this.accountId();
+    if (!o) return !!this.text().trim() || this.images().length > 0;
+    return o.text !== this.text() || o.link !== this.link().trim() || o.images !== imagesKey(this.content(null).images)
+      || o.accountId !== this.accountId();
   });
   protected readonly limit = computed(() => (this.platform() ? PLATFORM_TEXT_LIMITS[this.platform()!] : null));
   protected readonly length = computed(() => this.text().length + (this.link().trim() ? this.link().trim().length + 2 : 0));
@@ -139,9 +146,6 @@ export class ComposerPage {
       const postId = this.postId();
       if (orgId && postId) void this.load(orgId, postId);
     });
-    effect(() => {
-      if (!this.postId() && this.campaignId()) this.campaign.set(this.campaignId()!);
-    });
   }
 
   // ---- Platform and account -------------------------------------------------------------------------
@@ -165,45 +169,60 @@ export class ComposerPage {
 
   protected upload(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+    const files = [...(input.files ?? [])];
     input.value = '';
-    if (file) void this.uploadFile(file);
+    if (files.length) void this.uploadFiles(files);
   }
 
   protected onDrop(event: DragEvent): void {
     event.preventDefault();
     this.dragging.set(false);
-    const file = event.dataTransfer?.files[0];
-    if (file && this.canEdit() && !this.busy()) void this.uploadFile(file);
+    const files = [...(event.dataTransfer?.files ?? [])];
+    if (files.length && this.canEdit() && !this.busy()) void this.uploadFiles(files);
   }
 
   /** Only pasted image files are taken; pasted text keeps going into the focused field as usual. */
   protected onPaste(event: ClipboardEvent): void {
-    const file = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
-    if (!file || !this.canEdit() || this.busy()) return;
+    const files = [...(event.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+    if (!files.length || !this.canEdit() || this.busy()) return;
     event.preventDefault();
-    void this.uploadFile(file);
+    void this.uploadFiles(files);
   }
 
-  private async uploadFile(file: File): Promise<void> {
+  /** Uploads and attaches the files after the current images, in order (up to MAX_POST_IMAGES in total). */
+  private async uploadFiles(files: File[]): Promise<void> {
     const orgId = this.workspace.orgId();
     if (!orgId) return;
     // Early hints only; the server inspects the bytes and applies the authoritative rules.
-    if (!['image/jpeg', 'image/png'].includes(file.type)) return this.fail('Choose a JPEG or PNG image.');
-    if (file.size > MAX_IMAGE_BYTES) return this.fail('Images must be at most 8 MB.');
+    if (this.images().length + files.length > MAX_POST_IMAGES) return this.fail(`A post can have at most ${MAX_POST_IMAGES} images.`);
+    if (files.some((f) => !['image/jpeg', 'image/png'].includes(f.type))) return this.fail('Choose JPEG or PNG images.');
+    if (files.some((f) => f.size > MAX_IMAGE_BYTES)) return this.fail('Images must be at most 8 MB.');
     await this.run('upload', async () => {
-      this.setImage(await firstValueFrom(this.media.upload(orgId, file)));
-      this.toast.success('Image attached. Save Draft to keep it.');
+      for (const file of files) {
+        const asset = await firstValueFrom(this.media.upload(orgId, file));
+        this.images.update((list) => [...list, { asset, altText: '' }]);
+      }
+      this.toast.success(`${files.length === 1 ? 'Image' : `${files.length} images`} attached. Save Draft to keep ${files.length === 1 ? 'it' : 'them'}.`);
     });
   }
 
-  protected removeImage(): void {
-    this.setImage(null);
+  protected removeImage(id: string): void {
+    this.images.update((list) => list.filter((i) => i.asset.id !== id));
+  }
+
+  /** Moves an image one place earlier (the first image is the cover). */
+  protected moveImageLeft(index: number): void {
+    if (index <= 0) return;
+    this.images.update((list) => {
+      const next = [...list];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
   }
 
   // ---- Improve with AI / Image menus -----------------------------------------------------------------
 
-  protected toggleMenu(which: 'publish' | 'improve' | 'image'): void {
+  protected toggleMenu(which: 'publish' | 'improve' | 'changes'): void {
     this.menu.set(this.menu() === which ? null : which);
   }
 
@@ -214,12 +233,6 @@ export class ComposerPage {
   protected async improve(action: RewriteAction, instruction: string | null): Promise<void> {
     this.menu.set(null);
     await this.aiEdit(action, instruction);
-  }
-
-  /** Generates a (replacement) image that illustrates the post. */
-  protected async newImage(instruction: string | null): Promise<void> {
-    this.menu.set(null);
-    await this.run('image', () => this.addAiImage(instruction));
   }
 
   // ---- Write with AI --------------------------------------------------------------------------------
@@ -243,7 +256,7 @@ export class ComposerPage {
     await this.run('generate', async () => {
       if (!orgId || !platform) throw new Error('Choose where to publish first.');
       const queued = await firstValueFrom(this.ai.requestGeneration(orgId, {
-        prompt: instruction, platforms: [platform], campaignId: this.campaign() || null,
+        prompt: instruction, platforms: [platform],
         tone: null, length: 'MEDIUM', hashtags: 'AUTO', emojis: 'AUTO',
       }));
       const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed);
@@ -251,10 +264,10 @@ export class ComposerPage {
       if (final.status !== 'COMPLETED' || !created) throw new Error(this.aiFailure(final.failureCode));
       // Keep what was chosen on screen: the attached image and account become part of the next saved version. A locked
       // post's image belongs to that post, so only the account carries over from it.
-      const [image, accountId] = [this.canEdit() ? this.image() : null, this.accountId()];
+      const [images, accountId] = [this.canEdit() ? this.images() : [], this.accountId()];
       await this.load(orgId, created.postId);
       this.location.replaceState(`/${this.workspace.slug()}/composer/${created.postId}`);
-      if (image) this.setImage(image);
+      if (images.length) this.images.set(images);
       if (accountId) this.accountId.set(accountId);
       this.aiInstruction.set('');
       this.toast.success('AI wrote a draft. Edit it if you like, then Save Draft or Submit for Review.');
@@ -267,34 +280,17 @@ export class ComposerPage {
       const post = await this.ensureSaved();
       if (!orgId || !post) return;
       const queued = await firstValueFrom(this.ai.requestRewrite(orgId, post.id, action, instruction, post.rowVersion));
-      const imageBefore = post.currentVersion.mediaAssetId;
+      const imagesBefore = imagesKey(post.currentVersion.images);
       const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed);
       await this.load(orgId, post.id);
       if (final.status === 'FAILED') {
         // An image-only request that failed explains why (e.g. the image model refused); other failures stay generic.
         throw new Error(final.failureCode === 'AI_PROVIDER_REJECTED' && final.failureMessage ? final.failureMessage : this.aiFailure(final.failureCode));
       }
-      const newImage = this.version()?.mediaAssetId !== imageBefore;
-      this.toast.success(`AI edit saved as version ${this.version()?.versionNumber}${newImage ? ' with a new image' : ''}. The previous version is kept.`
+      const newImage = imagesKey(this.version()?.images ?? []) !== imagesBefore;
+      this.toast.success(`AI edit saved as version ${this.version()?.versionNumber}${newImage ? ' with new images' : ''}. The previous version is kept.`
         + (final.warning ? ` ${final.warning}` : ''));
     });
-  }
-
-  /** Generates an image (with the chosen Hugging Face model, when a choice is offered) as a new version of the open post. */
-  private async addAiImage(instruction: string | null): Promise<void> {
-    const orgId = this.workspace.orgId();
-    const post = await this.ensureSaved();
-    if (!orgId || !post) return;
-    const model = this.caps().imageModels.length ? this.imageModel() || null : null;
-    const queued = await firstValueFrom(this.ai.requestImage(orgId, post.id, instruction, post.rowVersion, model));
-    const final = await this.ai.waitForCompletion(orgId, queued, () => undefined, () => this.destroyed, 3000);
-    await this.load(orgId, post.id);
-    if (final.status === 'FAILED') {
-      throw new Error(final.failureCode === 'AI_NOT_CONFIGURED' || final.failureCode === 'AI_PROVIDER_AUTH'
-        ? 'Image generation is temporarily unavailable. Please try again later.'
-        : final.failureMessage || 'The image could not be generated. Please try again.');
-    }
-    this.toast.success(`AI image added as version ${this.version()?.versionNumber}. Add alt text if you like; the previous version is kept.`);
   }
 
   private aiFailure(code: string | null): string {
@@ -355,7 +351,7 @@ export class ComposerPage {
       && !confirm('This version is approved. Saving creates a new version that needs review again. Continue?')) return null;
 
     if (!current) {
-      const created = await firstValueFrom(this.postsApi.create(orgId, this.platform()!, this.campaign() || null, this.content(null)));
+      const created = await firstValueFrom(this.postsApi.create(orgId, this.platform()!, this.content(null)));
       this.apply(created);
       // Same page instance keeps running (e.g. an AI edit that needed the draft saved first); only the URL changes.
       this.location.replaceState(`/${this.workspace.slug()}/composer/${created.id}`);
@@ -373,29 +369,20 @@ export class ComposerPage {
    */
   private content(current: PostVersion | null): PostContent {
     const unchangedText = current && this.original()?.text === this.text();
-    const image = this.image();
     return {
       hook: unchangedText ? current.hook : null,
       body: unchangedText ? current.body : this.text().trim(),
       callToAction: unchangedText ? current.callToAction : null,
       hashtags: unchangedText ? current.hashtags : [],
       destinationUrl: this.link().trim() || null,
-      mediaAssetId: image?.id ?? null,
-      altText: image ? this.altText().trim() || null : null,
+      images: this.images().map((i) => ({ mediaAssetId: i.asset.id, altText: i.altText.trim() || null })),
       socialAccountId: this.accountId() || null,
     };
-  }
-
-  private setImage(asset: MediaAsset | null): void {
-    // Alt text describes one specific image, so a replacement starts without the old description.
-    if (asset?.id !== this.image()?.id) this.altText.set('');
-    this.image.set(asset);
   }
 
   private async loadWorkspaceData(orgId: string): Promise<void> {
     void firstValueFrom(this.ai.capabilities(orgId)).then((c) => {
       this.caps.set(c);
-      this.imageModel.set(c.imageModels[0] ?? '');
     }, () => undefined);
     const accounts = await firstValueFrom(this.accountsApi.list(orgId)).catch(() => []);
     this.accounts.set(accounts);
@@ -429,10 +416,8 @@ export class ComposerPage {
     this.accountId.set(v.socialAccountId ?? '');
     this.text.set(postText(v));
     this.link.set(v.destinationUrl ?? '');
-    this.image.set(v.media);
-    this.altText.set(v.altText ?? '');
-    this.campaign.set(post.campaignId ?? '');
-    this.original.set({ text: postText(v), link: v.destinationUrl ?? '', imageId: v.mediaAssetId, altText: v.altText ?? '', accountId: v.socialAccountId ?? '' });
+    this.images.set(v.images.map((i) => ({ asset: i.media, altText: i.altText ?? '' })));
+    this.original.set({ text: postText(v), link: v.destinationUrl ?? '', images: imagesKey(v.images), accountId: v.socialAccountId ?? '' });
     this.preselectAccount();
   }
 

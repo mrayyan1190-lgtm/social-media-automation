@@ -15,11 +15,11 @@ public interface IAiRepository
     Task<AiGenerationRequest?> FindActiveRequestAsync(Guid organizationId, AiRequestKind kind, Guid postId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// A pending or processing generation by the same user with the identical input snapshot and campaign: a repeated
+    /// A pending or processing generation by the same user with the identical input snapshot: a repeated
     /// click returns it instead of writing the same drafts twice. A different prompt or option is a new request.
     /// </summary>
     Task<AiGenerationRequest?> FindActiveGenerationAsync(
-        Guid organizationId, Guid requestedByUserId, Guid? campaignId, string inputSnapshot, CancellationToken cancellationToken);
+        Guid organizationId, Guid requestedByUserId, string inputSnapshot, CancellationToken cancellationToken);
 
 
     Task<IReadOnlyList<AiOutputDto>> ListOutputsAsync(Guid organizationId, Guid requestId, CancellationToken cancellationToken);

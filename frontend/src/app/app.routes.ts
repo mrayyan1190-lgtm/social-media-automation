@@ -18,7 +18,7 @@ export const routes: Routes = [
     path: 'onboarding',
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'profile' },
-      { path: 'workspace', canActivate: [onboardingGuard('WORKSPACE')], loadComponent: () => import('./features/onboarding/workspace-step.page').then((m) => m.WorkspaceStepPage) },
+      { path: 'workspace', redirectTo: '/signup' },
       { path: 'profile', canActivate: [onboardingGuard('PROFILE')], loadComponent: () => import('./features/onboarding/profile-step.page').then((m) => m.ProfileStepPage) },
       { path: 'brand', canActivate: [onboardingGuard('BRAND_PROFILE')], loadComponent: () => import('./features/onboarding/brand-step.page').then((m) => m.BrandStepPage) },
       { path: 'social-connections', canActivate: [onboardingGuard('SOCIAL_CONNECTIONS')], loadComponent: () => import('./features/onboarding/social-step.page').then((m) => m.SocialStepPage) },
@@ -39,7 +39,7 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', redirectTo: 'home' },
       { path: 'home', loadComponent: () => import('./features/home/home.page').then((m) => m.HomePage) },
       { path: 'ai-studio', canActivate: [contentCreatorGuard], loadComponent: () => import('./features/ai-studio/ai-studio.page').then((m) => m.AiStudioPage) },
-      // Composer: a new post (/composer?campaignId=…) or an existing one (/composer/{postId}). Read-only for reviewers.
+      // Composer: a new post (/composer) or an existing one (/composer/{postId}). Read-only for reviewers.
       { path: 'composer', loadComponent: composer },
       { path: 'composer/:postId', loadComponent: composer },
       // Creator (MVP): Home, AI Studio, Composer, Planner, Notifications and Profile only. Every other page is Admin-only
@@ -47,7 +47,8 @@ export const routes: Routes = [
       { path: 'approvals', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/approvals/approvals.page').then((m) => m.ApprovalsPage) },
       { path: 'approvals/:reviewId', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/approvals/pages/review-detail/review-detail.page').then((m) => m.ReviewDetailPage) },
       { path: 'planner', loadComponent: () => import('./features/planner/planner.page').then((m) => m.PlannerPage) },
-      { path: 'library', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/library/library.page').then((m) => m.LibraryPage) },
+      // Media Library is postponed until media storage moves to a separate cloud store; old links go home.
+      { path: 'library', redirectTo: 'home' },
       { path: 'brand', canActivate: [workspaceAdminGuard], loadComponent: () => import('./features/settings/pages/brand-settings/brand-settings.page').then((m) => m.BrandSettingsPage) },
       // Social accounts live in Settings; the provider sign-in still returns to /social-accounts?status=… (query kept).
       { path: 'social-accounts', pathMatch: 'full', redirectTo: 'settings/workspace' },
@@ -73,6 +74,6 @@ export const routes: Routes = [
       { path: '**', redirectTo: 'home' },
     ],
   },
-  // Any other URL (/, /home, /campaigns/123, links without a workspace) opens inside the current workspace.
+  // Any other URL (/, /home, links without a workspace) opens inside the current workspace.
   { path: '**', component: ShellComponent, canActivate: [authGuard, workspaceRedirectGuard], children: [] },
 ];

@@ -14,13 +14,12 @@ namespace SocialMediaAutomation.Application.AiGeneration.Services;
 
 /// <summary>
 /// AI Studio input. Brand description, audience and tone come from the brand profile; <see cref="Tone"/> optionally
-/// overrides the tone. <see cref="CampaignId"/> only files the resulting drafts into a campaign folder.
+/// overrides the tone.
 /// </summary>
 public sealed record RequestGenerationCommand(
     Guid OrganizationId,
     string? Prompt,
     IReadOnlyCollection<SocialPlatform>? Platforms,
-    Guid? CampaignId,
     BrandTone? Tone,
     ContentLength Length = ContentLength.MEDIUM,
     HashtagMode Hashtags = HashtagMode.AUTO,
@@ -29,7 +28,8 @@ public sealed record RequestGenerationCommand(
     string? VisionModel = null,
     bool WithImage = false,
     string? ImageModel = null,
-    bool Unified = false);
+    bool Unified = false,
+    int ImageCount = 1);
 
 /// <summary>
 /// API side of AI work: validates access and inputs, freezes an input snapshot and enqueues a durable request.
@@ -40,7 +40,6 @@ public sealed class AiGenerationService(
     ICorrelationContext correlation,
     IAiRepository ai,
     AiConnectionResolver llmConnections,
-    ICampaignRepository campaigns,
     IBrandProfileRepository brandProfiles,
     IOrganizationRepository organizations,
     IPostRepository posts,
@@ -56,22 +55,16 @@ public sealed class AiGenerationService(
     /// </summary>
     public async Task<AiGenerationRequestDto> RequestGenerationAsync(RequestGenerationCommand command, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(command.OrganizationId, Permission.ManageCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(command.OrganizationId, Permission.ManageContent, cancellationToken);
         var prompt = Guard.Required(command.Prompt, "Prompt", PromptMax);
         var platforms = (command.Platforms ?? []).Select(p => Guard.Defined(p, "Platforms")).Distinct().Order().ToList();
         if (platforms.Count == 0)
             throw Guard.Invalid("Platforms", "must include at least one of LinkedIn, Facebook, Instagram");
-        Campaign? campaign = null;
-        if (command.CampaignId is { } campaignId)
-        {
-            campaign = await campaigns.GetAsync(campaignId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Campaign not found.");
-            access.EnsureOwns(campaign.OrganizationId, "Campaign");
-            campaign.EnsureEditable();
-        }
 
         // Uploaded images are read by a Hugging Face vision model; otherwise the platform LLM writes the text.
         // Text + Image: an uploaded image is attached as it is; without uploads the LLM plans an image that an image model renders.
         var vision = await VisionAsync(access, command.MediaAssetIds, platforms, command.WithImage, cancellationToken);
+        var imageCount = ImageCount(command.ImageCount);
         ImagePlanSnapshot? imagePlan = null;
         if (vision is null && command.WithImage)
         {
@@ -81,7 +74,7 @@ public sealed class AiGenerationService(
                 image.Provider == AiProvider.HuggingFace
                     ? ChooseModel(command.ImageModel, AiModelCatalog.WithDefault(AiModelCatalog.HuggingFaceImageModels, image.Model), "Image model")
                     : image.Model,
-                image.Size);
+                image.Size, Count: imageCount > 1 ? imageCount : null);
         }
         else if (vision is null)
         {
@@ -102,11 +95,11 @@ public sealed class AiGenerationService(
                 Unified = command.Unified && platforms.Count > 1 ? true : null,
             },
             AiVersions.Json);
-        if (await ai.FindActiveGenerationAsync(access.OrganizationId, access.UserId, campaign?.Id, snapshot, cancellationToken) is { } active)
+        if (await ai.FindActiveGenerationAsync(access.OrganizationId, access.UserId, snapshot, cancellationToken) is { } active)
             return await ToDtoAsync(access, active, cancellationToken);
 
         var request = AiGenerationRequest.CreateGeneration(
-            Guid.NewGuid(), access.OrganizationId, campaign, platforms, snapshot,
+            Guid.NewGuid(), access.OrganizationId, platforms, snapshot,
             AiVersions.GenerationPrompt, AiVersions.ContentSchema, llm.Provider, llm.Model, access.UserId, Now);
         request.AttachCorrelation(correlation.CorrelationId ?? CorrelationIds.New());
         ai.Add(request);
@@ -118,7 +111,7 @@ public sealed class AiGenerationService(
     public async Task<AiGenerationRequestDto> RequestRewriteAsync(
         Guid organizationId, Guid postId, RewriteAction action, string? customInstruction, byte[]? expectedRowVersion, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageContent, cancellationToken);
         var post = await LoadEditablePostAsync(access, postId, expectedRowVersion, "rewritten", cancellationToken);
         if (await ai.FindActiveRequestAsync(access.OrganizationId, AiRequestKind.Rewrite, post.Id, cancellationToken) is { } active)
             return await ToDtoAsync(access, active, cancellationToken);
@@ -144,9 +137,11 @@ public sealed class AiGenerationService(
     /// AI-generated MediaAsset and attaches it as a new version, which needs review like any other change.
     /// </summary>
     public async Task<AiGenerationRequestDto> RequestImageAsync(
-        Guid organizationId, Guid postId, string? instruction, byte[]? expectedRowVersion, CancellationToken cancellationToken, string? model = null)
+        Guid organizationId, Guid postId, string? instruction, byte[]? expectedRowVersion, CancellationToken cancellationToken, string? model = null,
+        int count = 1)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageContent, cancellationToken);
+        count = ImageCount(count);
         var post = await LoadEditablePostAsync(access, postId, expectedRowVersion, "given a new image", cancellationToken);
         if (await ai.FindActiveRequestAsync(access.OrganizationId, AiRequestKind.ImageGeneration, post.Id, cancellationToken) is { } active)
             return await ToDtoAsync(access, active, cancellationToken);
@@ -160,7 +155,7 @@ public sealed class AiGenerationService(
             image = image with { Model = ChooseModel(model, AiModelCatalog.WithDefault(AiModelCatalog.HuggingFaceImageModels, image.Model), "Image model") };
         }
         var source = await CurrentVersionAsync(access, post, cancellationToken);
-        var imageSnapshot = new ImageSnapshot(post.Platform, instruction?.Trim(), SourceContent(source), image.Size);
+        var imageSnapshot = new ImageSnapshot(post.Platform, instruction?.Trim(), SourceContent(source), image.Size, count > 1 ? count : null);
         var snapshot = await SnapshotAsync(access, await BriefAsync(access, null, null, cancellationToken: cancellationToken), [post.Platform], null, cancellationToken)
             with { Image = imageSnapshot };
 
@@ -175,7 +170,7 @@ public sealed class AiGenerationService(
     /// <summary>Which AI actions this workspace can use (so the UI shows only working buttons). Any member may ask.</summary>
     public async Task<AiCapabilitiesDto> CapabilitiesAsync(Guid organizationId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         var image = await llmConnections.ResolveImageAsync(cancellationToken);
         var visionModels = await llmConnections.VisionModelsAsync(cancellationToken);
         return new AiCapabilitiesDto(
@@ -188,7 +183,7 @@ public sealed class AiGenerationService(
 
     public async Task<AiGenerationRequestDto> GetAsync(Guid organizationId, Guid requestId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         var request = await ai.GetRequestAsync(requestId, cancellationToken)
             ?? throw new BusinessException(ErrorCodes.NotFound, "AI request not found.");
         access.EnsureOwns(request.OrganizationId, "AI request");
@@ -197,7 +192,7 @@ public sealed class AiGenerationService(
 
     public async Task<IReadOnlyList<ContentEvaluationDto>> ListEvaluationsAsync(Guid organizationId, Guid postId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         var post = await posts.GetAsync(postId, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Post not found.");
         access.EnsureOwns(post.OrganizationId, "Post");
         return await ai.ListEvaluationsAsync(access.OrganizationId, post.Id, cancellationToken);
@@ -211,6 +206,10 @@ public sealed class AiGenerationService(
             ? new ImagePlanSnapshot(image.Provider, image.Model, image.Size, OnlyIfRequested: true)
             : null;
 
+    /// <summary>How many images to generate: 1 to <see cref="PlatformRules.MaxImages"/>.</summary>
+    private static int ImageCount(int count) =>
+        count is >= 1 and <= PlatformRules.MaxImages ? count : throw Guard.Invalid("Image count", $"must be between 1 and {PlatformRules.MaxImages}");
+
     /// <summary>The chosen model when it is on the list (first entry when none was chosen).</summary>
     private static string ChooseModel(string? model, IReadOnlyList<string> allowed, string field) =>
         string.IsNullOrWhiteSpace(model) ? allowed[0]
@@ -219,7 +218,7 @@ public sealed class AiGenerationService(
 
     /// <summary>
     /// Uploaded images for a vision model: this workspace's own assets, a few at most, small enough to send inline. When
-    /// attached (Text + Image) the first one must already suit every requested platform (e.g. JPEG for Instagram).
+    /// attached (Text + Image) every one must already suit every requested platform (e.g. JPEG for Instagram).
     /// </summary>
     private async Task<VisionSnapshot?> VisionAsync(
         OrganizationAccess access, IReadOnlyList<Guid>? mediaAssetIds, IReadOnlyList<SocialPlatform> platforms, bool attach, CancellationToken cancellationToken)
@@ -235,7 +234,7 @@ public sealed class AiGenerationService(
             var asset = await media.GetAsync(id, cancellationToken) ?? throw new BusinessException(ErrorCodes.NotFound, "Image not found.");
             access.EnsureOwns(asset.OrganizationId, "Image");
             total += asset.SizeBytes;
-            if (attach && id == ids[0])
+            if (attach)
                 platforms.ToList().ForEach(asset.EnsureSuitableFor);
         }
         if (total > AiModelCatalog.MaxVisionBytes)
@@ -259,7 +258,7 @@ public sealed class AiGenerationService(
         ?? throw new InvalidOperationException($"Post {post.Id} has no current version row.");
 
     private static SourceContentSnapshot SourceContent(PostVersion source) =>
-        new(source.VersionNumber, source.Hook, source.Body, source.CallToAction, source.Hashtags, source.MediaAssetId is not null);
+        new(source.VersionNumber, source.Hook, source.Body, source.CallToAction, source.Hashtags, source.Images.Count > 0);
 
     private async Task<LlmConnection> RequireLlmAsync(OrganizationAccess access, CancellationToken cancellationToken) =>
         await llmConnections.ResolveAsync(access.OrganizationId, cancellationToken)

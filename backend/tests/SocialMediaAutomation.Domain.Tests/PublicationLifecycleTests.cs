@@ -12,27 +12,27 @@ public class PublicationLifecycleTests
 {
     private static readonly Guid Creator = Guid.NewGuid();
     private static readonly DateTime Now = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-    private readonly Campaign campaign = CampaignTests.New();
+    private static readonly Guid Org = Guid.NewGuid();
 
     private PublicationJob Job(ExecutionMode mode)
     {
         SocialAccount account;
         if (mode == ExecutionMode.SIMULATED)
         {
-            account = SocialAccount.CreateUnconnected(Guid.NewGuid(), campaign.OrganizationId, SocialPlatform.LinkedIn, "LI", mode, Creator, Now);
+            account = SocialAccount.CreateUnconnected(Guid.NewGuid(), Org, SocialPlatform.LinkedIn, "LI", mode, Creator, Now);
         }
         else
         {
-            var connection = OAuthConnection.Create(Guid.NewGuid(), campaign.OrganizationId, SocialPlatform.LinkedIn, "m", "Ada", Creator, Now);
+            var connection = OAuthConnection.Create(Guid.NewGuid(), Org, SocialPlatform.LinkedIn, "m", "Ada", Creator, Now);
             account = SocialAccount.CreateConnected(Guid.NewGuid(), connection, "urn:li:person:m", "Ada", mode, ["publish_text"], Creator, Now);
         }
-        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn,
-            new PostContent("Hook", "Body", null, null, [], null, null, account.Id), null, account, PostVersionSource.Manual, Creator, Now);
+        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), Org, SocialPlatform.LinkedIn,
+            new PostContent("Hook", "Body", null, null, [], null, account.Id), [], account, PostVersionSource.Manual, Creator, Now);
         var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         post.SubmitForReview(review, Now);
-        review.Approve(Guid.NewGuid(), v1, true, ApprovalPayload.From(post, v1, account, null), Now);
+        review.Approve(Guid.NewGuid(), v1, true, ApprovalPayload.From(post, v1, account, []), Now);
         post.Approve(review, Now);
-        return PublicationJob.Create(Guid.NewGuid(), post, v1, review, account, ApprovalPayload.From(post, v1, account, null), PublishTime.Now(Now), Creator, Now);
+        return PublicationJob.Create(Guid.NewGuid(), post, v1, review, account, ApprovalPayload.From(post, v1, account, []), PublishTime.Now(Now), Creator, Now);
     }
 
     /// <summary>What the SQL claim does: PROCESSING, a fresh lease token, one more attempt.</summary>

@@ -37,7 +37,9 @@ public sealed class AiProviderSettings
     /// <summary>Pass null key values to keep the stored key.</summary>
     public void Update(AiProvider provider, string? customBaseUrl, string model, string? protectedApiKey, string? apiKeyHint, Guid userId, DateTime utcNow)
     {
-        Provider = Guard.Defined(provider, "Provider");
+        Provider = Guard.Defined(provider, "Provider").IsImageOnly()
+            ? throw Guard.Invalid("Provider", $"{provider} is used only for image generation; choose a text model provider")
+            : provider;
         BaseUrl = ResolveBaseUrl(provider, customBaseUrl);
         Model = Guard.Required(model, "Model", ModelMax);
         if (protectedApiKey is not null)
@@ -63,6 +65,8 @@ public sealed class AiProviderSettings
         AiProvider.OpenAI => "https://api.openai.com/v1",
         AiProvider.Groq => "https://api.groq.com/openai/v1",
         AiProvider.HuggingFace => "https://router.huggingface.co/v1",
+        AiProvider.StabilityAI => "https://api.stability.ai",
+        AiProvider.CloudflareWorkersAI => CloudflareBaseUrl(customBaseUrl),
         AiProvider.OpenAICompatible => Guard.OptionalHttpUrl(customBaseUrl, "Base URL") is { } url
             && Uri.TryCreate(url, UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttps || uri.IsLoopback)
@@ -70,4 +74,20 @@ public sealed class AiProviderSettings
             : throw Guard.Invalid("Base URL", "must be an https URL (plain http is allowed only for localhost)"),
         _ => throw Guard.Invalid("Provider", "is not supported"),
     };
+
+    private const string CloudflareAccounts = "https://api.cloudflare.com/client/v4/accounts/";
+
+    /// <summary>
+    /// Cloudflare Workers AI is addressed per account: accepts the 32-character Account ID (or a URL built from it) and
+    /// returns {accounts}/{id}/ai. The id is not a secret; the API token is stored separately as the image key.
+    /// </summary>
+    private static string CloudflareBaseUrl(string? accountIdOrUrl)
+    {
+        var id = accountIdOrUrl?.Trim() ?? "";
+        if (id.StartsWith(CloudflareAccounts, StringComparison.OrdinalIgnoreCase))
+            id = id[CloudflareAccounts.Length..].Split('/')[0];
+        return id.Length == 32 && id.All(Uri.IsHexDigit)
+            ? $"{CloudflareAccounts}{id.ToLowerInvariant()}/ai"
+            : throw Guard.Invalid("Account ID", "must be the 32-character Cloudflare Account ID");
+    }
 }

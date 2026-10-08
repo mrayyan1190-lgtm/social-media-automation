@@ -1,4 +1,4 @@
-import { SocialPlatform } from '../../campaigns/models/campaign.model';
+import { SocialPlatform } from '../../../shared/models/platform.model';
 
 export type ExecutionMode = 'LIVE' | 'TEST_ACCOUNT' | 'SIMULATED' | 'NOT_CONFIGURED';
 export type ConnectionStatus = 'CONNECTED' | 'REAUTHORIZATION_REQUIRED' | 'DISCONNECTED';

@@ -82,6 +82,57 @@ public sealed class InternalOperationsService(
         return await queries.SystemLogAsync(query, level, service, cancellationToken);
     }
 
+    /// <summary>
+    /// Every log merged into one timeline (the five logs above, each with the same filters). <paramref name="outcome"/>:
+    /// "errors" keeps failures and warnings, "success" keeps successes, anything else keeps everything.
+    /// </summary>
+    public async Task<IReadOnlyList<ActivityLogItemDto>> AllLogAsync(LogQueryDto query, string? outcome, CancellationToken cancellationToken)
+    {
+        await systemAdmins.RequireAsync(cancellationToken);
+        // One DbContext per request, so the five reads run one after another.
+        var audit = await queries.AuditLogAsync(query, null, null, cancellationToken);
+        var signIns = await queries.SignInLogAsync(query, null, null, null, cancellationToken);
+        var ai = await queries.AiLogAsync(query, cancellationToken);
+        var publishing = await queries.PublishingLogAsync(query, cancellationToken);
+        var system = await queries.SystemLogAsync(query, null, null, cancellationToken);
+
+        var items = audit.Select(a => new ActivityLogItemDto(a.Id, a.AtUtc, "Audit", a.Result == "SUCCESS" ? Success : Failed, a.Actor ?? "System",
+                a.Workspace, a.Action, $"{a.TargetType} {a.Target}", a.CorrelationId))
+            .Concat(signIns.Select(s => new ActivityLogItemDto(s.Id, s.AtUtc, "Sign-in", s.Succeeded ? Success : Failed, s.Email, null, s.EventType,
+                $"{(s.Area == "INTERNAL" ? "Internal" : "Customer")} sign-in{(s.IpAddress is null ? "" : $" from {s.IpAddress}")}", s.CorrelationId)))
+            .Concat(ai.Select(r => new ActivityLogItemDto(r.Id, r.StartedAtUtc, "AI", r.Succeeded ? Success : Failed, null, r.Workspace, r.Operation,
+                $"{r.Model} · {r.DurationMs / 1000.0:0.0} s · {r.Attempts} attempt(s){(r.Error is null ? "" : $" · {r.Error}")}", r.CorrelationId)))
+            .Concat(publishing.Select(p => new ActivityLogItemDto(p.Id, p.AtUtc, "Publishing", PublishingOutcome(p), null, p.Workspace, p.Operation,
+                $"{p.Platform} · {p.Status}{(p.ErrorCategory is null ? "" : $" · {p.ErrorCategory}")}{(p.Error is null ? "" : $": {p.Error}")}", p.CorrelationId)))
+            .Concat(system.Select(e => new ActivityLogItemDto(e.Id, e.AtUtc, $"System · {e.Service}", SystemOutcome(e.Level), null, null, e.Event, e.Message,
+                e.CorrelationId)));
+
+        items = outcome switch
+        {
+            "errors" => items.Where(i => i.Outcome is Failed or Warning),
+            "success" => items.Where(i => i.Outcome == Success),
+            _ => items,
+        };
+        return items.OrderByDescending(i => i.AtUtc).Take(Math.Clamp(query.Take, 1, 500)).ToList();
+    }
+
+    private const string Success = "SUCCESS";
+    private const string Failed = "FAILED";
+    private const string Warning = "WARNING";
+    private const string Info = "INFO";
+
+    private static string PublishingOutcome(PublishingLogItemDto p) =>
+        p.ErrorCategory is not null || p.Status is "FAILED" or "RECONCILIATION_REQUIRED" ? Failed
+        : p.Status is "ACTION_REQUIRED" or "RETRY_PENDING" ? Warning
+        : Success;
+
+    private static string SystemOutcome(string level) => level switch
+    {
+        SystemEventLevels.Error or SystemEventLevels.Critical => Failed,
+        SystemEventLevels.Warning => Warning,
+        _ => Info,
+    };
+
     /// <summary>"host:pid:kind" worker ids → "host (pid)".</summary>
     private static string Instance(string workerId)
     {

@@ -273,6 +273,11 @@ public sealed class InternalController(
     [HttpGet("system-health")]
     public Task<IReadOnlyList<SystemHealthComponentDto>> SystemHealth(CancellationToken cancellationToken) => health.GetAsync(cancellationToken);
 
+    [HttpGet("logs/all")]
+    public Task<IReadOnlyList<ActivityLogItemDto>> AllLog([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? search,
+        [FromQuery] string? correlationId, [FromQuery] string? outcome, CancellationToken cancellationToken) =>
+        operations.AllLogAsync(Query(from, to, search, correlationId), outcome, cancellationToken);
+
     [HttpGet("logs/audit")]
     public Task<IReadOnlyList<AuditLogItemDto>> AuditLog([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? search,
         [FromQuery] string? correlationId, CancellationToken cancellationToken) =>

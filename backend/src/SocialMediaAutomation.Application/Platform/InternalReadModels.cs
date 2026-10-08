@@ -9,10 +9,10 @@ namespace SocialMediaAutomation.Application.Platform;
 // ---- Workspaces ----
 
 public sealed record WorkspaceListItemDto(
-    Guid Id, string Name, string? PrimaryAdminName, string? PrimaryAdminEmail, int Members, int Campaigns, int SocialAccounts,
+    Guid Id, string Name, string? PrimaryAdminName, string? PrimaryAdminEmail, int Members, int SocialAccounts,
     OrganizationStatus Status, DateTime CreatedAtUtc, DateTime? LastActivityAtUtc);
 
-public sealed record WorkspaceUsageDto(int Members, int Campaigns, int Posts, int ConnectedSocialAccounts, int AiRequests, int PublishedPosts);
+public sealed record WorkspaceUsageDto(int Members, int Posts, int ConnectedSocialAccounts, int AiRequests, int PublishedPosts);
 
 public sealed record WorkspaceMemberDto(Guid UserId, string Name, string Email, OrganizationRole Role, MembershipStatus Status);
 
@@ -58,7 +58,7 @@ public sealed record PublishingQueueViewDto(PublishingQueueSummaryItemsDto Summa
 public sealed record PublicationQueryDto(Guid? OrganizationId, SocialPlatform? Platform, DateTime? FromUtc, DateTime? ToUtc, IReadOnlyList<DeliveryState>? States);
 
 public sealed record PublicationListItemDto(
-    Guid Id, Guid OrganizationId, string WorkspaceName, Guid? CampaignId, string? CampaignName, Guid PostId, int VersionNumber, SocialPlatform Platform,
+    Guid Id, Guid OrganizationId, string WorkspaceName, Guid PostId, int VersionNumber, SocialPlatform Platform,
     string Destination, ExecutionMode ExecutionMode, DateTime PublishAtUtc, DeliveryState State, int Attempts, int MaxAttempts, string? Worker,
     string? LastErrorCode, string? LastErrorMessage, string? CorrelationId, DateTime CreatedAtUtc);
 
@@ -97,6 +97,13 @@ public sealed record PublishingLogItemDto(
     string? ProviderRequestId, int? DurationMs, int? Attempt, string? ErrorCategory, string? Error, string? CorrelationId);
 
 public sealed record SystemLogItemDto(Guid Id, DateTime AtUtc, string Level, string Service, string Event, string Message, string? CorrelationId);
+
+/// <summary>
+/// One row of the combined timeline (Logs → All): every audit action, sign-in, AI request, publishing step and system
+/// event, newest first. Outcome is SUCCESS, FAILED, WARNING or INFO.
+/// </summary>
+public sealed record ActivityLogItemDto(
+    Guid Id, DateTime AtUtc, string Source, string Outcome, string? Actor, string? Workspace, string Event, string Message, string? CorrelationId);
 
 // ---- Provider / AI activity used by configuration status and health ----
 
@@ -137,7 +144,8 @@ public interface IInternalQueries
     Task<IReadOnlyList<SystemLogItemDto>> SystemLogAsync(LogQueryDto query, string? level, string? service, CancellationToken cancellationToken);
 
     /// <param name="images">True for image generation activity; false for text (generation, rewrite, evaluation).</param>
-    Task<AiActivityDto> AiActivityAsync(DateTime utcNow, CancellationToken cancellationToken, bool images = false);
+    /// <summary>AI call activity; <paramref name="provider"/> limits it to that provider's calls (so switching provider starts a clean history).</summary>
+    Task<AiActivityDto> AiActivityAsync(DateTime utcNow, CancellationToken cancellationToken, bool images = false, AiProvider? provider = null);
 
     Task<ProviderActivityDto> ProviderActivityAsync(IReadOnlyCollection<SocialPlatform> platforms, DateTime utcNow, CancellationToken cancellationToken);
 

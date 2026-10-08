@@ -653,7 +653,7 @@ The in-flight publication history must remain intact.
 
 # 22. Media Requirements
 
-For the MVP, one image per content version is enough.
+A content version carries 0 to 4 images in a fixed order, each with its own alt text (scope change, approved 2026-10-08; previously one image). The order and every image are part of the approved payload; reordering, adding or removing an image creates a new version.
 
 Upload should validate:
 
@@ -715,7 +715,7 @@ A post may proceed through review and scheduling using `SIMULATED` mode so the c
 Target:
 
 - text post
-- optional single image
+- optional image, or a 2-4 image multi-image post
 - authorized member or organization destination
 
 ## 24.2 Facebook
@@ -723,14 +723,14 @@ Target:
 Target:
 
 - Page text/link post
-- or single image Page post
+- or single photo Page post, or a 2-4 photo Page post
 
 ## 24.3 Instagram
 
 Target:
 
 - Professional account
-- single image
+- single image or a 2-4 image carousel
 - caption
 
 Video, Reels, Stories, advertising, and direct-message automation are not MVP requirements.

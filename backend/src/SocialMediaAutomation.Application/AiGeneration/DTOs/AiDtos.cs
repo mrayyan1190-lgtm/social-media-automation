@@ -20,7 +20,6 @@ public sealed record AiOutputDto(SocialPlatform Platform, Guid PostId, Guid Post
 
 public sealed record AiGenerationRequestDto(
     Guid Id,
-    Guid? CampaignId,
     AiRequestKind Kind,
     IReadOnlyList<SocialPlatform> Platforms,
     Guid? PostId,
@@ -40,7 +39,7 @@ public sealed record AiGenerationRequestDto(
     string? Warning)
 {
     public static AiGenerationRequestDto From(AiGenerationRequest r, IReadOnlyList<AiOutputDto> outputs) => new(
-        r.Id, r.CampaignId, r.Kind, r.Platforms, r.PostId, r.SourceVersionId, r.RewriteAction, r.Status, r.AttemptCount, r.MaxAttempts,
+        r.Id, r.Kind, r.Platforms, r.PostId, r.SourceVersionId, r.RewriteAction, r.Status, r.AttemptCount, r.MaxAttempts,
         r.FailureCode, CustomerFailureMessage(r.FailureCode, r.FailureMessage), r.Provider, r.Model, r.CreatedAtUtc, r.CompletedAtUtc,
         outputs, r.Stage, r.Warning);
 
@@ -57,6 +56,7 @@ public sealed record AiGenerationRequestDto(
         AiFailureCodes.OutputInvalid => "The AI returned a result that could not be used. Please try again.",
         AiFailureCodes.WorkerLost => "The request was interrupted. Please try again.",
         AiFailureCodes.Unexpected => "Something went wrong while writing the posts. Please try again.",
+        AiFailureCodes.ImageNotSuitable => "The generated image could not be used for this platform. Please try again.",
         _ => message,
     };
 }

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SocialMediaAutomation.Application.Abstractions;
 using SocialMediaAutomation.Application.Publications.DTOs;
+using SocialMediaAutomation.Application.Publications.Services;
 using SocialMediaAutomation.Domain.Entities;
 
 namespace SocialMediaAutomation.Infrastructure.Persistence.Repositories;
@@ -31,13 +32,18 @@ internal sealed class PublicationRepository(CoreDbContext db) : IPublicationRepo
         db.PublicationAttempts.Where(a => a.PublicationJobId == jobId && a.FinishedAtUtc == null)
             .OrderByDescending(a => a.StartedAtUtc).FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<IReadOnlyList<PublicationAttemptDto>> ListAttemptsAsync(Guid organizationId, Guid jobId, CancellationToken cancellationToken) =>
-        await db.PublicationAttempts.AsNoTracking()
+    public async Task<IReadOnlyList<PublicationAttemptDto>> ListAttemptsAsync(Guid organizationId, Guid jobId, CancellationToken cancellationToken)
+    {
+        var platform = await db.PublicationJobs.Where(j => j.Id == jobId).Select(j => j.Platform).FirstOrDefaultAsync(cancellationToken);
+        var attempts = await db.PublicationAttempts.AsNoTracking()
             .Where(a => a.OrganizationId == organizationId && a.PublicationJobId == jobId)
             .OrderBy(a => a.StartedAtUtc)
             .Select(a => new PublicationAttemptDto(a.Id, a.AttemptNumber, a.Step, a.StartedAtUtc, a.FinishedAtUtc, a.ResultState, a.ErrorCategory,
                 a.ErrorCode, a.ErrorMessage, a.ProviderRequestId, a.ExternalId, a.Detail))
             .ToListAsync(cancellationToken);
+        // Workspace users get plain text; provider details stay for the admin panel.
+        return attempts.Select(a => a with { ErrorMessage = PublicationErrorText.ForCustomer(platform, a.ErrorCode, a.ErrorMessage) }).ToList();
+    }
 
     public async Task<IReadOnlyDictionary<DeliveryState, int>> CountByDeliveryStateAsync(Guid organizationId, CancellationToken cancellationToken) =>
         await db.PublicationJobs.Where(j => j.OrganizationId == organizationId)
@@ -63,16 +69,16 @@ internal sealed class PublicationRepository(CoreDbContext db) : IPublicationRepo
         var rows = await (from j in jobs.Take(query.Take)
                join v in db.PostVersions on j.PostVersionId equals v.Id
                join p in db.Posts on j.PostId equals p.Id
-               join c in db.Campaigns on p.CampaignId equals c.Id into folders
-               from c in folders.DefaultIfEmpty()
                join a in db.SocialAccounts on j.SocialAccountId equals a.Id
-               select new PublicationJobDto(j.Id, j.PostId, j.PostVersionId, v.VersionNumber, p.CampaignId, c == null ? null : c.Name, j.Platform, j.SocialAccountId, a.DisplayName,
+               select new PublicationJobDto(j.Id, j.PostId, j.PostVersionId, v.VersionNumber, j.Platform, j.SocialAccountId, a.DisplayName,
                    j.ExecutionMode, j.DeliveryState, j.PublishAtUtc, j.LocalPublishAt, j.TimeZoneId, j.UtcOffsetMinutes, j.PayloadHash,
                    j.AttemptCount, j.MaxAttempts, j.ExternalPostId, j.ExternalPostUrl, j.LastErrorCode, j.LastErrorMessage, j.CreatedAtUtc, j.CanceledAtUtc,
                    j.DeliveryState == DeliveryState.SCHEDULED || j.DeliveryState == DeliveryState.RETRY_PENDING || j.DeliveryState == DeliveryState.ACTION_REQUIRED,
                    j.DeliveryState == DeliveryState.SCHEDULED || j.DeliveryState == DeliveryState.CANCELED,
                    j.RowVersion))
             .ToListAsync(cancellationToken);
+        // Workspace users get plain text; provider details stay for the admin panel.
+        rows = rows.Select(r => r with { LastErrorMessage = PublicationErrorText.ForCustomer(r.Platform, r.LastErrorCode, r.LastErrorMessage) }).ToList();
         // Joins do not guarantee the order of the limited subquery; sort the (bounded) result explicitly.
         return query.SoonestFirst ? rows.OrderBy(r => r.PublishAtUtc).ToList() : rows.OrderByDescending(r => r.PublishAtUtc).ToList();
     }

@@ -8,7 +8,6 @@ using SocialMediaAutomation.Application.Notifications.Services;
 using SocialMediaAutomation.Application.Reviews.Services;
 using SocialMediaAutomation.Application.SocialAccounts.Services;
 using SocialMediaAutomation.Application.BrandProfiles.Services;
-using SocialMediaAutomation.Application.Campaigns.Services;
 using SocialMediaAutomation.Application.Media.Services;
 using SocialMediaAutomation.Application.Posts.Services;
 using SocialMediaAutomation.Application.Common.Authorization;
@@ -31,7 +30,6 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<OrganizationService>();
         services.AddScoped<OrganizationMemberService>();
         services.AddScoped<BrandProfileService>();
-        services.AddScoped<CampaignService>();
         services.AddScoped<MediaService>();
         services.AddScoped<PostService>();
         services.AddScoped<AiSettingsService>();

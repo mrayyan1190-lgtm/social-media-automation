@@ -13,7 +13,6 @@ public sealed class ActivityRecorder(IActivityRepository activity, IOrganization
 {
     public const string OrganizationResource = "Organization";
     public const string BrandProfileResource = "BrandProfile";
-    public const string CampaignResource = "Campaign";
     public const string PostResource = "Post";
     public const string ReviewResource = "ReviewRequest";
     public const string SocialAccountResource = "SocialAccount";

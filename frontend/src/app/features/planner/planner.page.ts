@@ -2,12 +2,13 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { AuthService } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PlatformIconComponent } from '../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { CUSTOMER_STATUSES, CustomerStatus, customerStatus, statusGroup } from '../../shared/models/states';
-import { SOCIAL_PLATFORMS } from '../campaigns/models/campaign.model';
+import { SOCIAL_PLATFORMS } from '../../shared/models/platform.model';
 import { PostListItem } from '../content/models/post.model';
 import { PostApiService } from '../content/services/post-api.service';
 import { dayKeyInZone, formatInZone } from '../publications/models/time-zones';
@@ -44,12 +45,13 @@ interface Row extends PostListItem {
 })
 export class PlannerPage {
   private readonly postsApi = inject(PostApiService);
+  private readonly auth = inject(AuthService);
   protected readonly workspace = inject(WorkspaceService);
 
   /** Query parameters from the sidebar shortcuts: ?status=Draft (a list filter) or ?view=list. */
   readonly statusQuery = input<string>(undefined, { alias: 'status' });
   readonly viewQuery = input<string>(undefined, { alias: 'view' });
-  /** ?q= from the topbar search: matches the post text, campaign and author. */
+  /** ?q= from the topbar search: matches the post text and author. */
   readonly searchQuery = input<string>(undefined, { alias: 'q' });
 
   protected readonly platforms = SOCIAL_PLATFORMS;
@@ -61,16 +63,11 @@ export class PlannerPage {
   protected readonly layout = signal<'calendar' | 'list'>('calendar');
 
   protected readonly platform = signal('');
-  protected readonly campaign = signal('');
   protected readonly status = signal('');
   protected readonly range = signal<DateRange>('');
   protected readonly month = signal(this.thisMonth);
 
-  protected readonly campaigns = computed(() =>
-    [...new Map(this.rows().filter((r) => r.campaignId).map((r) => [r.campaignId!, r.campaignName!])).entries()]
-      .map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)));
-
-  protected readonly filtersActive = computed(() => !!(this.platform() || this.campaign() || this.status() || this.range() || this.searchQuery()));
+  protected readonly filtersActive = computed(() => !!(this.platform() || this.status() || this.range() || this.searchQuery()));
 
   protected readonly filtered = computed(() => {
     const zone = this.workspace.timeZone();
@@ -78,10 +75,10 @@ export class PlannerPage {
     const shift = (days: number) => dayKeyInZone(new Date(Date.now() + days * 864e5).toISOString(), zone);
     const q = (this.searchQuery() ?? '').trim().toLowerCase();
     return this.rows().filter((r) => {
-      if (q && ![r.hook, r.bodyExcerpt, r.campaignName, r.createdByName].some((t) => t?.toLowerCase().includes(q))) return false;
+      if (q && ![r.hook, r.bodyExcerpt, r.createdByName].some((t) => t?.toLowerCase().includes(q))) return false;
       if (this.platform() && r.platform !== this.platform()) return false;
-      if (this.campaign() === 'none' ? !!r.campaignId : this.campaign() && r.campaignId !== this.campaign()) return false;
-      if (this.status() && statusGroup(r.status) !== this.status()) return false;
+      // A filter may name several statuses ("Approved,Scheduled" from the Creator menu).
+      if (this.status() && !this.status().split(',').includes(statusGroup(r.status))) return false;
       if (this.range()) {
         const day = dayKeyInZone(r.publishAt ?? r.updatedAtUtc, zone);
         if (this.range() === 'today' && day !== today) return false;
@@ -173,7 +170,6 @@ export class PlannerPage {
 
   protected clear(): void {
     this.platform.set('');
-    this.campaign.set('');
     this.status.set('');
     this.range.set('');
   }
@@ -182,7 +178,10 @@ export class PlannerPage {
     this.loading.set(true);
     this.problem.set(null);
     try {
-      const posts = await firstValueFrom(this.postsApi.listAll(orgId));
+      const all = await firstValueFrom(this.postsApi.listAll(orgId));
+      // Admins plan the whole workspace; a Creator's Planner (and its sidebar counts) covers their own posts.
+      const me = this.auth.me()?.userId;
+      const posts = this.workspace.isAdmin() ? all : all.filter((p) => p.createdByUserId === me);
       this.rows.set(posts.map((p) => {
         const status = customerStatus(p.editorialState, p.latestDeliveryState);
         // A canceled intent no longer has a publishing date; neither does an approved post that was never scheduled.

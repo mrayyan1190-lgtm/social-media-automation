@@ -12,8 +12,6 @@ public sealed record PublicationJobDto(
     Guid PostId,
     Guid PostVersionId,
     int VersionNumber,
-    Guid? CampaignId,
-    string? CampaignName,
     SocialPlatform Platform,
     Guid SocialAccountId,
     string DestinationName,

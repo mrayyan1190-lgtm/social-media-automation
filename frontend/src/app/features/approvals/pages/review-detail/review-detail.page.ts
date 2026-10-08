@@ -98,13 +98,10 @@ export class ReviewDetailPage {
     try {
       await action(orgId, detail.review);
       this.showChangesForm.set(false);
-      // After approval, go to Approvals → Approved to schedule or publish; after changes were requested, to the post to edit it.
+      // After approval, go to Approvals → Approved to schedule or publish. After requesting changes the reviewer stays
+      // here: the creator makes the edits (they are notified and the notification opens the post in Composer).
       if (message.startsWith('Approved')) {
         await this.router.navigate(['/approvals'], { queryParams: { tab: 'approved' } });
-        return;
-      }
-      if (this.workspace.canManageCampaigns()) {
-        await this.router.navigate(['/composer', detail.review.postId]);
         return;
       }
       this.notice.set(message);

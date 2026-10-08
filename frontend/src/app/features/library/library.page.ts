@@ -23,7 +23,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
         <h1>Media Library</h1>
         <p class="muted">Images for your posts. JPEG or PNG, up to 8 MB. Attach an image from a post's page.</p>
       </div>
-      @if (workspace.canManageCampaigns()) {
+      @if (workspace.canManageContent()) {
         <label class="button primary">
           <app-icon name="upload" [size]="16" />{{ uploading() ? 'Uploading…' : 'Upload Image' }}
           <input type="file" accept="image/jpeg,image/png" hidden (change)="upload($event)" [disabled]="uploading()" />

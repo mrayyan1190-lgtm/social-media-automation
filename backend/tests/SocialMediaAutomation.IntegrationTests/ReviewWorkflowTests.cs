@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using SocialMediaAutomation.Application.Audit.DTOs;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Notifications.DTOs;
 using SocialMediaAutomation.Application.Organizations.DTOs;
 using SocialMediaAutomation.Application.Posts.DTOs;
@@ -34,8 +33,7 @@ public class ReviewWorkflowTests(ApiFactory factory)
         CallToAction = "Book a demo",
         DestinationUrl = "https://brightline.example/demo",
         Hashtags = new[] { "FinanceOps" },
-        MediaAssetId = mediaId,
-        AltText = mediaId is null ? null : "Dashboard screenshot",
+        Images = mediaId is null ? null : new[] { new { MediaAssetId = mediaId, AltText = "Dashboard screenshot" } },
         SocialAccountId = destination,
     };
 
@@ -43,14 +41,13 @@ public class ReviewWorkflowTests(ApiFactory factory)
         (await (await client.GetAsync($"{(org.Length > 0 ? org : OrgA)}/social-accounts?platform={platform}")).ReadAsync<List<SocialAccountDto>>())
         .First(a => a.ExecutionMode == mode);
 
-    private async Task<(HttpClient Creator, PostDto Post, string CampaignUrl)> DraftAsync(string platform = "LinkedIn", bool withDestination = true, string body = "Close the books in days, not weeks.")
+    private async Task<(HttpClient Creator, PostDto Post, string OrgUrl)> DraftAsync(string platform = "LinkedIn", bool withDestination = true, string body = "Close the books in days, not weeks.")
     {
         var creator = await factory.SignInAsync(DemoData.CreatorA);
-        var campaign = await creator.CreateCampaignAsync(OrgA);
         var destination = withDestination ? (await AccountAsync(creator, platform)).Id : (Guid?)null;
-        var post = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
+        var post = await (await creator.CreatePostAsync(OrgA,
             new { Platform = platform, Hook = "Month-end, minus the pain", Body = body, Hashtags = new[] { "FinanceOps" }, SocialAccountId = destination })).ReadAsync<PostDto>();
-        return (creator, post, $"{OrgA}/campaigns/{campaign.Id}");
+        return (creator, post, OrgA);
     }
 
     private static Task<HttpResponseMessage> PostWithETagAsync(HttpClient client, string url, object? body, byte[] rowVersion) =>
@@ -114,10 +111,10 @@ public class ReviewWorkflowTests(ApiFactory factory)
     [Trait("Acceptance", "14 Instagram requires image")]
     public async Task Submission_requires_destination_eligible_mode_media_and_no_critical_blockers()
     {
-        var (creator, noDestination, campaignUrl) = await DraftAsync(withDestination: false);
+        var (creator, noDestination, orgUrl) = await DraftAsync(withDestination: false);
         var notConfigured = await AccountAsync(creator, "Facebook", ExecutionMode.NOT_CONFIGURED);
-        var facebook = await (await creator.CreatePostAsync(campaignUrl, new { Platform = "Facebook", Body = "Hello", SocialAccountId = notConfigured.Id })).ReadAsync<PostDto>();
-        var instagram = await (await creator.CreatePostAsync(campaignUrl,
+        var facebook = await (await creator.CreatePostAsync(orgUrl, new { Platform = "Facebook", Body = "Hello", SocialAccountId = notConfigured.Id })).ReadAsync<PostDto>();
+        var instagram = await (await creator.CreatePostAsync(orgUrl,
             new { Platform = "Instagram", Body = "Visual", SocialAccountId = (await AccountAsync(creator, "Instagram")).Id })).ReadAsync<PostDto>();
         var (_, prohibited, _) = await DraftAsync(body: "Results guaranteed. See https://evil.example/x");
 
@@ -144,14 +141,14 @@ public class ReviewWorkflowTests(ApiFactory factory)
     public async Task Instagram_with_jpeg_image_and_simulated_destination_can_be_submitted()
     {
         var creator = await factory.SignInAsync(DemoData.CreatorA);
-        var (_, _, campaignUrl) = await DraftAsync();
+        var (_, _, orgUrl) = await DraftAsync();
         var file = new ByteArrayContent(ImageProbeTests.JpegHeader(1080, 1080));
         file.Headers.ContentType = new("image/jpeg");
         var image = await (await creator.PostAsync($"{OrgA}/media", new MultipartFormDataContent { { file, "file", "a.jpg" } }))
             .ReadAsync<Application.Media.DTOs.MediaAssetDto>();
-        var instagram = await (await creator.CreatePostAsync(campaignUrl, new
+        var instagram = await (await creator.CreatePostAsync(orgUrl, new
         {
-            Platform = "Instagram", Body = "Visual", MediaAssetId = image.Id, AltText = "Blue dashboard", SocialAccountId = (await AccountAsync(creator, "Instagram")).Id,
+            Platform = "Instagram", Body = "Visual", Images = new[] { new { MediaAssetId = image.Id, AltText = "Blue dashboard" } }, SocialAccountId = (await AccountAsync(creator, "Instagram")).Id,
         })).ReadAsync<PostDto>();
 
         await SubmittedAsync(creator, instagram);
@@ -264,7 +261,7 @@ public class ReviewWorkflowTests(ApiFactory factory)
         var version = await db.PostVersions.AsNoTracking().SingleAsync(v => v.Id == review.PostVersionId);
         var postRow = await db.Posts.AsNoTracking().SingleAsync(p => p.Id == post.Id);
         var account = await db.SocialAccounts.AsNoTracking().SingleAsync(a => a.Id == version.SocialAccountId);
-        var recomputed = ApprovalPayload.From(postRow, version, account, null);
+        var recomputed = ApprovalPayload.From(postRow, version, account, []);
         Assert.Equal(recomputed.ComputeHash(), row.ApprovedPayloadHash);
         Assert.Equal(recomputed.ToCanonicalJson(), row.ApprovedPayloadJson);
         Assert.Equal(ApprovalPayload.CurrentVersion, row.ApprovedPayloadVersion);
@@ -392,7 +389,7 @@ public class ReviewWorkflowTests(ApiFactory factory)
     // ---- Review screen -------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Review_screen_shows_exact_content_campaign_destination_and_comments()
+    public async Task Review_screen_shows_exact_content_destination_and_comments()
     {
         var (creator, post, _) = await DraftAsync();
         var review = await SubmittedAsync(creator, post);
@@ -405,7 +402,6 @@ public class ReviewWorkflowTests(ApiFactory factory)
         var detail = await (await reviewer.GetAsync($"{OrgA}/review-requests/{review.Id}")).ReadAsync<ReviewDetailDto>();
 
         Assert.Equal((post.CurrentVersionId, 1, "Close the books in days, not weeks."), (detail.Version.Id, detail.Version.VersionNumber, detail.Version.Body));
-        Assert.NotNull(detail.Review.CampaignName);
         Assert.Equal((ExecutionMode.SIMULATED, SocialPlatform.LinkedIn), (detail.Destination!.ExecutionMode, detail.Destination.Platform));
         Assert.Equal(["Can we cite the source?", "Added in the notes."], detail.Comments.Select(c => c.Body));
         Assert.True(detail.IsCurrentVersion);

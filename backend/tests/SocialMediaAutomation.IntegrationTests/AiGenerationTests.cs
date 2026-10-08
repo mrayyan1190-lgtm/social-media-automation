@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using SocialMediaAutomation.Application.AiGeneration.Services;
 using SocialMediaAutomation.Application.Abstractions;
 using SocialMediaAutomation.Application.AiGeneration.DTOs;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Organizations.DTOs;
 using SocialMediaAutomation.Application.Posts.DTOs;
 using SocialMediaAutomation.Domain.Constants;
@@ -71,20 +70,29 @@ public class AiGenerationTests(ApiFactory factory)
         return admin;
     }
 
-    /// <summary>AI configured and a fresh campaign folder, so each test sees only its own drafts.</summary>
-    private async Task<(HttpClient Creator, CampaignDto Campaign)> SetupAsync()
+    /// <summary>AI configured and a unique prompt tag, so a test never picks up another test's still-active request.</summary>
+    private async Task<(HttpClient Creator, string Tag)> SetupAsync()
     {
         await EnsureAiConfiguredAsync();
-        var creator = await factory.SignInAsync(DemoData.CreatorA);
-        return (creator, await creator.CreateCampaignAsync(OrgA));
+        return (await factory.SignInAsync(DemoData.CreatorA), Guid.NewGuid().ToString("N")[..8]);
     }
 
-    private static object GenerationBody(Guid campaignId) =>
-        new { Prompt, Platforms = new[] { "LinkedIn", "Facebook", "Instagram" }, CampaignId = campaignId };
+    private static object GenerationBody(string tag) =>
+        new { Prompt = $"{Prompt} Ref {tag}.", Platforms = new[] { "LinkedIn", "Facebook", "Instagram" } };
 
-    private static async Task<AiGenerationRequestDto> RequestGenerationAsync(HttpClient client, Guid campaignId)
+    /// <summary>The drafts the request wrote, from the workspace post list.</summary>
+    private static async Task<List<PostListItemDto>> DraftsOfAsync(HttpClient client, Guid requestId)
     {
-        var response = await client.PostAsJsonAsync($"{OrgA}/ai-generations", GenerationBody(campaignId));
+        var ids = (await GetRequestAsync(client, requestId)).Outputs.Select(o => o.PostId).ToHashSet();
+        return (await PostsAsync(client)).Where(p => ids.Contains(p.Id)).ToList();
+    }
+
+    private static async Task<List<PostListItemDto>> PostsAsync(HttpClient client) =>
+        await (await client.GetAsync($"{OrgA}/posts")).ReadAsync<List<PostListItemDto>>();
+
+    private static async Task<AiGenerationRequestDto> RequestGenerationAsync(HttpClient client, string tag)
+    {
+        var response = await client.PostAsJsonAsync($"{OrgA}/ai-generations", GenerationBody(tag));
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         return await response.ReadAsync<AiGenerationRequestDto>();
     }
@@ -103,11 +111,11 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Generation_request_is_durable_and_returns_before_any_llm_call()
     {
-        var (creator, campaign) = await SetupAsync();
+        var (creator, tag) = await SetupAsync();
         var callsBefore = factory.Llm.Calls.Count;
 
-        var queued = await RequestGenerationAsync(creator, campaign.Id);
-        var again = await RequestGenerationAsync(creator, campaign.Id);
+        var queued = await RequestGenerationAsync(creator, tag);
+        var again = await RequestGenerationAsync(creator, tag);
 
         Assert.Equal(AiRequestStatus.PENDING, queued.Status);
         Assert.Equal(callsBefore, factory.Llm.Calls.Count); // the HTTP request never waited on the model
@@ -119,7 +127,6 @@ public class AiGenerationTests(ApiFactory factory)
             Assert.Contains("Brightline Analytics", row.InputSnapshot);
             Assert.DoesNotContain(ApiKey, row.InputSnapshot);
             Assert.Equal(("generation-v4", "content-v2", "gpt-test-mini"), (row.PromptVersion, row.SchemaVersion, row.Model));
-            Assert.Equal(campaign.Id, row.CampaignId);
         }
 
         Script(_ => Generation());
@@ -130,8 +137,8 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Two_workers_cannot_claim_the_same_request()
     {
-        var (creator, campaign) = await SetupAsync();
-        var queued = await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var queued = await RequestGenerationAsync(creator, tag);
 
         var claims = await Task.WhenAll(Enumerable.Range(0, 8).Select(async i =>
         {
@@ -162,13 +169,13 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Worker_creates_one_post_with_version_1_per_platform_and_records_metadata()
     {
-        var (creator, campaign) = await SetupAsync();
-        var queued = await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var queued = await RequestGenerationAsync(creator, tag);
         Script(_ => Generation());
 
         await factory.DrainAiQueueAsync();
         var done = await GetRequestAsync(creator, queued.Id);
-        var posts = await (await creator.GetAsync($"{OrgA}/posts?campaignId={campaign.Id}")).ReadAsync<List<PostListItemDto>>();
+        var posts = await DraftsOfAsync(creator, queued.Id);
 
         Assert.Equal(AiRequestStatus.COMPLETED, done.Status);
         Assert.Equal(3, done.Outputs.Count);
@@ -182,7 +189,6 @@ public class AiGenerationTests(ApiFactory factory)
             Assert.Equal(PostVersionSource.AiGeneration, detail.CurrentVersion.CreationSource);
             Assert.Equal(DemoData.CreatorA.Id, detail.CurrentVersion.CreatedByUserId);
             Assert.Null(detail.CurrentVersion.DestinationUrl); // the model never sets the link; a person adds it in Composer
-            Assert.Equal(campaign.Id, detail.CampaignId);
             bodies.Add(detail.CurrentVersion.Body);
             var evaluation = Assert.Single(await (await creator.GetAsync($"{OrgA}/posts/{post.Id}/evaluations")).ReadAsync<List<ContentEvaluationDto>>());
             Assert.Equal(detail.CurrentVersionId, evaluation.PostVersionId);
@@ -205,8 +211,9 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Malformed_output_is_never_persisted_and_fails_after_bounded_retries()
     {
-        var (creator, campaign) = await SetupAsync();
-        var queued = await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var postsBefore = (await PostsAsync(creator)).Count;
+        var queued = await RequestGenerationAsync(creator, tag);
         Script(_ => "Sure! Here are your posts: LinkedIn - ...");
 
         await factory.DrainAiQueueAsync();
@@ -217,11 +224,11 @@ public class AiGenerationTests(ApiFactory factory)
             await factory.DrainAiQueueAsync();
         }
         var final = await GetRequestAsync(creator, queued.Id);
-        var posts = await (await creator.GetAsync($"{OrgA}/posts?campaignId={campaign.Id}")).ReadAsync<List<PostListItemDto>>();
+        var postsAfter = (await PostsAsync(creator)).Count;
 
         Assert.Equal((AiRequestStatus.PENDING, 1, AiFailureCodes.OutputInvalid), (afterFirst.Status, afterFirst.AttemptCount, afterFirst.FailureCode));
         Assert.Equal((AiRequestStatus.FAILED, 3, AiFailureCodes.OutputInvalid), (final.Status, final.AttemptCount, final.FailureCode));
-        Assert.Empty(posts);
+        Assert.Equal(postsBefore, postsAfter);
         await using var db = factory.CreateDbContext();
         var logs = await db.AiCallLogs.AsNoTracking().Where(l => l.RequestId == queued.Id).ToListAsync();
         Assert.Equal(3, logs.Count);
@@ -232,8 +239,9 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Output_missing_a_requested_platform_is_rejected()
     {
-        var (creator, campaign) = await SetupAsync();
-        var queued = await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var postsBefore = (await PostsAsync(creator)).Count;
+        var queued = await RequestGenerationAsync(creator, tag);
         Script(_ => $$"""{"schemaVersion":"content-v2","variants":[{{Variant("LinkedIn", "Only one")}}]}""");
 
         await factory.DrainAiQueueAsync();
@@ -241,7 +249,7 @@ public class AiGenerationTests(ApiFactory factory)
 
         Assert.Equal(AiFailureCodes.OutputInvalid, result.FailureCode);
         Assert.Contains("Missing variants", result.FailureMessage);
-        Assert.Empty(await (await creator.GetAsync($"{OrgA}/posts?campaignId={campaign.Id}")).ReadAsync<List<PostListItemDto>>());
+        Assert.Equal(postsBefore, (await PostsAsync(creator)).Count);
         await using var db = factory.CreateDbContext();
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE AiGenerationRequests SET Status = 'FAILED' WHERE Id = {queued.Id}");
     }
@@ -251,8 +259,8 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Transient_provider_failure_is_retried_and_auth_failure_is_final()
     {
-        var (creator, campaign) = await SetupAsync();
-        var queued = await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var queued = await RequestGenerationAsync(creator, tag);
 
         factory.Llm.Handler = (_, _) => throw new LlmException(LlmErrorKind.Transient, "HTTP 503", 503, 40, "upstream overloaded");
         await factory.DrainAiQueueAsync();
@@ -266,8 +274,8 @@ public class AiGenerationTests(ApiFactory factory)
         Assert.Equal((AiRequestStatus.PENDING, AiFailureCodes.ProviderUnavailable), (retrying.Status, retrying.FailureCode));
         Assert.Equal((AiRequestStatus.COMPLETED, 2), (recovered.Status, recovered.AttemptCount));
 
-        var (creator2, campaign2) = await SetupAsync();
-        var second = await RequestGenerationAsync(creator2, campaign2.Id);
+        var (creator2, tag2) = await SetupAsync();
+        var second = await RequestGenerationAsync(creator2, tag2);
         factory.Llm.Handler = (_, _) => throw new LlmException(LlmErrorKind.Authentication, "The provider rejected the API key.", 401, 30, null);
         await factory.DrainAiQueueAsync();
         var failed = await GetRequestAsync(creator2, second.Id);
@@ -280,8 +288,8 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Unsupported_claims_and_prohibited_terms_become_critical_issues()
     {
-        var (creator, campaign) = await SetupAsync();
-        var queued = await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var queued = await RequestGenerationAsync(creator, tag);
         Script(
             _ => Generation(linkedInBody: "Customers save 50% of reporting time. Results guaranteed."),
             _ => Evaluation(("LinkedIn", "Customers save 50% of reporting time"), ("Facebook", null), ("Instagram", null)));
@@ -304,11 +312,11 @@ public class AiGenerationTests(ApiFactory factory)
     [Trait("Acceptance", "04 critical claim blocks review")]
     public async Task Critical_unsupported_claim_alone_blocks_submission_until_a_human_removes_it()
     {
-        var (creator, campaign) = await SetupAsync();
-        await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var queued = await RequestGenerationAsync(creator, tag);
         Script(_ => Generation());
         await factory.DrainAiQueueAsync();
-        var postId = (await (await creator.GetAsync($"{OrgA}/posts?campaignId={campaign.Id}")).ReadAsync<List<PostListItemDto>>())
+        var postId = (await DraftsOfAsync(creator, queued.Id))
             .Single(p => p.Platform == SocialPlatform.Facebook).Id;
         var destination = (await (await creator.GetAsync($"{OrgA}/social-accounts?platform=Facebook")).ReadAsync<List<SocialMediaAutomation.Application.SocialAccounts.DTOs.SocialAccountDto>>())
             .First(a => a.ExecutionMode == ExecutionMode.SIMULATED).Id;
@@ -350,11 +358,11 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Rewrite_creates_a_new_version_and_leaves_the_source_version_unchanged()
     {
-        var (creator, campaign) = await SetupAsync();
-        await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var queued = await RequestGenerationAsync(creator, tag);
         Script(_ => Generation());
         await factory.DrainAiQueueAsync();
-        var posts = await (await creator.GetAsync($"{OrgA}/posts?campaignId={campaign.Id}")).ReadAsync<List<PostListItemDto>>();
+        var posts = await DraftsOfAsync(creator, queued.Id);
         var before = await (await creator.GetAsync($"{OrgA}/posts/{posts.Single(p => p.Platform == SocialPlatform.Facebook).Id}")).ReadAsync<PostDto>();
 
         var rewrite = await creator.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{OrgA}/posts/{before.Id}/rewrites")
@@ -384,11 +392,11 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Rewrite_of_a_version_that_was_superseded_meanwhile_fails_without_writing()
     {
-        var (creator, campaign) = await SetupAsync();
-        await RequestGenerationAsync(creator, campaign.Id);
+        var (creator, tag) = await SetupAsync();
+        var generation = await RequestGenerationAsync(creator, tag);
         Script(_ => Generation());
         await factory.DrainAiQueueAsync();
-        var postId = (await (await creator.GetAsync($"{OrgA}/posts?campaignId={campaign.Id}")).ReadAsync<List<PostListItemDto>>())[0].Id;
+        var postId = (await DraftsOfAsync(creator, generation.Id))[0].Id;
         var post = await (await creator.GetAsync($"{OrgA}/posts/{postId}")).ReadAsync<PostDto>();
 
         var queued = await (await creator.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{OrgA}/posts/{postId}/rewrites")
@@ -416,14 +424,14 @@ public class AiGenerationTests(ApiFactory factory)
     [Fact]
     public async Task Reviewer_and_other_workspaces_cannot_request_generation()
     {
-        var (_, campaign) = await SetupAsync();
+        var (_, tag) = await SetupAsync();
         var reviewer = await factory.SignInAsync(DemoData.ReviewerA);
         var adminB = await factory.SignInAsync(DemoData.AdminB);
 
-        await (await reviewer.PostAsJsonAsync($"{OrgA}/ai-generations", GenerationBody(campaign.Id)))
+        await (await reviewer.PostAsJsonAsync($"{OrgA}/ai-generations", GenerationBody(tag)))
             .AssertErrorAsync(HttpStatusCode.Forbidden, ErrorCodes.Forbidden);
-        // Another workspace cannot file drafts into this workspace's campaign.
-        await (await adminB.PostAsJsonAsync($"/api/v1/organizations/{DemoData.OrganizationBId}/ai-generations", GenerationBody(campaign.Id)))
+        // A member of another workspace cannot generate drafts into this one.
+        await (await adminB.PostAsJsonAsync($"{OrgA}/ai-generations", GenerationBody(tag)))
             .AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await adminB.GetAsync($"{OrgA}/ai-settings")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
     }
@@ -433,9 +441,8 @@ public class AiGenerationTests(ApiFactory factory)
     {
         var adminB = await factory.SignInAsync(DemoData.AdminB);
         var org = await adminB.CreateWorkspaceAsync();
-        var campaign = await adminB.CreateCampaignAsync($"/api/v1/organizations/{org.Id}");
 
-        await (await adminB.PostAsJsonAsync($"/api/v1/organizations/{org.Id}/ai-generations", GenerationBody(campaign.Id)))
+        await (await adminB.PostAsJsonAsync($"/api/v1/organizations/{org.Id}/ai-generations", GenerationBody("none")))
             .AssertErrorAsync(HttpStatusCode.Conflict, ErrorCodes.AiNotConfigured);
     }
 

@@ -67,8 +67,8 @@ public class AiValidationTests
 
     private static PostVersion Version(SocialPlatform platform, string body, string[]? hashtags = null)
     {
-        return Post.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, platform, new PostContent("Hook", body, "Book a demo", null, hashtags ?? [], null, null),
-            null, null, PostVersionSource.AiGeneration, Guid.NewGuid(), DateTime.UtcNow).Version;
+        return Post.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), platform, new PostContent("Hook", body, "Book a demo", null, hashtags ?? [], null),
+            [], null, PostVersionSource.AiGeneration, Guid.NewGuid(), DateTime.UtcNow).Version;
     }
 
     private static IReadOnlyList<EvaluationIssue> Check(string body, string language = "en", SocialPlatform platform = SocialPlatform.LinkedIn, string[]? hashtags = null) =>

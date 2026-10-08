@@ -17,7 +17,7 @@ internal sealed class MediaRepository(CoreDbContext db) : IMediaRepository
             .OrderByDescending(m => m.CreatedAtUtc)
             .Select(m => new MediaLibraryItemDto(
                 new MediaAssetDto(m.Id, m.OriginalFileName, m.ContentType, m.SizeBytes, m.Width, m.Height, m.Sha256, m.SourceType, m.CreatedAtUtc),
-                db.PostVersions.Where(v => v.OrganizationId == organizationId && v.MediaAssetId == m.Id).Select(v => v.PostId).Distinct().Count()))
+                db.PostVersions.Where(v => v.OrganizationId == organizationId && v.Images.Any(i => i.MediaAssetId == m.Id)).Select(v => v.PostId).Distinct().Count()))
             .ToListAsync(cancellationToken);
 
     public void Add(MediaAsset asset) => db.MediaAssets.Add(asset);

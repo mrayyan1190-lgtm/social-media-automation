@@ -38,7 +38,7 @@ public sealed record PublishingOperationsDto(
 
 public sealed record ReconciliationItemDto(Guid JobId, string WorkspaceName, SocialPlatform Platform, string? ErrorCode, string? Reason, DateTime LastAttemptAtUtc);
 
-public sealed record WorkspaceRowDto(Guid Id, string Name, DateTime CreatedAtUtc, int Members, int Campaigns, OrganizationStatus Status);
+public sealed record WorkspaceRowDto(Guid Id, string Name, DateTime CreatedAtUtc, int Members, OrganizationStatus Status);
 
 public sealed record WorkspaceOverviewDto(int Total, int Active, int Suspended, int NewThisWeek, IReadOnlyList<WorkspaceRowDto> Latest);
 

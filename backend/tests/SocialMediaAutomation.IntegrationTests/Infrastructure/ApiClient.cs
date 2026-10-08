@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Organizations.DTOs;
 using SocialMediaAutomation.Infrastructure.Persistence.Seed;
 
@@ -23,34 +22,9 @@ internal static class ApiClient
         return client;
     }
 
-    /// <summary>A valid campaign (folder) request body.</summary>
-    public static object CampaignBody(string? name = null, string? color = "#2563EB", string? description = null) => new
-    {
-        Name = name ?? $"Campaign {Guid.NewGuid():N}",
-        Color = color,
-        Description = description,
-    };
-
-    /// <summary>Creates a campaign folder in the workspace.</summary>
-    /// <param name="organizationUrl">e.g. /api/v1/organizations/{id}</param>
-    public static Task<CampaignDto> CreateCampaignAsync(this HttpClient client, string organizationUrl) =>
-        client.CreateCampaignAsync(organizationUrl, CampaignBody());
-
-    public static async Task<CampaignDto> CreateCampaignAsync(this HttpClient client, string organizationUrl, object body) =>
-        await (await client.PostAsJsonAsync($"{organizationUrl}/campaigns", body)).ReadAsync<CampaignDto>();
-
-    /// <summary>Creates a post filed in the campaign at <paramref name="campaignUrl"/> ({org}/campaigns/{id}).</summary>
-    public static Task<HttpResponseMessage> CreatePostAsync(this HttpClient client, string campaignUrl, object body)
-    {
-        var json = JsonSerializer.SerializeToNode(body, Json)!.AsObject();
-        json["campaignId"] = campaignUrl.Split('/')[^1];
-        return client.PostAsJsonAsync($"{OrganizationOf(campaignUrl)}/posts", json, Json);
-    }
-
-    /// <summary>The post list of one campaign.</summary>
-    public static string PostsOf(string campaignUrl) => $"{OrganizationOf(campaignUrl)}/posts?campaignId={campaignUrl.Split('/')[^1]}";
-
-    private static string OrganizationOf(string campaignUrl) => campaignUrl[..campaignUrl.IndexOf("/campaigns/", StringComparison.Ordinal)];
+    /// <summary>Creates a post in the workspace at <paramref name="organizationUrl"/> (e.g. /api/v1/organizations/{id}).</summary>
+    public static Task<HttpResponseMessage> CreatePostAsync(this HttpClient client, string organizationUrl, object body) =>
+        client.PostAsJsonAsync($"{organizationUrl}/posts", body, Json);
 
     public static object WorkspaceBody(string? name = null, string timeZoneId = "Europe/Paris") =>
         new { Name = name ?? $"Workspace {Guid.NewGuid():N}", Industry = "Retail", TimeZoneId = timeZoneId };

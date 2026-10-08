@@ -91,7 +91,7 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                     b.ToTable("AiCallLogs", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AiCallLogs_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
+                            t.HasCheckConstraint("CK_AiCallLogs_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace', 'StabilityAI', 'CloudflareWorkersAI')");
 
                             t.HasCheckConstraint("CK_AiCallLogs_Purpose", "[Purpose] IN ('Generation', 'Evaluation', 'Rewrite', 'ModelListing', 'ImageGeneration')");
                         });
@@ -104,9 +104,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("AttemptCount")
                         .HasColumnType("int");
-
-                    b.Property<Guid?>("CampaignId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("datetime2(3)");
@@ -225,13 +222,13 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OrganizationId", "CreatedAtUtc");
+
                     b.HasIndex("OrganizationId", "PostId");
 
                     b.HasIndex("OrganizationId", "RequestedByUserId");
 
                     b.HasIndex("Status", "NextAttemptAtUtc");
-
-                    b.HasIndex("OrganizationId", "CampaignId", "CreatedAtUtc");
 
                     b.ToTable("AiGenerationRequests", null, t =>
                         {
@@ -241,7 +238,7 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("CK_AiGenerationRequests_Platforms_Json", "ISJSON([Platforms]) = 1");
 
-                            t.HasCheckConstraint("CK_AiGenerationRequests_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
+                            t.HasCheckConstraint("CK_AiGenerationRequests_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace', 'StabilityAI', 'CloudflareWorkersAI')");
 
                             t.HasCheckConstraint("CK_AiGenerationRequests_RewriteAction", "[RewriteAction] IN ('Rewrite', 'Regenerate', 'Shorten', 'Expand', 'MoreProfessional', 'ImproveHook', 'LessPromotional', 'Custom')");
 
@@ -306,7 +303,7 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                     b.ToTable("AiProviderSettings", null, t =>
                         {
-                            t.HasCheckConstraint("CK_AiProviderSettings_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
+                            t.HasCheckConstraint("CK_AiProviderSettings_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace', 'StabilityAI', 'CloudflareWorkersAI')");
                         });
                 });
 
@@ -466,71 +463,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_BrandProfiles_BrandTone", "[BrandTone] IN ('Professional', 'Friendly', 'Casual', 'Confident', 'Informative', 'Conversational')");
 
                             t.HasCheckConstraint("CK_BrandProfiles_ProhibitedTerms_Json", "ISJSON([ProhibitedTerms]) = 1");
-                        });
-                });
-
-            modelBuilder.Entity("SocialMediaAutomation.Domain.Entities.Campaign", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Color")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(7)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(7)")
-                        .HasDefaultValue("#2563EB");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2(3)");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasColumnName("Status");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime2(3)");
-
-                    b.Property<Guid>("UpdatedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId", "CreatedByUserId");
-
-                    b.HasIndex("OrganizationId", "UpdatedAtUtc");
-
-                    b.HasIndex("OrganizationId", "UpdatedByUserId");
-
-                    b.ToTable("Campaigns", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_Campaigns_Color", "[Color] LIKE '#[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]'");
-
-                            t.HasCheckConstraint("CK_Campaigns_Status", "[Status] IN ('Draft', 'Active', 'Archived')");
                         });
                 });
 
@@ -1069,9 +1001,9 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
                     b.ToTable("PlatformAiConfigurations", null, t =>
                         {
-                            t.HasCheckConstraint("CK_PlatformAiConfigurations_ImageProvider", "[ImageProvider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
+                            t.HasCheckConstraint("CK_PlatformAiConfigurations_ImageProvider", "[ImageProvider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace', 'StabilityAI', 'CloudflareWorkersAI')");
 
-                            t.HasCheckConstraint("CK_PlatformAiConfigurations_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace')");
+                            t.HasCheckConstraint("CK_PlatformAiConfigurations_Provider", "[Provider] IN ('OpenAI', 'Groq', 'OpenAICompatible', 'HuggingFace', 'StabilityAI', 'CloudflareWorkersAI')");
                         });
                 });
 
@@ -1158,9 +1090,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ActiveApprovalId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("CampaignId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2(3)");
 
@@ -1200,8 +1129,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[CurrentVersionId] IS NOT NULL");
 
-                    b.HasIndex("OrganizationId", "CampaignId");
-
                     b.HasIndex("OrganizationId", "CreatedByUserId");
 
                     b.HasIndex("OrganizationId", "Id", "CurrentVersionId", "ActiveApprovalId");
@@ -1220,10 +1147,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AltText")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("Body")
                         .IsRequired()
@@ -1259,9 +1182,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
-                    b.Property<Guid?>("MediaAssetId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1277,8 +1197,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationId", "CreatedByUserId");
-
-                    b.HasIndex("OrganizationId", "MediaAssetId");
 
                     b.HasIndex("OrganizationId", "SocialAccountId");
 
@@ -2001,12 +1919,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("SocialMediaAutomation.Domain.Entities.AiGenerationRequest", b =>
                 {
-                    b.HasOne("SocialMediaAutomation.Domain.Entities.Campaign", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId", "CampaignId")
-                        .HasPrincipalKey("OrganizationId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("SocialMediaAutomation.Domain.Entities.Post", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId", "PostId")
@@ -2073,29 +1985,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                     b.HasOne("SocialMediaAutomation.Domain.Entities.Organization", null)
                         .WithOne()
                         .HasForeignKey("SocialMediaAutomation.Domain.Entities.BrandProfile", "OrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SocialMediaAutomation.Domain.Entities.OrganizationMember", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId", "UpdatedByUserId")
-                        .HasPrincipalKey("OrganizationId", "UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SocialMediaAutomation.Domain.Entities.Campaign", b =>
-                {
-                    b.HasOne("SocialMediaAutomation.Domain.Entities.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SocialMediaAutomation.Domain.Entities.OrganizationMember", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId", "CreatedByUserId")
-                        .HasPrincipalKey("OrganizationId", "UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -2192,12 +2081,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("SocialMediaAutomation.Domain.Entities.Post", b =>
                 {
-                    b.HasOne("SocialMediaAutomation.Domain.Entities.Campaign", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId", "CampaignId")
-                        .HasPrincipalKey("OrganizationId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("SocialMediaAutomation.Domain.Entities.OrganizationMember", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId", "CreatedByUserId")
@@ -2227,12 +2110,6 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("SocialMediaAutomation.Domain.Entities.MediaAsset", null)
-                        .WithMany()
-                        .HasForeignKey("OrganizationId", "MediaAssetId")
-                        .HasPrincipalKey("OrganizationId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("SocialMediaAutomation.Domain.Entities.Post", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId", "PostId")
@@ -2245,6 +2122,53 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                         .HasForeignKey("OrganizationId", "SocialAccountId")
                         .HasPrincipalKey("OrganizationId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.OwnsMany("SocialMediaAutomation.Domain.Entities.PostVersionImage", "Images", b1 =>
+                        {
+                            b1.Property<Guid>("PostVersionId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<int>("Position")
+                                .HasColumnType("int");
+
+                            b1.Property<string>("AltText")
+                                .HasMaxLength(1000)
+                                .HasColumnType("nvarchar(1000)");
+
+                            b1.Property<Guid>("MediaAssetId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<Guid>("OrganizationId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.HasKey("PostVersionId", "Position");
+
+                            b1.HasIndex("OrganizationId", "MediaAssetId");
+
+                            b1.HasIndex("PostVersionId", "MediaAssetId")
+                                .IsUnique();
+
+                            b1.ToTable("PostVersionImages", null, t =>
+                                {
+                                    t.HasTrigger("TR_PostVersionImages_Immutable");
+
+                                    t.HasCheckConstraint("CK_PostVersionImages_Position", "[Position] >= 0 AND [Position] < 4");
+                                });
+
+                            b1.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+
+                            b1.WithOwner()
+                                .HasForeignKey("PostVersionId");
+
+                            b1.HasOne("SocialMediaAutomation.Domain.Entities.MediaAsset", null)
+                                .WithMany()
+                                .HasForeignKey("OrganizationId", "MediaAssetId")
+                                .HasPrincipalKey("OrganizationId", "Id")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired();
+                        });
+
+                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("SocialMediaAutomation.Domain.Entities.PublicationAttempt", b =>

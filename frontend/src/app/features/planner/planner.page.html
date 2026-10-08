@@ -1,4 +1,4 @@
-<div class="pl">
+<div class="pl" [class.fit]="layout() === 'calendar'">
   <!-- Filters -->
   <div class="pl-filters">
     <span class="pl-select">
@@ -9,17 +9,10 @@
       <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </span>
     <span class="pl-select">
-      <select aria-label="Campaign" [ngModel]="campaign()" (ngModelChange)="campaign.set($event)">
-        <option value="">All campaigns</option>
-        <option value="none">No campaign</option>
-        @for (c of campaigns(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-      </select>
-      <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </span>
-    <span class="pl-select">
       <select aria-label="Status" [ngModel]="status()" (ngModelChange)="status.set($event)">
         <option value="">All statuses</option>
         @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+        <option value="Approved,Scheduled">Approved &amp; scheduled</option>
       </select>
       <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
     </span>
@@ -110,14 +103,13 @@
       </div>
       <div class="pl-list">
         <div class="pl-row head">
-          <span>Post</span><span>Platform</span><span class="hcamp">Campaign</span><span>Status</span>
+          <span>Post</span><span>Platform</span><span>Status</span>
           <span class="hwhen">Scheduled / Published</span><span class="hupd">Updated</span><span></span>
         </div>
         @for (r of listRows(); track r.id) {
           <div class="pl-row" role="link" tabindex="0" [routerLink]="['/composer', r.id]">
             <span class="ltitle" [title]="title(r)">{{ title(r) }}</span>
             <span class="lplatform"><app-platform-icon [platform]="r.platform" /><span class="pname">{{ r.platform }}</span></span>
-            <span class="lcamp" [class.dash]="!r.campaignName" [title]="r.campaignName ?? ''">{{ r.campaignName || '—' }}</span>
             <span [class]="'pl-status ' + palette(r.status)"><span class="dot"></span>{{ r.status }}</span>
             <span class="lwhen" [class.dash]="!r.publishAt">{{ time(r.publishAt) }}</span>
             <span class="lupd">{{ time(r.updatedAtUtc, { dateStyle: 'medium' }) }}</span>
@@ -137,7 +129,7 @@
             @else if (rows().length) { No posts match these filters. }
             @else {
               No posts yet.
-              @if (workspace.canManageCampaigns()) { <a routerLink="/composer">Write a post</a> or <a routerLink="/ai-studio">create one with AI</a>. }
+              @if (workspace.canManageContent()) { <a routerLink="/composer">Write a post</a> or <a routerLink="/ai-studio">create one with AI</a>. }
             }
           </div>
         }

@@ -91,7 +91,7 @@
 .pl-list-head h2 { margin: 0; font-size: 17px; font-weight: 700; color: var(--navy-ink); }
 .pl-list-head .muted { font-size: 12.5px; color: var(--faint); }
 .pl-list { padding: 0 0 6px; }
-.pl-row { display: grid; grid-template-columns: minmax(0, 2.05fr) 132px minmax(0, 0.8fr) 150px 186px 116px 30px; align-items: center;
+.pl-row { display: grid; grid-template-columns: minmax(0, 2.05fr) 132px 150px 186px 116px 30px; align-items: center;
   gap: 14px; padding: 12px; border-radius: 10px; transition: background 0.12s; }
 .pl-row:not(.head) { cursor: pointer; }
 .pl-row.head { font-size: 10.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #4a5a82; background: var(--head-bg);
@@ -104,7 +104,6 @@
 .ltitle { font-size: 13.5px; color: var(--navy-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lplatform { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .lplatform .pname { font-size: 13px; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lcamp { font-size: 13px; color: #8b96a6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash { color: #cbd3df; }
 .pl-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid transparent; border-radius: 999px;
   padding: 4px 10px; justify-self: start; white-space: nowrap; }
@@ -127,7 +126,6 @@
 
 @media (max-width: 1080px) {
   .pl-row { grid-template-columns: minmax(0, 1.9fr) 122px 140px 168px 108px 30px; }
-  .pl-row .lcamp, .pl-row.head .hcamp { display: none; }
 }
 @media (max-width: 900px) {
   .pl-cell { min-height: 90px; }
@@ -140,4 +138,16 @@
   .pl-row { grid-template-columns: minmax(0, 1fr) 130px 30px; }
   .pl-row .lplatform, .pl-row.head > span:nth-child(2) { display: none; }
   .pl-cal-foot .pl-footnote, .pl-count { display: none; }
+}
+
+/* Calendar on wide screens fits the viewport below the top bar: no page scroll, the six week rows share the height.
+   (-40px cancels most of the wide page's 60px bottom padding, as in Composer.) */
+@media (min-width: 1081px) {
+  .pl.fit { height: calc(100vh - 99px); margin-bottom: -40px; }
+  .pl.fit .pl-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .pl.fit .pl-cal { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .pl.fit .pl-grid { flex: 1; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+  .pl.fit .pl-cell { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+  .pl.fit .pl-cal-head { padding: 12px 18px; }
+  .pl.fit .pl-cal-foot { padding: 10px 18px; }
 }

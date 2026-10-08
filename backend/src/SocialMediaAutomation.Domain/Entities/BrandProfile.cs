@@ -17,7 +17,7 @@ public sealed class BrandProfile
     public Guid OrganizationId { get; private set; }
     public string BusinessDescription { get; private set; } = null!;
 
-    /// <summary>Default audience; a campaign starts from it and may override it.</summary>
+    /// <summary>Default audience for generated content.</summary>
     public string TargetAudience { get; private set; } = null!;
 
     public BrandTone BrandTone { get; private set; }

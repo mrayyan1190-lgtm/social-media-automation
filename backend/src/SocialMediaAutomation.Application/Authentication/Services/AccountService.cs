@@ -177,7 +177,7 @@ public sealed class AccountService(
             ? memberships.SingleOrDefault(m => m.OrganizationId == id) ?? throw new BusinessException(ErrorCodes.NotFound, "Organization not found.")
             : memberships[0];
         var brandCompleted = await brandProfiles.GetByOrganizationAsync(membership.OrganizationId, cancellationToken) is not null;
-        // Onboarding requires one real provider connection (simulated destinations do not count); it never blocks the campaign API itself.
+        // Onboarding requires one real provider connection (simulated destinations do not count); it never blocks the content API itself.
         var connected = (await socialAccounts.ListAsync(membership.OrganizationId, null, cancellationToken))
             .Any(a => a.ConnectionStatus == ConnectionStatus.CONNECTED && a.ExecutionMode is ExecutionMode.LIVE or ExecutionMode.TEST_ACCOUNT);
 
@@ -196,7 +196,7 @@ public sealed class AccountService(
             ProfileCompleted: user.ProfileCompleted,
             BrandProfileCompleted: brandCompleted,
             SocialAccountsConnected: connected,
-            CanCreateCampaign: brandCompleted && RolePermissions.Has(membership.Role, Permission.ManageCampaigns),
+            CanCreateContent: brandCompleted && RolePermissions.Has(membership.Role, Permission.ManageContent),
             NextStep: nextStep);
     }
 }

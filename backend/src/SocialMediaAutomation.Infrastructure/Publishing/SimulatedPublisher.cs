@@ -27,7 +27,8 @@ public sealed class SimulatedPublisher : ISocialPublisher
     public Task<PublishReceipt> PublishAsync(PublishContext context, CancellationToken cancellationToken)
     {
         var text = PublicationText.Compose(context.Payload, includeUrl: true);
-        var image = context.Media is null ? "no image" : $"1 image ({context.Media.ContentType}, sha256 {context.Media.Sha256[..12]})";
+        var image = context.Media.Count == 0 ? "no image"
+            : $"{context.Media.Count} image(s) ({string.Join(", ", context.Media.Select(m => $"{m.ContentType}, sha256 {m.Sha256[..12]}"))})";
         var detail = $"Simulated {context.Platform} publication: {text.Length} characters, {context.Payload.Hashtags.Count} hashtag(s), {image}, " +
             $"payload {context.Payload.ComputeHash()[..12]}. Nothing was sent to {context.Platform}.";
         return Task.FromResult(new PublishReceipt(null, null, null, detail));

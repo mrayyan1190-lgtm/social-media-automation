@@ -6,6 +6,7 @@ import { AppNotification, NotificationApiService } from '../../core/services/not
 import { ToastService } from '../../core/services/toast.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
+import { ReviewApiService } from '../approvals/services/review-api.service';
 import { formatInZone } from '../publications/models/time-zones';
 
 type Tile = 'review' | 'attention' | 'approved' | 'neutral';
@@ -35,6 +36,9 @@ export class NotificationsPage {
   private readonly api = inject(NotificationApiService);
   private readonly workspace = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
+  private readonly reviewsApi = inject(ReviewApiService);
+  /** Review id → post id, so a creator's review notification can open the post itself in Composer. */
+  private readonly reviewPosts = signal(new Map<string, string>());
 
   protected readonly items = signal<AppNotification[]>([]);
   protected readonly busy = signal(false);
@@ -57,8 +61,12 @@ export class NotificationsPage {
   }
 
   protected link(n: AppNotification): string[] | null {
-    // Creators cannot open Approvals; their review results are followed in the Planner.
-    if (n.resourceType === 'ReviewRequest') return this.workspace.isAdmin() ? ['/approvals', n.resourceId] : ['/planner'];
+    // Creators cannot open Approvals: a review notification opens the reviewed post in Composer (Planner if it is unknown).
+    if (n.resourceType === 'ReviewRequest') {
+      if (this.workspace.isAdmin()) return ['/approvals', n.resourceId];
+      const postId = this.reviewPosts().get(n.resourceId);
+      return postId ? ['/composer', postId] : ['/planner'];
+    }
     if (n.resourceType === 'SocialAccount') return this.workspace.isAdmin() ? ['/social-accounts'] : null;
     if (n.resourceType === 'Organization') return ['/home'];
     if (n.resourceType === 'Post') return ['/composer', n.resourceId];
@@ -70,7 +78,13 @@ export class NotificationsPage {
   }
 
   async load(): Promise<void> {
-    await this.run(async (orgId) => this.items.set(await firstValueFrom(this.api.list(orgId))));
+    await this.run(async (orgId) => {
+      this.items.set(await firstValueFrom(this.api.list(orgId)));
+      if (!this.workspace.isAdmin() && this.items().some((n) => n.resourceType === 'ReviewRequest')) {
+        const reviews = await firstValueFrom(this.reviewsApi.list(orgId)).catch(() => []);
+        this.reviewPosts.set(new Map(reviews.map((r) => [r.id, r.postId])));
+      }
+    });
     this.loaded.set(true);
   }
 

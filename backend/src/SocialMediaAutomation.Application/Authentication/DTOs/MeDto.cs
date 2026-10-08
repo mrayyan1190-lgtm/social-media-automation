@@ -19,7 +19,7 @@ public sealed record OnboardingStatusDto(
     bool ProfileCompleted,
     bool BrandProfileCompleted,
     bool SocialAccountsConnected,
-    bool CanCreateCampaign,
+    bool CanCreateContent,
     string NextStep);
 
 /// <summary>

@@ -4,7 +4,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Operations;
 using SocialMediaAutomation.Application.Posts.DTOs;
 using SocialMediaAutomation.Application.Publications.DTOs;
@@ -38,7 +37,7 @@ public class HardeningTests(ApiFactory factory)
     public async Task Every_response_carries_a_correlation_id_and_security_headers()
     {
         var client = await factory.SignInAsync(DemoData.CreatorA);
-        var response = await client.GetAsync($"{OrgA}/campaigns");
+        var response = await client.GetAsync($"{OrgA}/posts");
 
         Assert.True(response.Headers.TryGetValues("X-Correlation-Id", out var ids) && ids.Single().Length >= 8);
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
@@ -48,9 +47,9 @@ public class HardeningTests(ApiFactory factory)
         Assert.Equal("no-store", response.Headers.CacheControl!.ToString());
 
         // A well-formed caller id is echoed (for tracing across services); anything else is replaced, never reflected.
-        var traced = new HttpRequestMessage(HttpMethod.Get, $"{OrgA}/campaigns") { Headers = { { "X-Correlation-Id", "abc-12345678" } } };
+        var traced = new HttpRequestMessage(HttpMethod.Get, $"{OrgA}/posts") { Headers = { { "X-Correlation-Id", "abc-12345678" } } };
         Assert.Equal("abc-12345678", (await client.SendAsync(traced)).Headers.GetValues("X-Correlation-Id").Single());
-        var hostile = new HttpRequestMessage(HttpMethod.Get, $"{OrgA}/campaigns");
+        var hostile = new HttpRequestMessage(HttpMethod.Get, $"{OrgA}/posts");
         hostile.Headers.TryAddWithoutValidation("X-Correlation-Id", "<script>alert(1)</script>");
         Assert.DoesNotContain("<script>", (await client.SendAsync(hostile)).Headers.GetValues("X-Correlation-Id").Single());
     }
@@ -59,7 +58,7 @@ public class HardeningTests(ApiFactory factory)
     public async Task Problem_responses_include_the_correlation_id()
     {
         var client = await factory.SignInAsync(DemoData.CreatorA);
-        var response = await client.GetAsync($"{OrgA}/campaigns/{Guid.NewGuid()}");
+        var response = await client.GetAsync($"{OrgA}/posts/{Guid.NewGuid()}");
         var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
         Assert.Equal(response.Headers.GetValues("X-Correlation-Id").Single(), body.GetProperty("correlationId").GetString());
         Assert.Equal(ErrorCodes.NotFound, body.GetProperty("code").GetString());
@@ -69,10 +68,9 @@ public class HardeningTests(ApiFactory factory)
     public async Task State_changing_requests_from_a_foreign_origin_are_rejected()
     {
         var client = await factory.SignInAsync(DemoData.CreatorA);
-        object Campaign() => ApiClient.CampaignBody();
         HttpRequestMessage Create(string? origin)
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, $"{OrgA}/campaigns") { Content = JsonContent.Create(Campaign()) };
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{OrgA}/posts") { Content = JsonContent.Create(new { Platform = "LinkedIn", Body = "Hello" }, options: ApiClient.Json) };
             if (origin is not null)
                 request.Headers.Add("Origin", origin);
             return request;
@@ -81,7 +79,7 @@ public class HardeningTests(ApiFactory factory)
         await (await client.SendAsync(Create("https://evil.example"))).AssertErrorAsync(HttpStatusCode.Forbidden, ErrorCodes.Forbidden);
         Assert.Equal(HttpStatusCode.Created, (await client.SendAsync(Create("http://web.test"))).StatusCode); // App:WebBaseUrl
         Assert.Equal(HttpStatusCode.Created, (await client.SendAsync(Create(null))).StatusCode);              // non-browser client
-        var read = new HttpRequestMessage(HttpMethod.Get, $"{OrgA}/campaigns") { Headers = { { "Origin", "https://evil.example" } } };
+        var read = new HttpRequestMessage(HttpMethod.Get, $"{OrgA}/posts") { Headers = { { "Origin", "https://evil.example" } } };
         Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(read)).StatusCode); // reads change nothing (and no CORS is enabled)
     }
 
@@ -148,8 +146,7 @@ public class HardeningTests(ApiFactory factory)
         var creator = await factory.SignInAsync(DemoData.CreatorA);
         var account = (await (await creator.GetAsync($"{OrgA}/social-accounts?platform=LinkedIn")).ReadAsync<List<SocialAccountDto>>())
             .First(a => a.ExecutionMode == ExecutionMode.SIMULATED);
-        var campaign = await creator.CreateCampaignAsync(OrgA);
-        var draft = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
+        var draft = await (await creator.CreatePostAsync(OrgA,
             new { Platform = "LinkedIn", Hook = "Hook", Body = "Close the books in days.", SocialAccountId = account.Id })).ReadAsync<PostDto>();
         var review = await (await PostWithETagAsync(creator, $"{OrgA}/posts/{draft.Id}/submit-review", null, draft.RowVersion)).ReadAsync<ReviewSummaryDto>();
         await PostWithETagAsync(await factory.SignInAsync(DemoData.ReviewerA), $"{OrgA}/review-requests/{review.Id}/approve", null, review.RowVersion);

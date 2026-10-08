@@ -149,7 +149,8 @@ internal sealed partial class HuggingFaceImageClient(IHttpClientFactory httpClie
 }
 
 /// <summary>Picks the image adapter for the configured provider; provider specifics stay inside the adapters (AGENTS.md §45).</summary>
-internal sealed class ImageGenerationRouter(OpenAiImageClient openAi, HuggingFaceImageClient huggingFace) : IImageGenerationProvider
+internal sealed class ImageGenerationRouter(OpenAiImageClient openAi, HuggingFaceImageClient huggingFace, StabilityImageClient stability,
+    CloudflareImageClient cloudflare) : IImageGenerationProvider
 {
     public Task<GeneratedImage> GenerateAsync(ImageConnection connection, string prompt, CancellationToken cancellationToken) =>
         For(connection).GenerateAsync(connection, prompt, cancellationToken);
@@ -157,6 +158,11 @@ internal sealed class ImageGenerationRouter(OpenAiImageClient openAi, HuggingFac
     public Task<bool> IsModelAvailableAsync(ImageConnection connection, CancellationToken cancellationToken) =>
         For(connection).IsModelAvailableAsync(connection, cancellationToken);
 
-    private IImageGenerationProvider For(ImageConnection connection) =>
-        connection.Provider == AiProvider.HuggingFace ? huggingFace : openAi;
+    private IImageGenerationProvider For(ImageConnection connection) => connection.Provider switch
+    {
+        AiProvider.HuggingFace => huggingFace,
+        AiProvider.StabilityAI => stability,
+        AiProvider.CloudflareWorkersAI => cloudflare,
+        _ => openAi,
+    };
 }

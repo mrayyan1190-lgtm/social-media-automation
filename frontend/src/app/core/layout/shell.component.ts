@@ -1,9 +1,9 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { IsActiveMatchOptions, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, firstValueFrom } from 'rxjs';
+import { PostApiService } from '../../features/content/services/post-api.service';
 import { DashboardApiService } from '../../features/dashboard/dashboard-api.service';
-import { formatInZone } from '../../features/publications/models/time-zones';
-import { PROBLEM_DELIVERY, UPCOMING_DELIVERY } from '../../shared/models/states';
+import { PROBLEM_DELIVERY, UPCOMING_DELIVERY, customerStatus } from '../../shared/models/states';
 import { AuthService } from '../auth/auth.service';
 import { NotificationApiService } from '../services/notification-api.service';
 import { TopbarActionService } from '../services/topbar-action.service';
@@ -58,12 +58,12 @@ const EXACT: IsActiveMatchOptions = { paths: 'exact', queryParams: 'exact', frag
 const RAIL_KEY = 'shell-rail';
 
 const TITLES: Record<string, string> = {
-  home: 'Home', 'ai-studio': 'AI Studio', composer: 'Composer', campaigns: 'Campaigns', planner: 'Publisher', approvals: 'Approvals',
-  library: 'Media Library', brand: 'Brand', members: 'Members', settings: 'Settings', notifications: 'Notifications', profile: 'Profile',
+  home: 'Home', 'ai-studio': 'AI Studio', composer: 'Composer', planner: 'Publisher', approvals: 'Approvals',
+  brand: 'Brand', members: 'Members', settings: 'Settings', notifications: 'Notifications', profile: 'Profile',
 };
 
 /**
- * The customer application: a sidebar grouped like a social-management product (Home, Create, Publisher, Assets,
+ * The customer application: a sidebar grouped like a social-management product (Home, Create, Publisher,
  * Workspace) with live Publisher counts, and a top bar with the page title, search, notifications and Create with AI.
  * Navigation follows the workspace role as a convenience only. Internal platform administration is never linked here.
  */
@@ -113,8 +113,6 @@ const TITLES: Record<string, string> = {
           }
 
           @if (workspace.isAdmin()) {
-            <p class="slabel">Assets</p>
-            <a class="nitem" [routerLink]="ws('/library')" routerLinkActive="on" title="Media Library"><app-nav-icon name="media" /><span class="nl">Media Library</span></a>
             <p class="slabel">Workspace</p>
             <a class="nitem" [routerLink]="ws('/brand')" routerLinkActive="on" title="Brand"><app-nav-icon name="brand" /><span class="nl">Brand</span></a>
             <a class="nitem" [routerLink]="ws('/members')" routerLinkActive="on" title="Members"><app-nav-icon name="members" /><span class="nl">Members</span></a>
@@ -141,10 +139,9 @@ const TITLES: Record<string, string> = {
               <svg viewBox="0 0 24 24" fill="none"><rect x="3.2" y="4.2" width="17.6" height="15.6" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M9.6 4.4v15.2" stroke="currentColor" stroke-width="1.8"/></svg>
             </button>
             <h1 class="ptitle">{{ title() }}</h1>
-            <span class="pdate">{{ today() }}</span>
             <form class="search" role="search" (submit)="search($event, q.value); q.value = ''">
               <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.6" stroke="currentColor" stroke-width="1.9"/><path d="M16 16l4.2 4.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-              <input #q type="search" placeholder="Search posts, campaigns, people…" aria-label="Search posts" />
+              <input #q type="search" placeholder="Search posts, people…" aria-label="Search posts" />
             </form>
             <div class="tacts">
               <a class="icon-btn" [routerLink]="ws('/notifications')" [title]="unread() ? unread() + ' new notifications' : 'Notifications'"
@@ -156,12 +153,11 @@ const TITLES: Record<string, string> = {
                 <button type="button" class="create" [disabled]="a.disabled" [title]="a.title ?? ''" (click)="a.run()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>{{ a.label }}
                 </button>
-              } @else if (workspace.canManageCampaigns()) {
+              } @else if (workspace.canManageContent()) {
                 <a class="create" [routerLink]="ws('/ai-studio')">
                   <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.7 4.6L18 9.3l-4.3 1.7L12 15.6l-1.7-4.6L6 9.3l4.3-1.7L12 3Z" fill="#fff"/><path d="M18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" fill="#fff" opacity=".85"/></svg>Create with AI
                 </a>
               }
-              <a class="me" [routerLink]="ws('/profile')" [title]="auth.me()?.displayName ?? 'Profile'"><span class="me-in">{{ meInitials() }}</span></a>
             </div>
           </div>
         </header>
@@ -181,13 +177,18 @@ const TITLES: Record<string, string> = {
     .shell{display:flex;min-height:100vh}
     .side{width:264px;flex:none;background:#fff;border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;
       flex-direction:column;z-index:60;box-shadow:16px 0 44px -36px rgba(15,28,51,.55);transition:width .2s ease}
-    .brand{display:flex;align-items:center;gap:10px;padding:16px 16px 14px;min-width:0}
-    .logo{width:34px;height:34px;border-radius:11px;flex:none;display:grid;place-items:center;color:#fff;font-size:17px;font-weight:800;
-      background:linear-gradient(140deg,#3b82f6,#123a7a);box-shadow:0 8px 18px -10px rgba(18,58,122,.95)}
+    .brand{display:flex;align-items:center;gap:12px;margin:14px 12px 8px;padding:10px 12px;min-width:0;border-radius:14px;
+      background:linear-gradient(180deg,#f8faff,#f1f5fd);border:1px solid #e6ecf7}
+    .logo{position:relative;width:40px;height:40px;border-radius:12px;flex:none;display:grid;place-items:center;color:#fff;font-size:18px;font-weight:800;
+      letter-spacing:-.5px;background:linear-gradient(145deg,#4f8df7 0%,#2563eb 45%,#123a7a 100%);
+      box-shadow:0 10px 20px -10px rgba(18,58,122,.9),inset 0 1px 0 rgba(255,255,255,.35);overflow:hidden}
+    /* soft gloss across the top of the mark */
+    .logo::before{content:"";position:absolute;inset:0 0 50% 0;background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0))}
     .bname-wrap{min-width:0;display:block}
-    .bname{font-size:15.5px;font-weight:750;letter-spacing:-.4px;display:block;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .bselect{font:inherit;font-size:14.5px;font-weight:700;color:var(--ink);border:0;background:none;padding:0;max-width:170px;height:auto;min-height:0;cursor:pointer}
-    .btag{display:block;font-size:10.5px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:1px}
+    .bname{font-size:16.5px;font-weight:760;letter-spacing:-.45px;line-height:1.2;display:block;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .bselect{font:inherit;font-size:15.5px;font-weight:740;color:var(--ink);border:0;background:none;padding:0;max-width:170px;height:auto;min-height:0;cursor:pointer}
+    .btag{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7b8aa8;margin-top:3px}
+    .btag::before{content:"";width:6px;height:6px;border-radius:50%;background:#2f6fed;box-shadow:0 0 0 3px rgba(47,111,237,.15);flex:none}
 
     .snav{flex:1;overflow-y:auto;padding:4px 12px 12px}
     .snav::-webkit-scrollbar{width:8px}
@@ -236,8 +237,8 @@ const TITLES: Record<string, string> = {
     .tgl:hover,.icon-btn:hover{background:#f4f7fc;color:var(--ink)}
     .tgl svg,.icon-btn svg{width:17px;height:17px;display:block}
     .icon-btn .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--rose);box-shadow:0 0 0 2px #fff}
-    .ptitle{margin:0;font-size:16px;font-weight:700;letter-spacing:-.35px;white-space:nowrap;color:var(--ink)}
-    .pdate{font-size:12.5px;color:var(--faint);white-space:nowrap}
+    .ptitle{margin:0;font-size:21px;font-weight:750;letter-spacing:-.6px;line-height:1.2;white-space:nowrap;
+      background:linear-gradient(180deg,#0f1c33,#2a3b5c);-webkit-background-clip:text;background-clip:text;color:transparent}
     .search{margin:0 0 0 14px;flex:1;max-width:320px;display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--line);
       border-radius:10px;background:#f7f9fc;transition:.15s}
     .search:focus-within{background:#fff;border-color:#c7d7fa;box-shadow:0 0 0 3px rgba(47,111,237,.12)}
@@ -250,8 +251,6 @@ const TITLES: Record<string, string> = {
     .create:hover:not(:disabled){transform:translateY(-1px)}
     .create:disabled{opacity:.55;cursor:not-allowed}
     .create svg{width:14px;height:14px;display:block}
-    .me{width:32px;height:32px;border-radius:50%;flex:none;padding:2px;cursor:pointer;text-decoration:none;background:conic-gradient(from 210deg,#f58529,#dd2a7b,#8134af)}
-    .me-in{width:100%;height:100%;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;color:#123a7a;letter-spacing:.3px}
     .scrim{position:fixed;inset:0;background:rgba(15,28,51,.45);opacity:0;pointer-events:none;transition:.2s;z-index:70}
 
     @media (min-width:1025px){
@@ -270,7 +269,9 @@ const TITLES: Record<string, string> = {
       .top-in{padding:0 16px}
       .search{display:none}
     }
-    @media (max-width:560px){ .pdate{display:none} .create{padding:8px 10px} }
+    /* The sidebar always shows on wide screens; the toggle only opens the drawer on narrow ones. */
+    @media (min-width:1025px){ .tgl{display:none} }
+    @media (max-width:560px){ .create{padding:8px 10px} }
   `],
 })
 export class ShellComponent {
@@ -279,37 +280,46 @@ export class ShellComponent {
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationApiService);
   private readonly dashboard = inject(DashboardApiService);
+  private readonly postsApi = inject(PostApiService);
   protected readonly topbar = inject(TopbarActionService);
 
   protected readonly exact = EXACT;
-  /** Publisher counts from the workspace overview (refreshed on navigation). */
-  private readonly counts = signal({ approvals: 0, drafts: 0, scheduled: 0, published: 0, failed: 0 });
+  /** Publisher counts (refreshed on navigation): the whole workspace for Admins, the person's own posts for everyone else. */
+  private readonly counts = signal({ approvals: 0, drafts: 0, scheduled: 0, published: 0, failed: 0, changes: 0, inReview: 0, approved: 0 });
 
   protected readonly main: NavItem[] = [
     { label: 'Home', icon: 'home', link: '/home' },
-    { label: 'AI Studio', icon: 'studio', link: '/ai-studio', show: () => this.workspace.canManageCampaigns() },
-    { label: 'Composer', icon: 'composer', link: '/composer', show: () => this.workspace.canManageCampaigns() },
+    { label: 'AI Studio', icon: 'studio', link: '/ai-studio', show: () => this.workspace.canManageContent() },
+    { label: 'Composer', icon: 'composer', link: '/composer', show: () => this.workspace.canManageContent() },
   ];
+  /**
+   * Admins run publishing (approve, schedule, fix failures). A Creator only follows their own posts through review:
+   * what to fix, what is waiting, what was accepted and what went out; publishing problems are the Admin's to fix.
+   */
   protected readonly publisher: SubItem[] = [
     { label: 'Planner', link: '/planner' },
     { label: 'All Posts', link: '/planner', query: { view: 'list' } },
     { label: 'Approvals', link: '/approvals', count: () => this.counts().approvals, tone: 'warn', show: () => this.workspace.isAdmin() },
     { label: 'Drafts', link: '/planner', query: { status: 'Draft' }, count: () => this.counts().drafts },
-    { label: 'Scheduled', link: '/planner', query: { status: 'Scheduled' }, count: () => this.counts().scheduled },
+    { label: 'Changes requested', link: '/planner', query: { status: 'Changes Requested' }, count: () => this.counts().changes, tone: 'warn',
+      show: () => !this.workspace.isAdmin() },
+    { label: 'In review', link: '/planner', query: { status: 'In Review' }, count: () => this.counts().inReview, show: () => !this.workspace.isAdmin() },
+    { label: 'Scheduled', link: '/planner', query: { status: 'Scheduled' }, count: () => this.counts().scheduled, show: () => this.workspace.isAdmin() },
+    { label: 'Approved & scheduled', link: '/planner', query: { status: APPROVED_AND_SCHEDULED }, count: () => this.counts().approved,
+      show: () => !this.workspace.isAdmin() },
     { label: 'Published', link: '/planner', query: { status: 'Published' }, count: () => this.counts().published },
-    { label: 'Failed', link: '/planner', query: { status: 'Failed' }, count: () => this.counts().failed, tone: 'rose' },
+    { label: 'Failed', link: '/planner', query: { status: 'Failed' }, count: () => this.counts().failed, tone: 'rose', show: () => this.workspace.isAdmin() },
   ];
 
   protected readonly publisherOpen = signal(true);
   protected readonly inPublisher = signal(false);
   protected readonly navOpen = signal(false);
-  protected readonly rail = signal(readRail());
+  // The collapsed icon rail is no longer offered (no toggle on wide screens), so the full sidebar always shows.
+  protected readonly rail = signal(false);
   protected readonly unread = signal(0);
   protected readonly title = signal('Home');
   /** Home, Composer, AI Studio, Planner, Brand, Settings, Notifications, Members and the Approvals list use the full width beside the sidebar. */
   protected readonly wide = signal(false);
-  protected readonly today = computed(() =>
-    formatInZone(new Date().toISOString(), this.workspace.timeZone(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
   protected readonly meInitials = computed(() =>
     (this.auth.me()?.displayName ?? '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('') || '?');
 
@@ -376,6 +386,27 @@ export class ShellComponent {
     } catch {
       // ignore
     }
+    if (!this.workspace.isAdmin()) {
+      try {
+        // Same scope as a Creator's Planner: only posts they created, counted by each post's latest state.
+        const me = this.auth.me()?.userId;
+        const mine = (await firstValueFrom(this.postsApi.listAll(orgId))).filter((p) => p.createdByUserId === me);
+        const latest = (states: string[]) => mine.filter((p) => !!p.latestDeliveryState && states.includes(p.latestDeliveryState)).length;
+        this.counts.set({
+          approvals: 0,
+          drafts: mine.filter((p) => p.editorialState === 'DRAFT').length,
+          scheduled: latest(UPCOMING_DELIVERY),
+          published: latest(['PUBLISHED', 'SIMULATED']),
+          failed: latest(PROBLEM_DELIVERY),
+          changes: mine.filter((p) => p.editorialState === 'CHANGES_REQUESTED').length,
+          inReview: mine.filter((p) => p.editorialState === 'IN_REVIEW').length,
+          approved: mine.filter((p) => ['Approved', 'Scheduled'].includes(customerStatus(p.editorialState, p.latestDeliveryState))).length,
+        });
+      } catch {
+        // ignore
+      }
+      return;
+    }
     try {
       const d = await firstValueFrom(this.dashboard.get(orgId));
       const sum = (states: string[]) => states.reduce((n, s) => n + (d.delivery[s] ?? 0), 0);
@@ -386,6 +417,7 @@ export class ShellComponent {
         // Same as the Planner's Published filter, which includes demo (simulated) sends.
         published: sum(['PUBLISHED', 'SIMULATED']),
         failed: sum(PROBLEM_DELIVERY),
+        changes: 0, inReview: 0, approved: 0,
       });
     } catch {
       // ignore
@@ -393,10 +425,6 @@ export class ShellComponent {
   }
 }
 
-function readRail(): boolean {
-  try {
-    return localStorage.getItem(RAIL_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
+/** Planner status filter covering both stages after approval (one Creator menu item). */
+const APPROVED_AND_SCHEDULED = 'Approved,Scheduled';
+

@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using SocialMediaAutomation.Application.Authentication.DTOs;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Organizations.DTOs;
 using SocialMediaAutomation.Application.SocialAccounts.DTOs;
 using SocialMediaAutomation.Domain.Constants;
@@ -12,7 +11,7 @@ using SocialMediaAutomation.IntegrationTests.Infrastructure;
 
 namespace SocialMediaAutomation.IntegrationTests;
 
-/// <summary>Sign-up through campaign readiness: account and workspace, profile, brand, social accounts, campaign input.</summary>
+/// <summary>Sign-up through content readiness: account and workspace, profile, brand, social accounts.</summary>
 [Collection(ApiCollection.Name)]
 public class RegistrationTests(ApiFactory factory)
 {
@@ -90,7 +89,7 @@ public class RegistrationTests(ApiFactory factory)
 
     [Fact]
     [Trait("Category", "Acceptance")]
-    public async Task New_user_goes_from_signup_to_a_campaign_ready_for_generation()
+    public async Task New_user_goes_from_signup_to_ready_for_generation()
     {
         var client = factory.CreateClient();
         // Sign-up: the account, the workspace and the first Admin membership are one transaction.
@@ -106,10 +105,11 @@ public class RegistrationTests(ApiFactory factory)
             (me.DisplayName, workspace.TimeZoneId, workspace.DefaultLanguage, workspace.RequireDistinctReviewer, workspace.MyRole));
 
         var onboarding = await (await client.GetAsync($"/api/v1/onboarding/status?organizationId={workspace.Id}")).ReadAsync<OnboardingStatusDto>();
-        Assert.Equal((true, false, false, OnboardingSteps.BrandProfile), (onboarding.WorkspaceCreated, onboarding.BrandProfileCompleted, onboarding.CanCreateCampaign, onboarding.NextStep));
-        await (await client.PostAsJsonAsync($"{orgUrl}/campaigns", ApiClient.CampaignBody())).AssertErrorAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
+        Assert.Equal((true, false, false, OnboardingSteps.BrandProfile), (onboarding.WorkspaceCreated, onboarding.BrandProfileCompleted, onboarding.CanCreateContent, onboarding.NextStep));
+        await (await client.PostAsJsonAsync($"{orgUrl}/ai-generations", new { Prompt = "Launch post", Platforms = new[] { "LinkedIn" } }))
+            .AssertErrorAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
 
-        // Brand: four inputs. Campaigns are possible before the social step is finished.
+        // Brand: four inputs. Content is possible before the social step is finished.
         await (await client.PutJsonAsync($"{orgUrl}/brand-profile", new
         {
             BusinessDescription = "We provide AI-powered reporting and automation software for small businesses.",
@@ -118,11 +118,7 @@ public class RegistrationTests(ApiFactory factory)
             Website = "https://centaiva.com",
         }, ifMatch: null)).ReadAsync<object>();
         onboarding = await (await client.GetAsync("/api/v1/onboarding/status")).ReadAsync<OnboardingStatusDto>();
-        Assert.Equal((true, false, true, OnboardingSteps.SocialConnections), (onboarding.BrandProfileCompleted, onboarding.SocialAccountsConnected, onboarding.CanCreateCampaign, onboarding.NextStep));
-
-        // A campaign is a folder: name and colour.
-        var campaign = await client.CreateCampaignAsync(orgUrl, new { Name = "AI Reporting Dashboard Launch", Color = "#7c3aed" });
-        Assert.Equal(("#7C3AED", CampaignStatus.Active), (campaign.Color, campaign.Status));
+        Assert.Equal((true, false, true, OnboardingSteps.SocialConnections), (onboarding.BrandProfileCompleted, onboarding.SocialAccountsConnected, onboarding.CanCreateContent, onboarding.NextStep));
 
         // Social account step: a simulated destination does not complete onboarding; a real provider connection does.
         await (await client.PostAsJsonAsync($"{orgUrl}/social-accounts/simulated", new { Platform = "LinkedIn" })).ReadAsync<SocialAccountDto>();
@@ -145,7 +141,7 @@ public class RegistrationTests(ApiFactory factory)
         await client.PostAsJsonAsync("/api/v1/auth/register", Request(NewEmail()));
         var orgA = $"/api/v1/organizations/{DemoData.OrganizationAId}";
 
-        foreach (var url in new[] { orgA, $"{orgA}/brand-profile", $"{orgA}/social-accounts", $"{orgA}/campaigns" })
+        foreach (var url in new[] { orgA, $"{orgA}/brand-profile", $"{orgA}/social-accounts", $"{orgA}/posts" })
             await (await client.GetAsync(url)).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await client.GetAsync($"/api/v1/onboarding/status?organizationId={DemoData.OrganizationAId}"))
             .AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);

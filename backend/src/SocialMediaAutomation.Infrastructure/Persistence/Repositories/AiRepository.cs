@@ -22,10 +22,10 @@ internal sealed class AiRepository(CoreDbContext db) : IAiRepository
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task<AiGenerationRequest?> FindActiveGenerationAsync(
-        Guid organizationId, Guid requestedByUserId, Guid? campaignId, string inputSnapshot, CancellationToken cancellationToken) =>
+        Guid organizationId, Guid requestedByUserId, string inputSnapshot, CancellationToken cancellationToken) =>
         db.AiGenerationRequests
             .Where(r => r.OrganizationId == organizationId && r.Kind == AiRequestKind.Generation && r.RequestedByUserId == requestedByUserId
-                && r.CampaignId == campaignId && (r.Status == AiRequestStatus.PENDING || r.Status == AiRequestStatus.PROCESSING)
+                && (r.Status == AiRequestStatus.PENDING || r.Status == AiRequestStatus.PROCESSING)
                 && r.InputSnapshot == inputSnapshot)
             .OrderByDescending(r => r.CreatedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);

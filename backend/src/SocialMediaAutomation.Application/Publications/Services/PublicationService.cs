@@ -95,7 +95,7 @@ public sealed class PublicationService(
 
     public async Task<IReadOnlyList<PublicationJobDto>> ListAsync(Guid organizationId, PublicationQuery query, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         if (query.FromUtc > query.ToUtc)
             throw Guard.Invalid("Date range", "must start before it ends");
         if (query.FromUtc is { } from && query.ToUtc is { } to && to - from > TimeSpan.FromDays(400))
@@ -106,14 +106,14 @@ public sealed class PublicationService(
     /// <summary>Every worker pass over the job, oldest first: outcome, normalized error and provider evidence.</summary>
     public async Task<IReadOnlyList<PublicationAttemptDto>> ListAttemptsAsync(Guid organizationId, Guid jobId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         var job = await LoadJobAsync(access, jobId, cancellationToken);
         return await publications.ListAttemptsAsync(access.OrganizationId, job.Id, cancellationToken);
     }
 
     public async Task<PublicationJobDto> GetAsync(Guid organizationId, Guid jobId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         return await ToDtoAsync(access, await LoadJobAsync(access, jobId, cancellationToken), cancellationToken);
     }
 
@@ -207,21 +207,15 @@ public sealed class PublicationService(
         if (account is null || account.OrganizationId != access.OrganizationId)
             throw new BusinessException(ErrorCodes.SocialAccountNotReady, "The approved destination no longer exists in this workspace.");
 
-        MediaAsset? image = null;
-        if (version.MediaAssetId is { } mediaId)
-        {
-            image = await media.GetAsync(mediaId, cancellationToken);
-            if (image is null || image.OrganizationId != access.OrganizationId)
-                throw new BusinessException(ErrorCodes.ApprovalStale, "The approved image no longer exists.");
+        var images = await media.GetImagesAsync(version, cancellationToken)
+            ?? throw new BusinessException(ErrorCodes.ApprovalStale, "An approved image no longer exists.");
+        if (images.Count == 0 && PlatformRules.For(post.Platform).RequiresImage)
+            throw new BusinessException(ErrorCodes.ValidationFailed, $"{post.Platform} posts require at least one image.");
+        foreach (var image in images)
             image.EnsureSuitableFor(post.Platform);
-        }
-        else if (PlatformRules.For(post.Platform).RequiresImage)
-        {
-            throw new BusinessException(ErrorCodes.ValidationFailed, $"{post.Platform} posts require one image.");
-        }
-        EnsureCapable(account, image is not null);
+        EnsureCapable(account, images.Count > 0);
 
-        var payload = ApprovalPayload.From(post, version, account, image);
+        var payload = ApprovalPayload.From(post, version, account, images);
         PublicationJob.EnsureAuthorized(post, version, approval, account, payload);
         return (version, approval, account, payload);
     }

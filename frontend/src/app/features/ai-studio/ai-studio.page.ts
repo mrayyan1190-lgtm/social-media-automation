@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ViewEncapsulation, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, ElementRef, ViewEncapsulation, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,8 +7,7 @@ import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
-import { Campaign, ContentLength, EmojiMode, HashtagMode, SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
-import { CampaignApiService } from '../campaigns/services/campaign-api.service';
+import { ContentLength, EmojiMode, HashtagMode, SOCIAL_PLATFORMS, SocialPlatform } from '../../shared/models/platform.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
 import { AiCapabilities, AiGenerationRequest } from '../content/models/ai.model';
 import { MediaAsset, Post, PostContent, PostVersion, postText } from '../content/models/post.model';
@@ -69,10 +68,18 @@ interface Result {
   saved: boolean;
 }
 
+/** One earlier prompt of this chat with its finished answer; the newest turn lives in request/asked/results. */
+interface Turn {
+  asked: string;
+  request: AiGenerationRequest;
+  results: Result[];
+}
+
 /** The editable content of a version with some fields changed (everything else is kept as it is). */
 function contentOf(v: PostVersion, change: Partial<PostContent>): PostContent {
-  const { hook, body, callToAction, hashtags, destinationUrl, mediaAssetId, altText, socialAccountId } = v;
-  return { hook, body, callToAction, hashtags, destinationUrl, mediaAssetId, altText, socialAccountId, ...change };
+  const { hook, body, callToAction, hashtags, destinationUrl, socialAccountId } = v;
+  const images = v.images.map(({ mediaAssetId, altText }) => ({ mediaAssetId, altText }));
+  return { hook, body, callToAction, hashtags, destinationUrl, images, socialAccountId, ...change };
 }
 
 /**
@@ -93,18 +100,19 @@ export class AiStudioPage {
   private readonly ai = inject(AiApiService);
   private readonly postsApi = inject(PostApiService);
   private readonly media = inject(MediaApiService);
-  private readonly campaignsApi = inject(CampaignApiService);
   private readonly brandApi = inject(BrandProfileApiService);
   private readonly accountsApi = inject(SocialAccountApiService);
   private readonly reviewsApi = inject(ReviewApiService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly host = inject(ElementRef<HTMLElement>);
   protected readonly workspace = inject(WorkspaceService);
   private destroyed = false;
 
-  /** Query parameters: the campaign the drafts are filed in, and a generation to show again (after Back from Composer). */
-  readonly campaignId = input<string>();
+  /** Query parameter: the chat's generations, comma-separated, oldest first (shown again after Back from Composer). */
   readonly requestId = input<string>(undefined, { alias: 'request' });
+  /** Query parameter: an idea typed on the Creator home, used as the prompt. */
+  readonly initialPrompt = input<string>(undefined, { alias: 'prompt' });
 
   protected readonly platforms = SOCIAL_PLATFORMS;
   protected readonly tones = BRAND_TONES;
@@ -113,24 +121,27 @@ export class AiStudioPage {
   protected readonly suggestions = SUGGESTIONS;
   /** Small popovers in the prompt box: the + menu and the output-type menu. */
   protected readonly plusOpen = signal(false);
-  protected readonly outOpen = signal(false);
   protected readonly platOpen = signal(false);
   /** "All platforms": one post written to fit LinkedIn, Facebook and Instagram alike. */
   protected readonly allPlatforms = signal(false);
+  /** Earlier prompts of this chat, oldest first; each new prompt is answered below them, like a chat. */
+  protected readonly history = signal<Turn[]>([]);
   /** No drafts or generation yet: the centred hero layout. */
-  protected readonly hero = computed(() => !this.request() && !this.results().length);
+  protected readonly hero = computed(() => !this.request() && !this.results().length && !this.history().length);
   protected readonly brand = signal<BrandProfile | null>(null);
   protected readonly brandLoaded = signal(false);
-  protected readonly campaign = signal<Campaign | null>(null);
   /** What the platform offers (/internal/ai); model lists are the Hugging Face models a user may pick. */
   protected readonly caps = signal<AiCapabilities>({ textGeneration: false, imageGeneration: false, imageAnalysis: false, imageModels: [], visionModels: [] });
   protected readonly selected = signal<SocialPlatform[]>(['LinkedIn']);
   protected readonly withImage = signal(false);
-  /** Reference images (up to 4): read by the vision model; with Text + Image the first one is attached to the drafts. */
+  /** Reference images (up to 4): read by the vision model; with Text + Image all of them are attached to the drafts. */
   protected readonly images = signal<MediaAsset[]>([]);
   protected readonly maxImages = MAX_IMAGES;
   protected readonly visionModel = signal('');
   protected readonly imageModel = signal('');
+  /** Text + Image without uploads: how many images the AI creates (1-4). */
+  protected readonly imageCount = signal(1);
+  protected readonly imageCounts = [1, 2, 3, 4];
   /** Text + Image needs an image source: an uploaded image, or image generation being available. */
   protected readonly imageOptionAvailable = computed(() => this.images().length > 0 || this.caps().imageGeneration);
   protected readonly stageText = computed(() => {
@@ -171,18 +182,13 @@ export class AiStudioPage {
     effect(() => {
       const orgId = this.workspace.orgId();
       if (!orgId) return;
-      this.prompt = this.readSavedPrompt(orgId);
+      this.prompt = untracked(this.initialPrompt) || this.readSavedPrompt(orgId);
       void firstValueFrom(this.brandApi.get(orgId)).then((b) => this.brand.set(b), () => this.brand.set(null)).finally(() => this.brandLoaded.set(true));
       void firstValueFrom(this.ai.capabilities(orgId)).then((c) => {
         this.caps.set(c);
         this.visionModel.set(c.visionModels[0] ?? '');
         this.imageModel.set(c.imageModels[0] ?? '');
       }, () => undefined);
-    });
-    effect(() => {
-      const orgId = this.workspace.orgId();
-      const campaignId = this.campaignId();
-      if (orgId && campaignId) void firstValueFrom(this.campaignsApi.get(orgId, campaignId)).then((c) => this.campaign.set(c), () => this.campaign.set(null));
     });
     effect(() => {
       const orgId = this.workspace.orgId();
@@ -267,7 +273,6 @@ export class AiStudioPage {
     const inside = (cls: string) => event.composedPath().some((n) => n instanceof Element && n.classList.contains(cls));
     if (!inside('pop-wrap')) {
       this.plusOpen.set(false);
-      this.outOpen.set(false);
       this.platOpen.set(false);
     }
   }
@@ -290,7 +295,6 @@ export class AiStudioPage {
 
   protected setOutput(withImage: boolean): void {
     this.withImage.set(withImage);
-    this.outOpen.set(false);
   }
 
   protected ago(utc: string): string {
@@ -306,8 +310,8 @@ export class AiStudioPage {
   }
 
   /** A useful failure message: configuration and key problems in plain words, otherwise the provider's reason. */
-  protected failureText(): string {
-    const r = this.request();
+  protected failureText(request: AiGenerationRequest | null = this.request()): string {
+    const r = request;
     const code = r?.failureCode ?? '';
     if (code === 'AI_NOT_CONFIGURED') return 'AI is not available right now. Please contact your administrator.';
     if (code === 'AI_PROVIDER_AUTH') return 'AI is not available right now. Please contact your administrator.';
@@ -365,7 +369,6 @@ export class AiStudioPage {
       const queued = await firstValueFrom(this.ai.requestGeneration(orgId, {
         prompt: text,
         platforms: SOCIAL_PLATFORMS.filter((p) => this.selected().includes(p)),
-        campaignId: this.campaign()?.id ?? null,
         tone: this.tone || null,
         length: this.length,
         hashtags: this.hashtags,
@@ -374,15 +377,21 @@ export class AiStudioPage {
         visionModel: imageIds.length ? this.visionModel() || null : null,
         withImage,
         imageModel: withImage && !imageIds.length && this.caps().imageModels.length ? this.imageModel() || null : null,
+        imageCount: withImage && !imageIds.length ? this.imageCount() : 1,
         unified: this.allPlatforms(),
       }));
+      // The previous answer stays on screen above the new one.
+      const previous = this.request();
+      if (previous) this.history.update((turns) => [...turns, { asked: this.asked(), request: previous, results: this.results() }]);
       this.results.set([]);
       this.request.set(queued);
       this.asked.set(text);
       rememberAsked(queued.id, text);
       if (text === this.fullPrompt()) this.prompt = '';
-      // Keeps the results reachable with Back after opening a draft in Composer.
-      void this.router.navigate([], { queryParams: { request: queued.id }, queryParamsHandling: 'merge', replaceUrl: true });
+      // Keeps the whole chat reachable with Back after opening a draft in Composer.
+      const ids = [...this.history().map((t) => t.request.id), queued.id].join(',');
+      void this.router.navigate([], { queryParams: { request: ids }, queryParamsHandling: 'merge', replaceUrl: true });
+      this.scrollToLatest();
       await this.follow(orgId, queued);
     } catch (error) {
       this.problem.set(toApiProblem(error));
@@ -459,9 +468,21 @@ export class AiStudioPage {
     }
   }
 
-  private async restore(orgId: string, requestId: string): Promise<void> {
+  /** Rebuilds the chat from the query parameter: earlier turns first, then the latest one (which may still be running). */
+  private async restore(orgId: string, requestIds: string): Promise<void> {
+    const ids = requestIds.split(',').filter(Boolean);
+    const earlier: Turn[] = [];
+    for (const id of ids.slice(0, -1)) {
+      try {
+        const request = await firstValueFrom(this.ai.get(orgId, id));
+        if (request.kind === 'Generation') earlier.push({ asked: recallAsked(request.id), request, results: await this.loadResults(orgId, request) });
+      } catch {
+        // An old or foreign id: leave that turn out.
+      }
+    }
+    this.history.set(earlier);
     try {
-      const request = await firstValueFrom(this.ai.get(orgId, requestId));
+      const request = await firstValueFrom(this.ai.get(orgId, ids[ids.length - 1]));
       if (request.kind !== 'Generation') return;
       this.request.set(request);
       this.asked.set(recallAsked(request.id));
@@ -472,6 +493,18 @@ export class AiStudioPage {
     }
   }
 
+  private async loadResults(orgId: string, request: AiGenerationRequest): Promise<Result[]> {
+    if (request.status !== 'COMPLETED') return [];
+    const posts = await Promise.all(request.outputs.map((o) => firstValueFrom(this.postsApi.get(orgId, o.postId))));
+    return posts.map((post) => ({ post, busy: null, error: null, submitted: false, saved: false }));
+  }
+
+  /** Brings the newest prompt into view, as a chat does. */
+  private scrollToLatest(): void {
+    setTimeout(() => (this.host.nativeElement.shadowRoot ?? this.host.nativeElement)
+      .querySelector('.turn-latest')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
   /**
    * Waits for the drafts and shows them. The worker does everything (vision, text, image generation or attaching the
    * uploaded image), so the drafts arrive complete and the browser may close meanwhile.
@@ -479,12 +512,13 @@ export class AiStudioPage {
   private async follow(orgId: string, queued: AiGenerationRequest): Promise<void> {
     const final = await this.ai.waitForCompletion(orgId, queued, (r) => this.request.set(r), () => this.destroyed);
     this.request.set(final);
-    if (final.status !== 'COMPLETED') return;
-    const posts = await Promise.all(final.outputs.map((o) => firstValueFrom(this.postsApi.get(orgId, o.postId))));
-    this.results.set(posts.map((post) => ({ post, busy: null, error: null, submitted: false, saved: false })));
+    this.results.set(await this.loadResults(orgId, final));
   }
 
+  /** Updates a result wherever it is shown: the latest answer or an earlier turn. */
   private patch(postId: string, change: Partial<Result>): void {
-    this.results.update((all) => all.map((r) => (r.post.id === postId ? { ...r, ...change } : r)));
+    const apply = (all: Result[]) => all.map((r) => (r.post.id === postId ? { ...r, ...change } : r));
+    this.results.update(apply);
+    this.history.update((turns) => turns.map((t) => (t.results.some((r) => r.post.id === postId) ? { ...t, results: apply(t.results) } : t)));
   }
 }

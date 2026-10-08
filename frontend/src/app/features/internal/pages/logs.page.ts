@@ -4,12 +4,12 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
-import { AiLogItem, AuditLogItem, InternalApiService, PublishingLogItem, SignInLogItem, SystemLogItem, tone, when, words } from '../internal-api.service';
+import { ActivityLogItem, AiLogItem, AuditLogItem, InternalApiService, PublishingLogItem, SignInLogItem, SystemLogItem, tone, when, words } from '../internal-api.service';
 
-type Tab = 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
+type Tab = 'all' | 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
 
 /**
- * Audit, sign-in, AI, publishing and system logs. Secrets are never logged; AI logs show no prompts or model output;
+ * All (every log in one timeline), audit, sign-in, AI, publishing and system logs. Failed API requests are in the System log. Secrets are never logged; AI logs show no prompts or model output;
  * every row carries its correlation id so one operation can be traced across tabs.
  */
 @Component({
@@ -25,6 +25,11 @@ type Tab = 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
       <label class="date">From <input type="date" [(ngModel)]="from" (ngModelChange)="load()" /></label>
       <label class="date">To <input type="date" [(ngModel)]="to" (ngModelChange)="load()" /></label>
       <input class="corr" placeholder="Correlation ID" [(ngModel)]="correlationId" (keyup.enter)="load()" aria-label="Correlation ID" />
+      @if (tab() === 'all') {
+        <select [(ngModel)]="outcome" (ngModelChange)="load()" aria-label="Outcome">
+          <option value="">Everything</option><option value="errors">Errors &amp; warnings</option><option value="success">Successes</option>
+        </select>
+      }
       @if (tab() === 'signins') {
         <select [(ngModel)]="result" (ngModelChange)="load()" aria-label="Result"><option value="">All results</option><option value="success">Success</option><option value="failed">Failed</option></select>
         <input placeholder="IP address" [(ngModel)]="ip" (keyup.enter)="load()" aria-label="IP address" />
@@ -39,13 +44,27 @@ type Tab = 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
         </select>
       }
       <button type="button" (click)="load()">Apply</button>
-      @if (search || from || to || correlationId || result || ip || level || service) { <button type="button" class="link" (click)="clear()">Clear</button> }
+      @if (search || from || to || correlationId || result || ip || level || service || outcome) { <button type="button" class="link" (click)="clear()">Clear</button> }
     </div>
     <app-problem-banner [problem]="problem()" />
 
     <div class="table-wrap">
       <table class="table compact">
         @switch (tab()) {
+          @case ('all') {
+            <thead><tr><th>Timestamp</th><th>Source</th><th>Result</th><th>Actor</th><th>Workspace</th><th>Event</th><th>Details</th><th>Correlation ID</th></tr></thead>
+            <tbody>
+              @for (r of all(); track r.source + r.id) {
+                <tr>
+                  <td>{{ when(r.atUtc) }}</td><td>{{ r.source }}</td>
+                  <td><span [class]="'badge delivery ' + tone(r.outcome)">{{ words(r.outcome) }}</span></td>
+                  <td>{{ r.actor ?? '—' }}</td><td>{{ r.workspace ?? '—' }}</td><td>{{ words(r.event) }}</td>
+                  <td class="problem-text">{{ r.message }}</td>
+                  <td><button type="button" class="link" (click)="trace(r.correlationId)">{{ r.correlationId ?? '' }}</button></td>
+                </tr>
+              } @empty { <tr><td colspan="8" class="empty">{{ empty() }}</td></tr> }
+            </tbody>
+          }
           @case ('audit') {
             <thead><tr><th>Timestamp</th><th>Actor</th><th>Action</th><th>Target Type</th><th>Target</th><th>Workspace</th><th>Result</th><th>Correlation ID</th></tr></thead>
             <tbody>
@@ -127,11 +146,12 @@ type Tab = 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
 export class LogsPage implements OnInit {
   private readonly api = inject(InternalApiService);
   protected readonly tabs: { key: Tab; label: string }[] = [
-    { key: 'audit', label: 'Audit' }, { key: 'signins', label: 'Sign-ins' }, { key: 'ai', label: 'AI' },
+    { key: 'all', label: 'All' }, { key: 'audit', label: 'Audit' }, { key: 'signins', label: 'Sign-ins' }, { key: 'ai', label: 'AI' },
     { key: 'publishing', label: 'Publishing' }, { key: 'system', label: 'System' },
   ];
   protected readonly services = ['API', 'AI Worker', 'Publishing Worker', 'Database', 'Storage', 'OpenAI', 'LinkedIn', 'Meta'];
-  protected readonly tab = signal<Tab>('audit');
+  protected readonly tab = signal<Tab>('all');
+  protected readonly all = signal<ActivityLogItem[]>([]);
   protected readonly audit = signal<AuditLogItem[]>([]);
   protected readonly signIns = signal<SignInLogItem[]>([]);
   protected readonly ai = signal<AiLogItem[]>([]);
@@ -150,6 +170,7 @@ export class LogsPage implements OnInit {
   protected ip = '';
   protected level = '';
   protected service = '';
+  protected outcome = '';
 
   ngOnInit(): void {
     void this.load();
@@ -167,7 +188,7 @@ export class LogsPage implements OnInit {
   }
 
   protected clear(): void {
-    this.search = this.from = this.to = this.correlationId = this.result = this.ip = this.level = this.service = '';
+    this.search = this.from = this.to = this.correlationId = this.result = this.ip = this.level = this.service = this.outcome = '';
     void this.load();
   }
 
@@ -195,6 +216,7 @@ export class LogsPage implements OnInit {
     this.problem.set(null);
     try {
       switch (this.tab()) {
+        case 'all': this.all.set(await firstValueFrom(this.api.allLog({ ...q, outcome: this.outcome }))); break;
         case 'audit': this.audit.set(await firstValueFrom(this.api.auditLog(q))); break;
         case 'signins': this.signIns.set(await firstValueFrom(this.api.signInLog({ ...q, result: this.result, ip: this.ip }))); break;
         case 'ai': this.ai.set(await firstValueFrom(this.api.aiLog(q))); break;

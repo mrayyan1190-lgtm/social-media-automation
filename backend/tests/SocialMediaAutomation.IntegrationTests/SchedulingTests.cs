@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using SocialMediaAutomation.Application.Audit.DTOs;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Posts.DTOs;
 using SocialMediaAutomation.Application.Publications.DTOs;
 using SocialMediaAutomation.Application.Reviews.DTOs;
@@ -46,8 +45,7 @@ public class SchedulingTests(ApiFactory factory)
         var creator = await factory.SignInAsync(DemoData.CreatorA);
         destination ??= (await (await creator.GetAsync($"{OrgA}/social-accounts?platform=LinkedIn")).ReadAsync<List<SocialAccountDto>>())
             .First(a => a.ExecutionMode == ExecutionMode.SIMULATED).Id;
-        var campaign = await creator.CreateCampaignAsync(OrgA);
-        var post = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}", new
+        var post = await (await creator.CreatePostAsync(OrgA, new
         {
             Platform = "LinkedIn", Hook = "Month-end, minus the pain", Body = "Close the books in days, not weeks.", SocialAccountId = destination,
         })).ReadAsync<PostDto>();
@@ -271,8 +269,7 @@ public class SchedulingTests(ApiFactory factory)
 
         // A post in workspace A cannot target workspace B's destination.
         var creator = await factory.SignInAsync(DemoData.CreatorA);
-        var campaign = await creator.CreateCampaignAsync(OrgA);
-        var foreign = await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
+        var foreign = await creator.CreatePostAsync(OrgA,
             new { Platform = "LinkedIn", Hook = "Hook", Body = "Body", SocialAccountId = accountB.Id });
         Assert.False(foreign.IsSuccessStatusCode);
 

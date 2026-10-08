@@ -1,15 +1,3 @@
-<a class="back" routerLink="/approvals">← Approvals</a>
-<div class="page-header">
-  <div>
-    <h1>Review @if (detail(); as d) { <span [class]="'badge delivery ' + tones[d.review.status]">{{ reviewLabels[d.review.status] }}</span> }</h1>
-    @if (detail(); as d) {
-      <p class="muted">Version {{ d.version.versionNumber }} · submitted by {{ d.review.submittedByName }} · {{ d.review.submittedAtUtc | date: 'medium' }}</p>
-    }
-  </div>
-  @if (detail(); as d) {
-    @if (workspace.canManageCampaigns()) { <a class="button" [routerLink]="['/composer', d.review.postId]">Open in Composer</a> }
-  }
-</div>
 @if (loading() && !detail()) { <p class="muted">Loading review…</p> }
 
 <app-problem-banner [problem]="problem()" (reload)="load()" />
@@ -22,33 +10,17 @@
 
   <div class="composer">
     <div class="composer-main">
-      <section class="card">
-        <dl class="facts-grid">
-          <dt>Campaign</dt>
-          <dd>@if (d.review.campaignName) { <span class="color-dot sm" [style.background]="d.review.campaignColor"></span>{{ d.review.campaignName }} } @else { <span class="hint">None</span> }</dd>
-          <dt>Platform</dt><dd><app-platform-icon [platform]="d.review.platform" [label]="true" /></dd>
-          <dt>Account</dt>
-          <dd>
-            @if (d.destination; as dest) {
-              {{ dest.displayName }}
-              @if (dest.executionMode === 'SIMULATED') { <span class="badge mode simulated" [title]="demoNote">Demo Mode</span> }
-            } @else { <span class="field-error">none</span> }
-          </dd>
-          <dt>Creator</dt><dd>{{ d.version.createdByName }}</dd>
-          <dt>Exact version</dt><dd>Version {{ d.version.versionNumber }}</dd>
-          @if (d.review.assignedReviewerName) { <dt>Reviewer</dt><dd>{{ d.review.assignedReviewerName }}</dd> }
-        </dl>
-      </section>
+
 
       <section class="card">
         <h2>Post Content</h2>
         <div class="preview">
           <p class="pre preview-text">{{ text(d) }}</p>
           @if (d.version.destinationUrl) { <p class="preview-link">{{ d.version.destinationUrl }}</p> }
-          @if (d.version.media; as m) {
-            <img [src]="imageUrl(m.id)" [alt]="d.version.altText || 'Post image'" />
-            <p class="hint tight">Alt text: {{ d.version.altText || '(none)' }}</p>
-          } @else {
+          @for (m of d.version.images; track m.mediaAssetId; let i = $index) {
+            <img [src]="imageUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" />
+            <p class="hint tight">Image {{ i + 1 }} of {{ d.version.images.length }} · Alt text: {{ m.altText || '(none)' }}</p>
+          } @empty {
             <p class="hint tight">No image.</p>
           }
         </div>
@@ -81,12 +53,18 @@
           } @else {
             <p class="banner info">{{ d.cannotDecideReason }}</p>
           }
+          @if (workspace.canManageContent()) {
+            <button class="block" type="button" [routerLink]="['/composer', d.review.postId]">Open in Composer</button>
+          }
         </section>
       } @else {
         <section class="card">
           <h2>Decision</h2>
           <p><strong>{{ reviewLabels[d.review.status] }}</strong> by {{ d.review.decidedByName }} · {{ d.review.decidedAtUtc | date: 'medium' }}</p>
           @if (d.review.decisionComment) { <p class="pre">{{ d.review.decisionComment }}</p> }
+          @if (workspace.canManageContent()) {
+            <button class="block" type="button" [routerLink]="['/composer', d.review.postId]">Open in Composer</button>
+          }
         </section>
       }
 
@@ -109,6 +87,25 @@
         </ul>
         <label>Add a comment <textarea rows="2" [value]="comment()" (input)="comment.set($any($event.target).value)"></textarea></label>
         <div class="actions"><button type="button" (click)="addComment()" [disabled]="!comment().trim()">Comment</button></div>
+      </section>
+
+      <section class="card">
+        <h2>Details</h2>
+        <dl class="facts-grid">
+          <dt>Platform</dt><dd><app-platform-icon [platform]="d.review.platform" [label]="true" /></dd>
+          <dt>Account</dt>
+          <dd>
+            @if (d.destination; as dest) {
+              {{ dest.displayName }}
+              @if (dest.executionMode === 'SIMULATED') { <span class="badge mode simulated" [title]="demoNote">Demo Mode</span> }
+            } @else { <span class="field-error">none</span> }
+          </dd>
+          <dt>Creator</dt><dd>{{ d.version.createdByName }}</dd>
+          <dt>Exact version</dt><dd>Version {{ d.version.versionNumber }}</dd>
+          <dt>Status</dt><dd><span [class]="'badge delivery ' + tones[d.review.status]">{{ reviewLabels[d.review.status] }}</span></dd>
+          <dt>Submitted</dt><dd>{{ d.review.submittedAtUtc | date: 'medium' }} by {{ d.review.submittedByName }}</dd>
+          @if (d.review.assignedReviewerName) { <dt>Reviewer</dt><dd>{{ d.review.assignedReviewerName }}</dd> }
+        </dl>
       </section>
 
       @if (d.history.length > 1) {

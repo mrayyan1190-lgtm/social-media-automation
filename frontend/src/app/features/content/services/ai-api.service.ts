@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { ifMatch } from '../../../core/http/api-problem';
-import { SocialPlatform } from '../../campaigns/models/campaign.model';
+import { SocialPlatform } from '../../../shared/models/platform.model';
 import { AiCapabilities, AiGenerationRequest, ContentEvaluation, GenerationInput, RewriteAction, isActive } from '../models/ai.model';
 
 /** Durable AI requests: the API only enqueues; the AI worker does the work and the UI polls for the outcome. */
@@ -25,8 +25,8 @@ export class AiApiService {
   }
 
   /** Queues an AI image for the post's current version; the image arrives as a new version that still needs review. */
-  requestImage(orgId: string, postId: string, instruction: string | null, postRowVersion: string, model: string | null = null): Observable<AiGenerationRequest> {
-    return this.http.post<AiGenerationRequest>(`${this.org(orgId)}/posts/${postId}/image-generations`, { instruction, model }, { headers: ifMatch(postRowVersion) });
+  requestImage(orgId: string, postId: string, instruction: string | null, postRowVersion: string, model: string | null = null, count = 1): Observable<AiGenerationRequest> {
+    return this.http.post<AiGenerationRequest>(`${this.org(orgId)}/posts/${postId}/image-generations`, { instruction, model, count }, { headers: ifMatch(postRowVersion) });
   }
 
   /** Which AI actions the platform currently offers (so only working buttons are shown). */

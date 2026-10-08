@@ -16,42 +16,15 @@
   <div class="wrap" [class.top]="!hero()">
 
     <!-- ============ GENERATED POSTS PANEL (loading + result) ============ -->
-    @if (!hero()) {
-      <section class="chat">
-        @if (asked(); as q) { <div class="bubble">{{ q }}</div> }
-        <div class="answer">
-          @if (generating()) {
-            <!-- loading -->
-            <div class="worked" role="status"><span class="spin"></span>{{ stageText() }}</div>
+    <!-- Result rows of one answer (the latest one and every earlier turn) -->
+    <ng-template #rowsTpl let-list>
             <div class="rows">
               <div class="rows-head"><span>Post</span><span>Actions</span></div>
-              @for (p of request()?.platforms ?? []; track p) {
-                <div class="row">
-                  <span class="row-thumb skel-thumb"><ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" /></span>
-                  <div class="skel-body"><div class="skel"></div><div class="skel"></div></div>
-                </div>
-              }
-            </div>
-          } @else if (request()?.status === 'FAILED') {
-            <p class="gen-msg error" role="alert">{{ failureText() }}</p>
-            <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()">Try again</button>
-          } @else {
-            <div class="worked">
-              @if (workedFor(); as w) { Worked for {{ w }} }
-              <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()" title="Write these posts again">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                Regenerate
-              </button>
-            </div>
-            @if (request()?.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
-            <!-- result -->
-            <div class="rows">
-              <div class="rows-head"><span>Post</span><span>Actions</span></div>
-              @for (r of results(); track r.post.id) {
+              @for (r of list; track r.post.id) {
                 @let v = r.post.currentVersion;
                 <div class="row">
                   <span class="row-thumb">
-                    @if (v.media; as m) { <img [src]="previewUrl(m.id)" [alt]="v.altText || 'Post image'" /> }
+                    @if (v.images[0]; as m) { <img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" /> }
                     <span class="row-plat" [title]="r.post.platform"><ng-container *ngTemplateOutlet="chipOf; context: { $implicit: r.post.platform }" /></span>
                   </span>
                   <div class="row-main">
@@ -89,11 +62,51 @@
                 </div>
               }
             </div>
-            @if (results().length) {
-              <p class="reply">{{ results().length === 1 ? 'Your post is' : 'Your ' + results().length + ' posts are' }} ready above.
-                @if (workspace.isAdmin()) { Preview or edit, then schedule once approved. } @else { Preview or edit, then submit for review. }
-                Nothing is published automatically.</p>
+    </ng-template>
+
+    @if (!hero()) {
+      <section class="chat">
+        <!-- earlier prompts of this chat, each with its answer -->
+        @for (t of history(); track t.request.id) {
+          @if (t.asked) { <div class="bubble">{{ t.asked }}</div> }
+          <div class="answer">
+            @if (t.request.status === 'FAILED') {
+              <p class="gen-msg error" role="alert">{{ failureText(t.request) }}</p>
+            } @else {
+              @if (t.request.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
+              <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: t.results }" />
             }
+          </div>
+        }
+        <div class="turn-latest"></div>
+        @if (asked(); as q) { <div class="bubble">{{ q }}</div> }
+        <div class="answer">
+          @if (generating()) {
+            <!-- loading -->
+            <div class="worked" role="status"><span class="spin"></span>{{ stageText() }}</div>
+            <div class="rows">
+              <div class="rows-head"><span>Post</span><span>Actions</span></div>
+              @for (p of request()?.platforms ?? []; track p) {
+                <div class="row">
+                  <span class="row-thumb skel-thumb"><ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" /></span>
+                  <div class="skel-body"><div class="skel"></div><div class="skel"></div></div>
+                </div>
+              }
+            </div>
+          } @else if (request()?.status === 'FAILED') {
+            <p class="gen-msg error" role="alert">{{ failureText() }}</p>
+            <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()">Try again</button>
+          } @else {
+            <div class="worked">
+              @if (workedFor(); as w) { Worked for {{ w }} }
+              <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()" title="Write these posts again">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Regenerate
+              </button>
+            </div>
+            @if (request()?.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
+            <!-- result -->
+            <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: results() }" />
           }
         </div>
       </section>
@@ -109,12 +122,12 @@
       @if (images().length) {
         <div class="thumbs">
           @for (img of images(); track img.id; let first = $first) {
-            <span class="thumb" [title]="img.originalFileName + (first && withImage() ? ' · attached to the posts' : ' · analysed by AI')">
+            <span class="thumb" [title]="img.originalFileName + (withImage() ? ' · attached to the posts' : ' · analysed by AI')">
               <img [src]="previewUrl(img.id)" [alt]="img.originalFileName" />
               <button type="button" aria-label="Remove image" (click)="removeImage(img.id)" [disabled]="busy() || generating()">&times;</button>
             </span>
           }
-          <span class="thumbs-note">{{ withImage() ? 'AI reads all images · the first is attached' : 'AI reads the images · none attached' }}</span>
+          <span class="thumbs-note">{{ withImage() ? 'AI reads all images · all are attached' : 'AI reads the images · none attached' }}</span>
         </div>
       }
       <div class="composer-top">
@@ -123,7 +136,7 @@
       </div>
       <div class="composer-bottom">
         <span class="pop-wrap">
-          <button type="button" class="plus-btn" title="Attach media and options" [attr.aria-expanded]="plusOpen()" (click)="plusOpen.set(!plusOpen()); outOpen.set(false); platOpen.set(false)">
+          <button type="button" class="plus-btn" title="Attach media and options" [attr.aria-expanded]="plusOpen()" (click)="plusOpen.set(!plusOpen()); platOpen.set(false)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
           @if (plusOpen()) {
@@ -139,18 +152,18 @@
                 [disabled]="!imageOptionAvailable()" (click)="setOutput(!withImage()); plusOpen.set(false)">
                 <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
                 <span class="dd-titles"><span class="dd-title">Image</span>
-                  <span class="dd-desc">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Attach your first image' : 'AI creates the image' }}</span></span>
+                  <span class="dd-desc">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Attach your images' : 'AI creates the images' }}</span></span>
                 <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </button>
               <button type="button" class="dd-opt" role="menuitem" (click)="advOpen.set(!advOpen()); plusOpen.set(false)">
                 <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>
-                <span class="dd-titles"><span class="dd-title">{{ advOpen() ? 'Hide options' : 'Tone, length & more' }}</span><span class="dd-desc">Brand, extra instruction, models</span></span>
+                <span class="dd-titles"><span class="dd-title">{{ advOpen() ? 'Hide options' : 'Tone, length & more' }}</span><span class="dd-desc">Tone, quick styles, models</span></span>
               </button>
             </span>
           }
         </span>
         <div class="platpick pop-wrap" [class.open]="platOpen()">
-          <button type="button" class="tm-btn" aria-label="Platforms" [attr.aria-expanded]="platOpen()" (click)="platOpen.set(!platOpen()); plusOpen.set(false); outOpen.set(false)">
+          <button type="button" class="tm-btn" aria-label="Platforms" [attr.aria-expanded]="platOpen()" (click)="platOpen.set(!platOpen()); plusOpen.set(false)">
             @if (allPlatforms()) {
               <ng-container *ngTemplateOutlet="allChip" /><span>All platforms</span>
             } @else {
@@ -179,27 +192,13 @@
           }
         </div>
 
-        <div class="textmode pop-wrap" [class.open]="outOpen()">
-          <button type="button" class="tm-btn" [attr.aria-expanded]="outOpen()" (click)="outOpen.set(!outOpen()); plusOpen.set(false); platOpen.set(false)">
-            <span>{{ withImage() ? 'Text + Image' : 'Text' }}</span>
-            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          @if (outOpen()) {
-            <div class="dd-menu" role="menu">
-              <button type="button" class="dd-opt" role="menuitemradio" [class.selected]="!withImage()" [attr.aria-checked]="!withImage()" (click)="setOutput(false)">
-                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span>
-                <span class="dd-titles"><span class="dd-title">Text</span><span class="dd-desc">Post copy only</span></span>
-                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </button>
-              <button type="button" class="dd-opt" role="menuitemradio" [class.selected]="withImage()" [attr.aria-checked]="withImage()" [disabled]="!imageOptionAvailable()" (click)="setOutput(true)">
-                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
-                <span class="dd-titles"><span class="dd-title">Text + Image</span>
-                  <span class="dd-desc">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Uses your first image' : 'AI creates the image' }}</span></span>
-                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </button>
-            </div>
-          }
-        </div>
+        <!-- Text is always written; this only adds images (generated, or your uploads when you attached some). -->
+        <button type="button" class="tm-btn img-toggle" [class.on]="withImage()" [attr.aria-pressed]="withImage()" [disabled]="!imageOptionAvailable()"
+          [title]="!imageOptionAvailable() ? 'Images are not available right now' : images().length ? 'Attach your uploaded images to the posts' : 'AI also creates images for the posts'"
+          (click)="setOutput(!withImage())">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <span>Image</span>
+        </button>
 
         @if (prompt.length > 1500) { <span class="count">{{ prompt.length }}/2000</span> }
         <button type="button" class="send-btn" (click)="generate()" [disabled]="!canGenerate()" [attr.aria-label]="busy() || generating() ? 'Generating' : 'Generate'"
@@ -213,15 +212,14 @@
     @if (advOpen()) {
       <div class="adv">
         <div class="adv-top">
-          @if (brand(); as b) {
-            <span class="brand-ok">✓ Using Brand Profile · {{ b.targetAudience }} · {{ tone || b.brandTone }}</span>
-          } @else if (brandLoaded()) {
+          @if (brandLoaded() && !brand()) {
             <span class="brand-miss">@if (workspace.isAdmin()) { Complete your <a routerLink="/brand">Brand profile</a> first } @else { The Admin needs to complete the Brand profile first }</span>
           }
-          @if (campaign(); as c) { <span class="camp">Posts go to <strong>{{ c.name }}</strong></span> }
           <button type="button" class="save" (click)="savePrompt()">{{ promptSaved() ? 'Saved ✓' : 'Save prompt' }}</button>
+          <button type="button" class="adv-close" aria-label="Close options" title="Close" (click)="advOpen.set(false)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
         </div>
-        <input class="extra" type="text" maxlength="500" placeholder="Add any extra instruction (optional)…" aria-label="Extra instruction" [(ngModel)]="extra" />
         <div class="chips">
           @for (c of presets; track c.label) {
             <button type="button" class="chipbtn" [class.on]="activeChips().includes(c.label)" (click)="toggleChip(c.label)">{{ c.label }}</button>
@@ -235,6 +233,10 @@
           @if (images().length && caps().visionModels.length) {
             <label>Vision model<select [ngModel]="visionModel()" (ngModelChange)="visionModel.set($event)">
               @for (m of caps().visionModels; track m; let first = $first) { <option [value]="m">{{ modelName(m) }}{{ first ? ' (default)' : '' }}</option> }</select></label>
+          }
+          @if (withImage() && !images().length) {
+            <label>Images<select [ngModel]="imageCount()" (ngModelChange)="imageCount.set(+$event)">
+              @for (n of imageCounts; track n) { <option [value]="n">{{ n }}</option> }</select></label>
           }
           @if (withImage() && !images().length && caps().imageModels.length) {
             <label>Image model<select [ngModel]="imageModel()" (ngModelChange)="imageModel.set($event)">
@@ -280,7 +282,11 @@
             @for (para of paragraphs(pv); track $index) { <p>{{ para }}</p> }
             @if (pv.hashtags.length) { <p class="post-tags">{{ pv.hashtags.join('  ') }}</p> }
           </div>
-          @if (pv.media; as m) { <img [src]="previewUrl(m.id)" [alt]="pv.altText || 'Post image'" /> }
+          @if (pv.images.length) {
+            <div class="pv-grid" [class.multi]="pv.images.length > 1" [class.three]="pv.images.length === 3">
+              @for (m of pv.images; track m.mediaAssetId) { <img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" /> }
+            </div>
+          }
         </div>
       </div>
     </div>

@@ -11,9 +11,6 @@ public sealed record ReviewSummaryDto(
     Guid PostVersionId,
     int VersionNumber,
     SocialPlatform Platform,
-    Guid? CampaignId,
-    string? CampaignName,
-    string? CampaignColor,
     /// <summary>Hook or the start of the body of the reviewed version, for lists.</summary>
     string Excerpt,
     ReviewStatus Status,

@@ -53,7 +53,7 @@ const STATES = [
           @if (reconciliation()) {
             <tr><th>Workspace</th><th>Platform</th><th>Publication</th><th>Reason</th><th>Last Attempt</th><th>Provider Result</th><th>Created</th></tr>
           } @else {
-            <tr><th>Publication ID</th><th>Workspace</th><th>Campaign / Post</th><th>Platform</th><th>Destination</th><th>Scheduled At</th><th>Status</th><th>Attempts</th><th>Last Result</th></tr>
+            <tr><th>Publication ID</th><th>Workspace</th><th>Post</th><th>Platform</th><th>Destination</th><th>Scheduled At</th><th>Status</th><th>Attempts</th><th>Last Result</th></tr>
           }
         </thead>
         <tbody>
@@ -61,14 +61,14 @@ const STATES = [
             @if (reconciliation()) {
               <tr>
                 <td>{{ p.workspaceName }}</td><td>{{ p.platform }}</td>
-                <td><a [routerLink]="['/internal/reconciliation', p.id]"><code>{{ p.id.slice(0, 8) }}</code></a> · {{ p.campaignName }}</td>
+                <td><a [routerLink]="['/internal/reconciliation', p.id]"><code>{{ p.id.slice(0, 8) }}</code></a></td>
                 <td>{{ words(p.lastErrorCode) }}</td><td>{{ p.attempts }}/{{ p.maxAttempts }}</td>
                 <td class="problem-text">{{ p.lastErrorMessage ?? '—' }}</td><td>{{ when(p.createdAtUtc) }}</td>
               </tr>
             } @else {
               <tr>
                 <td><a [routerLink]="['/internal/publications', p.id]"><code>{{ p.id.slice(0, 8) }}</code></a></td>
-                <td>{{ p.workspaceName }}</td><td>{{ p.campaignName }} · v{{ p.versionNumber }}</td><td>{{ p.platform }}</td>
+                <td>{{ p.workspaceName }}</td><td>v{{ p.versionNumber }}</td><td>{{ p.platform }}</td>
                 <td>{{ p.destination }}@if (p.executionMode === 'SIMULATED') { <span class="badge mode simulated">Demo</span> }</td>
                 <td>{{ when(p.publishAtUtc) }}</td>
                 <td><span [class]="'badge delivery ' + tone(p.state)">{{ words(p.state) }}</span></td>
@@ -187,7 +187,7 @@ export class PublicationsPage implements OnInit {
           <ul class="kv">
             <li><span>Publication ID</span><code>{{ p.id }}</code></li>
             <li><span>Workspace</span><a [routerLink]="['/internal/workspaces', p.organizationId]">{{ p.workspaceName }}</a></li>
-            <li><span>Post</span><span>{{ p.campaignName }} · v{{ p.versionNumber }}</span></li>
+            <li><span>Post</span><span>v{{ p.versionNumber }}</span></li>
             <li><span>Destination</span><span>{{ p.destination }}</span></li>
             <li><span>Provider external ID</span><span>{{ detail.externalPostId ?? '—' }}</span></li>
             @if (detail.externalPostUrl) { <li><span>Post link</span><a [href]="detail.externalPostUrl" target="_blank" rel="noopener">Open</a></li> }

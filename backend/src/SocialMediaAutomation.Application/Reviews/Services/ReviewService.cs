@@ -39,7 +39,7 @@ public sealed class ReviewService(
     public async Task<ReviewSummaryDto> SubmitAsync(
         Guid organizationId, Guid postId, string? note, Guid? assignedReviewerUserId, byte[]? expectedPostRowVersion, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageContent, cancellationToken);
         var post = await LoadPostAsync(access, postId, cancellationToken);
         ConcurrencyGuard.EnsureCurrent(post.RowVersion, expectedPostRowVersion);
         var version = await CurrentVersionAsync(access, post, cancellationToken);
@@ -91,21 +91,26 @@ public sealed class ReviewService(
         else if (!account.IsEligibleDestination)
             blockers.Add($"The destination \"{account.DisplayName}\" is {account.ExecutionMode}/{account.ConnectionStatus} and cannot receive content.");
 
-        if (version.MediaAssetId is { } mediaId)
+        if (version.Images.Count > 0)
         {
-            var image = await media.GetAsync(mediaId, cancellationToken);
-            try
+            var images = await media.GetImagesAsync(version, cancellationToken);
+            if (images is null)
+                blockers.Add("An attached image no longer exists.");
+            foreach (var image in images ?? [])
             {
-                image?.EnsureSuitableFor(post.Platform);
-            }
-            catch (BusinessException ex)
-            {
-                blockers.Add(ex.Message);
+                try
+                {
+                    image.EnsureSuitableFor(post.Platform);
+                }
+                catch (BusinessException ex)
+                {
+                    blockers.Add(ex.Message);
+                }
             }
         }
         else if (PlatformRules.For(post.Platform).RequiresImage)
         {
-            blockers.Add($"{post.Platform} posts require one image.");
+            blockers.Add($"{post.Platform} posts require at least one image.");
         }
 
         var evaluation = (await ai.ListEvaluationsAsync(access.OrganizationId, post.Id, cancellationToken)).FirstOrDefault(e => e.PostVersionId == version.Id);
@@ -134,9 +139,10 @@ public sealed class ReviewService(
         var account = version.SocialAccountId is { } accountId ? await socialAccounts.GetAsync(accountId, cancellationToken) : null;
         if (account is null || account.OrganizationId != access.OrganizationId || !account.IsEligibleDestination)
             throw new BusinessException(ErrorCodes.SubmissionBlocked, "The version's destination is no longer eligible; request changes instead.");
-        var image = version.MediaAssetId is { } mediaId ? await media.GetAsync(mediaId, cancellationToken) : null;
+        var images = await media.GetImagesAsync(version, cancellationToken)
+            ?? throw new BusinessException(ErrorCodes.SubmissionBlocked, "An image of this version no longer exists; request changes instead.");
 
-        var payload = ApprovalPayload.From(post, version, account, image);
+        var payload = ApprovalPayload.From(post, version, account, images);
         review.Approve(access.UserId, version, organization.RequireDistinctReviewer, payload, Now);
         post.Approve(review, Now);
 
@@ -166,8 +172,9 @@ public sealed class ReviewService(
         {
             ["postId"] = post.Id.ToString(), ["postVersionId"] = version.Id.ToString(), ["versionNumber"] = version.VersionNumber.ToString(),
         });
+        // Points at the post (not the review): the creator opens it straight in Composer to make the changes.
         activity.Notify(access.OrganizationId, [review.SubmittedByUserId, version.CreatedByUserId], NotificationType.CHANGES_REQUESTED,
-            $"Changes requested: {post.Platform} post", review.DecisionComment!, ActivityRecorder.ReviewResource, review.Id);
+            $"Changes requested: {post.Platform} post", review.DecisionComment!, ActivityRecorder.PostResource, post.Id);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return await SummaryAsync(access, review, cancellationToken);
@@ -187,13 +194,13 @@ public sealed class ReviewService(
 
     public async Task<IReadOnlyList<ReviewSummaryDto>> ListAsync(Guid organizationId, ReviewStatus? status, Guid? postId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         return await reviews.ListAsync(access.OrganizationId, status, postId, cancellationToken);
     }
 
     public async Task<ReviewDetailDto> GetDetailAsync(Guid organizationId, Guid reviewId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         var review = await LoadReviewAsync(access, reviewId, cancellationToken);
         var post = await LoadPostAsync(access, review.PostId, cancellationToken);
 

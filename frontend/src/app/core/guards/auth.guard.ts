@@ -50,7 +50,7 @@ export function onboardingGuard(step: OnboardingStep): CanActivateFn {
 
 /** Content creation pages (AI Studio): Admins and Creators. UX only; the API enforces every permission. */
 export const contentCreatorGuard: CanActivateFn = () =>
-  inject(WorkspaceService).canManageCampaigns() ? true : inject(Router).createUrlTree(['/access-denied']);
+  inject(WorkspaceService).canManageContent() ? true : inject(Router).createUrlTree(['/access-denied']);
 
 /** Customer settings: workspace Admins of the current workspace. UX only; the API enforces every permission. */
 export const workspaceAdminGuard: CanActivateFn = () =>
@@ -99,7 +99,7 @@ export const workspaceMatchGuard: CanMatchFn = async (_route, segments) => {
 };
 
 /**
- * Un-prefixed customer URLs (/home, /campaigns/123, old bookmarks, notification links, OAuth returns) and unknown
+ * Un-prefixed customer URLs (/home, old bookmarks, notification links, OAuth returns) and unknown
  * workspace slugs land here: send them to the same path inside the current workspace. Runs after authGuard.
  */
 export const workspaceRedirectGuard: CanActivateFn = (_route, state) => {

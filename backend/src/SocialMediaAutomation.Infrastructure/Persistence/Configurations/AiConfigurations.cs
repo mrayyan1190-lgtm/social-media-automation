@@ -58,9 +58,6 @@ internal sealed class AiGenerationRequestConfiguration : IEntityTypeConfiguratio
         builder.PrimitiveCollection(r => r.Platforms).HasColumnName("Platforms").IsRequired().ElementType(e => e.HasConversion<string>());
         builder.AddJsonCheck("Platforms");
 
-        builder.HasOne<Campaign>().WithMany()
-            .HasForeignKey(r => new { r.OrganizationId, r.CampaignId }).HasPrincipalKey(c => new { c.OrganizationId, c.Id })
-            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Post>().WithMany()
             .HasForeignKey(r => new { r.OrganizationId, r.PostId }).HasPrincipalKey(p => new { p.OrganizationId, p.Id })
             .OnDelete(DeleteBehavior.Restrict);
@@ -69,7 +66,7 @@ internal sealed class AiGenerationRequestConfiguration : IEntityTypeConfiguratio
 
         // Worker claim: due pending work and expired leases (AGENTS.md §62).
         builder.HasIndex(r => new { r.Status, r.NextAttemptAtUtc });
-        builder.HasIndex(r => new { r.OrganizationId, r.CampaignId, r.CreatedAtUtc });
+        builder.HasIndex(r => new { r.OrganizationId, r.CreatedAtUtc });
     }
 }
 

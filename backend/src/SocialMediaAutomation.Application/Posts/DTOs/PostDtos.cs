@@ -14,18 +14,18 @@ public sealed record PostVersionDto(
     string? DestinationUrl,
     IReadOnlyList<string> Hashtags,
     Guid? SocialAccountId,
-    Guid? MediaAssetId,
-    string? AltText,
+    IReadOnlyList<PostVersionImageDto> Images,
     PostVersionSource CreationSource,
     Guid CreatedByUserId,
     string CreatedByName,
-    DateTime CreatedAtUtc,
-    MediaAssetDto? Media);
+    DateTime CreatedAtUtc);
+
+/// <summary>One image of a version, in publishing order.</summary>
+public sealed record PostVersionImageDto(Guid MediaAssetId, string? AltText, MediaAssetDto Media);
 
 public sealed record PostDto(
     Guid Id,
     Guid OrganizationId,
-    Guid? CampaignId,
     SocialPlatform Platform,
     EditorialState EditorialState,
     Guid CurrentVersionId,
@@ -36,14 +36,11 @@ public sealed record PostDto(
     PostVersionDto CurrentVersion);
 
 /// <summary>
-/// One row of the post list (Planner, Campaign detail, Home). The latest publication job is carried separately from the
+/// One row of the post list (Planner, Home). MediaAssetId is the first image (thumbnail). The latest publication job is carried separately from the
 /// editorial state so the two are never merged on the server.
 /// </summary>
 public sealed record PostListItemDto(
     Guid Id,
-    Guid? CampaignId,
-    string? CampaignName,
-    string? CampaignColor,
     SocialPlatform Platform,
     EditorialState EditorialState,
     int CurrentVersionNumber,
@@ -57,4 +54,5 @@ public sealed record PostListItemDto(
     Guid? LatestJobId,
     DeliveryState? LatestDeliveryState,
     DateTime? LatestPublishAtUtc,
-    Guid? MediaAssetId = null);
+    Guid? MediaAssetId = null,
+    int ImageCount = 0);

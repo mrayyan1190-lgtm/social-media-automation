@@ -49,6 +49,10 @@ public static class OutputParser
         return string.IsNullOrEmpty(prompt) ? null : prompt.Length > 1500 ? prompt[..1500] : prompt;
     }
 
+    /// <summary>How many images the user asked for, per the model (1 when missing), clamped to 1..MaxImages.</summary>
+    public static int ParseImageCount(string raw) =>
+        Math.Clamp(Deserialize<GeneratedContent>(raw).ImageCount ?? 1, 1, Domain.Common.PlatformRules.MaxImages);
+
     public static IReadOnlyDictionary<SocialPlatform, VariantEvaluation> ParseEvaluation(string raw)
     {
         var content = Deserialize<EvaluationContent>(raw);

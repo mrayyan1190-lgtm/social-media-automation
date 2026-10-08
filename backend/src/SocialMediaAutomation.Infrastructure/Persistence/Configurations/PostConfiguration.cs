@@ -18,11 +18,6 @@ internal sealed class PostConfiguration : IEntityTypeConfiguration<Post>
         builder.IsEnumString<Post, SocialPlatform>(p => p.Platform, "Platform");
         builder.IsEnumString<Post, EditorialState>(p => p.EditorialState, "EditorialState");
 
-        // Optional same-tenant campaign folder: when set, (OrganizationId, CampaignId) must match a campaign of this organization.
-        builder.HasOne<Campaign>().WithMany()
-            .HasForeignKey(p => new { p.OrganizationId, p.CampaignId })
-            .HasPrincipalKey(c => new { c.OrganizationId, c.Id })
-            .OnDelete(DeleteBehavior.Restrict);
         builder.HasMemberReference(p => new { p.OrganizationId, p.CreatedByUserId });
 
         // CurrentVersionId must be a version of THIS post in THIS organization: the composite FK includes the post's own Id.

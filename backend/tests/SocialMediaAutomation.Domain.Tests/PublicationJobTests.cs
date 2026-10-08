@@ -12,27 +12,27 @@ public class PublicationJobTests
     private static readonly Guid Reviewer = Guid.NewGuid();
     private static readonly DateTime Now = new(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
 
-    private readonly Campaign campaign = CampaignTests.New();
+    private static readonly Guid Org = Guid.NewGuid();
 
     private static string Code(Action act) => Assert.Throws<BusinessException>(act).Code;
 
     private SocialAccount Account(ExecutionMode mode = ExecutionMode.SIMULATED) =>
-        SocialAccount.CreateUnconnected(Guid.NewGuid(), campaign.OrganizationId, SocialPlatform.LinkedIn, "LI", mode, Creator, Now);
+        SocialAccount.CreateUnconnected(Guid.NewGuid(), Org, SocialPlatform.LinkedIn, "LI", mode, Creator, Now);
 
     private (Post Post, PostVersion Version, ReviewRequest Approval, SocialAccount Account) Approved(SocialAccount? destination = null)
     {
         var account = destination ?? Account();
-        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn,
-            new PostContent("Hook", "Close the books faster.", null, null, [], null, null, account.Id), null, account, PostVersionSource.Manual, Creator, Now);
+        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), Org, SocialPlatform.LinkedIn,
+            new PostContent("Hook", "Close the books faster.", null, null, [], null, account.Id), [], account, PostVersionSource.Manual, Creator, Now);
         var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         post.SubmitForReview(review, Now);
-        review.Approve(Reviewer, v1, true, ApprovalPayload.From(post, v1, account, null), Now);
+        review.Approve(Reviewer, v1, true, ApprovalPayload.From(post, v1, account, []), Now);
         post.Approve(review, Now);
         return (post, v1, review, account);
     }
 
     private static PublicationJob Job((Post Post, PostVersion Version, ReviewRequest Approval, SocialAccount Account) a, PublishTime? time = null) =>
-        PublicationJob.Create(Guid.NewGuid(), a.Post, a.Version, a.Approval, a.Account, ApprovalPayload.From(a.Post, a.Version, a.Account, null),
+        PublicationJob.Create(Guid.NewGuid(), a.Post, a.Version, a.Approval, a.Account, ApprovalPayload.From(a.Post, a.Version, a.Account, []),
             time ?? PublishTime.Now(Now), Creator, Now);
 
     // ---- Time resolution ------------------------------------------------------------------------------
@@ -101,13 +101,13 @@ public class PublicationJobTests
     public void Unapproved_post_cannot_create_a_job()
     {
         var account = Account();
-        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), campaign.OrganizationId, campaign, SocialPlatform.LinkedIn,
-            new PostContent("Hook", "Body", null, null, [], null, null, account.Id), null, account, PostVersionSource.Manual, Creator, Now);
+        var (post, v1) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), Org, SocialPlatform.LinkedIn,
+            new PostContent("Hook", "Body", null, null, [], null, account.Id), [], account, PostVersionSource.Manual, Creator, Now);
         var review = ReviewRequest.Submit(Guid.NewGuid(), post, v1, Creator, null, null, Now);
         post.SubmitForReview(review, Now);
 
         Assert.Equal(ErrorCodes.ApprovalRequired, Code(() => PublicationJob.Create(Guid.NewGuid(), post, v1, review, account,
-            ApprovalPayload.From(post, v1, account, null), PublishTime.Now(Now), Creator, Now)));
+            ApprovalPayload.From(post, v1, account, []), PublishTime.Now(Now), Creator, Now)));
     }
 
     [Fact]
@@ -115,12 +115,12 @@ public class PublicationJobTests
     {
         var approved = Approved();
         var v2 = approved.Post.Revise(Guid.NewGuid(), approved.Version,
-            new PostContent("Hook", "Edited.", null, null, [], null, null, approved.Account.Id), null, approved.Account, PostVersionSource.Manual, Creator, Now)!;
+            new PostContent("Hook", "Edited.", null, null, [], null, approved.Account.Id), [], approved.Account, PostVersionSource.Manual, Creator, Now)!;
         Assert.Equal(ErrorCodes.ApprovalRequired, Code(() => Job(approved)));
 
         // A payload that does not hash to what the reviewer approved (e.g. tampered stored data) is refused.
         var other = Approved();
-        var tampered = ApprovalPayload.From(other.Post, other.Version, other.Account, null) with { Body = "Something else" };
+        var tampered = ApprovalPayload.From(other.Post, other.Version, other.Account, []) with { Body = "Something else" };
         Assert.Equal(ErrorCodes.ApprovalStale, Code(() => PublicationJob.Create(Guid.NewGuid(), other.Post, other.Version, other.Approval, other.Account,
             tampered, PublishTime.Now(Now), Creator, Now)));
         Assert.NotNull(v2);
@@ -131,11 +131,11 @@ public class PublicationJobTests
     {
         var approved = Approved();
         var notConfigured = Account(ExecutionMode.NOT_CONFIGURED);
-        Assert.Throws<InvalidOperationException>(() => ApprovalPayload.From(approved.Post, approved.Version, notConfigured, null));
+        Assert.Throws<InvalidOperationException>(() => ApprovalPayload.From(approved.Post, approved.Version, notConfigured, []));
         Assert.Equal(ErrorCodes.ApprovalStale, Code(() => PublicationJob.Create(Guid.NewGuid(), approved.Post, approved.Version, approved.Approval,
-            notConfigured, ApprovalPayload.From(approved.Post, approved.Version, approved.Account, null), PublishTime.Now(Now), Creator, Now)));
+            notConfigured, ApprovalPayload.From(approved.Post, approved.Version, approved.Account, []), PublishTime.Now(Now), Creator, Now)));
 
-        var connection = OAuthConnection.Create(Guid.NewGuid(), campaign.OrganizationId, SocialPlatform.LinkedIn, "m", "Ada", Creator, Now);
+        var connection = OAuthConnection.Create(Guid.NewGuid(), Org, SocialPlatform.LinkedIn, "m", "Ada", Creator, Now);
         var live = SocialAccount.CreateConnected(Guid.NewGuid(), connection, "urn:li:person:m", "Ada", ExecutionMode.LIVE, ["publish_text"], Creator, Now);
         var liveApproved = Approved(live);
         live.MarkDisconnected(Now);

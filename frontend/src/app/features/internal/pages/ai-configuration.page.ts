@@ -83,11 +83,16 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           <p class="hint">Creates images for posts. Each image becomes a new post version and is reviewed by a person before it can be scheduled.</p>
           <label>Provider *
             <select name="imgProvider" [ngModel]="imgProvider" (ngModelChange)="chooseImgProvider($event)">
-              <option value="HuggingFace">Hugging Face</option><option value="OpenAI">OpenAI</option><option value="OpenAICompatible">OpenAI-compatible endpoint</option>
+              <option value="HuggingFace">Hugging Face</option><option value="StabilityAI">Stability AI</option><option value="CloudflareWorkersAI">Cloudflare Workers AI</option><option value="OpenAI">OpenAI</option><option value="OpenAICompatible">OpenAI-compatible endpoint</option>
             </select>
           </label>
           @if (imgProvider === 'OpenAICompatible') {
             <label>Base URL * <input name="imgBaseUrl" type="url" [(ngModel)]="imgBaseUrl" placeholder="https://…/v1" /></label>
+          }
+          @if (imgProvider === 'CloudflareWorkersAI') {
+            <label>Account ID * <input name="imgAccountId" [(ngModel)]="imgBaseUrl" maxlength="32" spellcheck="false" placeholder="32-character Cloudflare Account ID" />
+              <span class="hint">Cloudflare dashboard → Workers AI → REST API. Not secret; the API token goes in the key field below.</span>
+            </label>
           }
           <div class="two-inputs">
             @if (imgProvider === 'HuggingFace') {
@@ -97,6 +102,20 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
                   @if (!isHfModel(imgModel)) { <option [value]="imgModel">{{ imgModel }} (custom)</option> }
                 </select>
                 <span class="hint">{{ hfHint() }}</span>
+              </label>
+            } @else if (imgProvider === 'CloudflareWorkersAI') {
+              <label>Image Model *
+                <select name="imgModel" [(ngModel)]="imgModel">
+                  @for (m of cloudflareModels; track m.id) { <option [value]="m.id">{{ m.label }}</option> }
+                </select>
+                <span class="hint">Returns a 1024x1024 JPEG, accepted by every platform. The size setting does not apply.</span>
+              </label>
+            } @else if (imgProvider === 'StabilityAI') {
+              <label>Image Model *
+                <select name="imgModel" [(ngModel)]="imgModel">
+                  @for (m of stabilityModels; track m.id) { <option [value]="m.id">{{ m.label }}</option> }
+                </select>
+                <span class="hint">Returns JPEG at about 1.5 megapixels. Stable Image Core costs 3 credits per image.</span>
               </label>
             } @else {
               <label>Image Model * <input name="imgModel" [(ngModel)]="imgModel" placeholder="gpt-image-1" />
@@ -111,8 +130,8 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
 
           <div class="secret-field">
-            <span class="field-label">{{ imgProvider === 'HuggingFace' ? 'Hugging Face Token' : 'Image API Key' }}
-              <span class="hint">{{ imgProvider === 'HuggingFace' && provider !== 'HuggingFace' ? 'required' : 'optional' }}</span></span>
+            <span class="field-label">{{ imgProvider === 'HuggingFace' ? 'Hugging Face Token' : imgProvider === 'StabilityAI' ? 'Stability AI API Key' : imgProvider === 'CloudflareWorkersAI' ? 'Cloudflare API Token' : 'Image API Key' }}
+              <span class="hint">{{ imgProvider === 'StabilityAI' || imgProvider === 'CloudflareWorkersAI' || (imgProvider === 'HuggingFace' && provider !== 'HuggingFace') ? 'required' : 'optional' }}</span></span>
             @if (img.ownApiKey && !replacingImgKey()) {
               <div class="secret-set">
                 <span class="badge delivery success">Configured ✓</span>
@@ -122,6 +141,8 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
             } @else {
               <input name="imgKey" type="password" autocomplete="new-password" [(ngModel)]="imgKey" spellcheck="false"
                 [placeholder]="imgProvider === 'HuggingFace' ? 'hf_… token with Inference Providers permission'
+                  : imgProvider === 'StabilityAI' ? 'sk-… key from platform.stability.ai'
+                  : imgProvider === 'CloudflareWorkersAI' ? 'Workers AI API token'
                   : cfg.apiKeyConfigured ? 'Leave empty to use the AI / LLM API key' : 'Paste the API key'" />
               <span class="hint">Stored encrypted in the secret store. It is never shown again.</span>
               @if (img.ownApiKey) { <button type="button" class="link" (click)="imgKey = ''; replacingImgKey.set(false)">Keep the current key</button> }
@@ -209,6 +230,14 @@ export class AiConfigurationPage implements OnInit {
   protected imgKey = '';
   protected imgEnabled = false;
   /** Suggested Hugging Face text-to-image models (any HF model served for text-to-image can be typed instead). */
+  protected readonly stabilityModels = [
+    { id: 'core', label: 'Stable Image Core (fast, 3 credits)' },
+    { id: 'ultra', label: 'Stable Image Ultra (highest quality)' },
+    { id: 'sd3', label: 'Stable Diffusion 3.5' },
+  ];
+
+  protected readonly cloudflareModels = [{ id: '@cf/black-forest-labs/flux-1-schnell', label: 'FLUX.1 [schnell] (Black Forest Labs)' }];
+
   protected readonly hfModels = [
     { id: 'Tongyi-MAI/Z-Image-Turbo', label: 'Z-Image-Turbo — default: fast, good quality and prompt following' },
     { id: 'black-forest-labs/FLUX.1-schnell', label: 'FLUX.1-schnell — strong general purpose, very fast' },
@@ -332,8 +361,11 @@ export class AiConfigurationPage implements OnInit {
 
   /** Switching provider swaps in that provider's default model unless the admin typed their own. */
   protected chooseImgProvider(provider: string): void {
-    const defaults = ['', 'gpt-image-1', ...this.hfModels.map((m) => m.id)];
-    if (defaults.includes(this.imgModel.trim())) this.imgModel = provider === 'HuggingFace' ? this.hfModels[0].id : 'gpt-image-1';
+    const defaults = ['', 'gpt-image-1', ...this.hfModels.map((m) => m.id), ...this.stabilityModels.map((m) => m.id), ...this.cloudflareModels.map((m) => m.id)];
+    if (provider === 'StabilityAI' || provider === 'CloudflareWorkersAI' || defaults.includes(this.imgModel.trim()))
+      this.imgModel = provider === 'HuggingFace' ? this.hfModels[0].id : provider === 'StabilityAI' ? this.stabilityModels[0].id
+        : provider === 'CloudflareWorkersAI' ? this.cloudflareModels[0].id : 'gpt-image-1';
+    if (provider !== this.imgProvider) this.imgBaseUrl = '';
     this.imgProvider = provider;
   }
 
@@ -390,7 +422,10 @@ export class AiConfigurationPage implements OnInit {
     this.enabled = cfg.source === 'NONE' ? true : cfg.enabled;
     this.replacingImgKey.set(false);
     this.imgProvider = cfg.image.provider ?? 'HuggingFace';
-    this.imgBaseUrl = cfg.image.baseUrl ?? '';
+    // For Cloudflare the stored URL carries the Account ID; show just the ID.
+    this.imgBaseUrl = cfg.image.provider === 'CloudflareWorkersAI'
+      ? (cfg.image.baseUrl?.match(/accounts\/([0-9a-f]{32})/)?.[1] ?? '')
+      : cfg.image.baseUrl ?? '';
     this.imgModel = cfg.image.model ?? (this.imgProvider === 'HuggingFace' ? this.hfModels[0].id : 'gpt-image-1');
     this.imgSize = cfg.image.size ?? '1024x1024';
     this.imgEnabled = cfg.image.model ? cfg.image.enabled : true;

@@ -182,3 +182,37 @@ svg{display:block;flex:none}
   .empty-title{font-size:23px}
   .suggest{font-size:13px;text-align:left}
 }
+
+/* several images: 2 side by side, 3 = two on top + one below, 4 = 2x2 */
+.pv-grid.multi{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.pv-grid.multi img{aspect-ratio:1;object-fit:cover;height:100%}
+.pv-grid.three img:last-child{grid-column:1/-1;aspect-ratio:2/1}
+
+/* Advanced options: Save prompt and the close button sit at the top right of the card */
+.adv-top{justify-content:flex-end}
+.adv-top .brand-miss{margin-right:auto}
+.adv-close{width:28px;height:28px;min-height:0;min-width:0;padding:0;border:none;border-radius:50%;background:#f1f4f9;color:#475467;cursor:pointer;
+  display:grid;place-items:center;flex:none}
+.adv-close:hover{background:#e4e9f2;color:#101828}
+
+/* Result card: a little larger and more refined */
+.answer{max-width:780px}
+.rows{border-radius:18px;border-color:#e6eaf1;box-shadow:0 1px 2px rgba(16,24,40,.04),0 14px 32px -22px rgba(16,24,40,.28)}
+.rows-head{grid-template-columns:1fr 220px;padding:14px 22px;background:#fafbfd;font-size:12px;font-weight:650;letter-spacing:.4px;text-transform:uppercase;color:#667085}
+.row{grid-template-columns:92px 1fr 220px;gap:18px;padding:18px 22px;transition:background .15s}
+.row:hover{background:#fbfcfe}
+.row-thumb{width:92px;height:92px;border-radius:12px;box-shadow:0 2px 8px -4px rgba(16,24,40,.25)}
+.row-thumb img{border-radius:12px}
+.row-plat{right:-7px;bottom:-7px}
+.row-plat .in-chip{width:24px;height:24px;border-radius:7px}
+.row-text{font-size:14.5px;line-height:1.6;color:var(--ink);-webkit-line-clamp:3}
+.row-meta{margin-top:6px}
+.row-actions{gap:8px}
+.act{width:38px;height:38px;border-radius:10px;border:1px solid transparent}
+.act:hover:not(:disabled){background:#f4f7fc;border-color:#e3e8f0;color:var(--blue)}
+
+/* Image on/off (text is always generated) */
+.img-toggle{border:1px solid transparent}
+.img-toggle.on{background:#eaf1fe;color:var(--blue);border-color:#cfe0fc}
+.img-toggle.on:hover{background:#dfeafd;color:var(--blue)}
+.img-toggle:disabled{opacity:.45;cursor:not-allowed}

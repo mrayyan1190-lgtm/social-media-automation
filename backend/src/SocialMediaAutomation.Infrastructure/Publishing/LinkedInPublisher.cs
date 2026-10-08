@@ -10,9 +10,9 @@ using SocialMediaAutomation.Infrastructure.OAuth;
 namespace SocialMediaAutomation.Infrastructure.Publishing;
 
 /// <summary>
-/// LinkedIn Posts API (versioned REST, "Share on LinkedIn"): text with an optional single image, posted as the
-/// connected member. The image is uploaded first (initializeUpload + PUT), which creates nothing visible; only the final
-/// POST /rest/posts can create the post.
+/// LinkedIn Posts API (versioned REST, "Share on LinkedIn"): text with an optional image or a 2-4 image multi-image post,
+/// posted as the connected member. Images are uploaded first (initializeUpload + PUT each), which creates nothing
+/// visible; only the final POST /rest/posts can create the post.
 /// </summary>
 public sealed class LinkedInPublisher(HttpClient http, IConfiguration configuration) : HttpPublisher(http)
 {
@@ -33,7 +33,7 @@ public sealed class LinkedInPublisher(HttpClient http, IConfiguration configurat
 
     public override Task ValidateCapabilityAsync(PublishContext context, CancellationToken cancellationToken)
     {
-        RequireCapability(context, context.Media is null ? "publish_text" : "publish_image", "LinkedIn");
+        RequireCapability(context, context.Media.Count == 0 ? "publish_text" : "publish_image", "LinkedIn");
         if (!context.ExternalAccountId!.StartsWith("urn:li:person:", StringComparison.Ordinal)
             && !context.ExternalAccountId.StartsWith("urn:li:organization:", StringComparison.Ordinal))
             throw NotCapable("ACCOUNT_INVALID", "The LinkedIn destination is not a member or organization URN.");
@@ -43,18 +43,19 @@ public sealed class LinkedInPublisher(HttpClient http, IConfiguration configurat
     public override async Task<PublishReceipt> PublishAsync(PublishContext context, CancellationToken cancellationToken)
     {
         var token = context.AccessToken!;
-        string? imageUrn = null;
-        if (context.Media is { } media)
+        var images = new JsonArray();
+        foreach (var media in context.Media)
         {
             var init = await SendAsync(Rest(HttpMethod.Post, "/images?action=initializeUpload",
                 new { initializeUploadRequest = new { owner = context.ExternalAccountId } }), token, mayCreatePost: false, cancellationToken);
             var uploadUrl = init.Body?["value"]?["uploadUrl"]?.GetValue<string>();
-            imageUrn = init.Body?["value"]?["image"]?.GetValue<string>();
+            var imageUrn = init.Body?["value"]?["image"]?.GetValue<string>();
             if (uploadUrl is null || imageUrn is null)
                 throw NotCapable("PROVIDER_REJECTED", "LinkedIn did not return an image upload URL.");
             await using var bytes = await OpenMediaAsync(media, cancellationToken);
             var upload = new HttpRequestMessage(HttpMethod.Put, uploadUrl) { Content = new StreamContent(bytes) };
             await SendAsync(upload, token, mayCreatePost: false, cancellationToken);
+            images.Add(new JsonObject { ["id"] = imageUrn, ["altText"] = media.AltText ?? "" });
         }
 
         var post = new JsonObject
@@ -69,13 +70,16 @@ public sealed class LinkedInPublisher(HttpClient http, IConfiguration configurat
             ["lifecycleState"] = "PUBLISHED",
             ["isReshareDisabledByAuthor"] = false,
         };
-        if (imageUrn is not null)
-            post["content"] = new JsonObject { ["media"] = new JsonObject { ["id"] = imageUrn, ["altText"] = context.Media!.AltText ?? "" } };
+        // One image is a single-media post; two or more are a multiImage post (LinkedIn accepts 2-20).
+        if (images.Count == 1)
+            post["content"] = new JsonObject { ["media"] = images[0]!.DeepClone() };
+        else if (images.Count > 1)
+            post["content"] = new JsonObject { ["multiImage"] = new JsonObject { ["images"] = images } };
 
         var created = await SendAsync(Rest(HttpMethod.Post, "/posts", post), token, mayCreatePost: true, cancellationToken);
         var urn = created.Header("x-restli-id") ?? created.Header("x-linkedin-id");
         return new PublishReceipt(urn, urn is null ? null : $"https://www.linkedin.com/feed/update/{urn}/", created.RequestId,
-            $"LinkedIn post created{(imageUrn is null ? "" : " with 1 image")}.");
+            $"LinkedIn post created{(images.Count == 0 ? "" : $" with {images.Count} image(s)")}.");
     }
 
     public static string Escape(string text)

@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
-import { SOCIAL_PLATFORMS, SocialPlatform } from '../../campaigns/models/campaign.model';
+import { SOCIAL_PLATFORMS, SocialPlatform } from '../../../shared/models/platform.model';
 import { SocialAccount, SocialConnection } from '../models/social-account.model';
 import { SocialAccountApiService } from '../services/social-account-api.service';
 import { PlatformIconComponent } from '../../../shared/components/platform-icon.component';

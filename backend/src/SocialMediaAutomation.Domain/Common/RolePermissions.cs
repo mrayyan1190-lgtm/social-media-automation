@@ -12,13 +12,13 @@ public static class RolePermissions
         // approves and publishes).
         [OrganizationRole.Creator] =
         [
-            Permission.ViewOrganization, Permission.ViewMembers, Permission.ViewBrandProfile, Permission.ViewCampaigns,
-            Permission.ManageCampaigns, Permission.CommentOnReviews, Permission.ViewSocialAccounts,
+            Permission.ViewOrganization, Permission.ViewMembers, Permission.ViewBrandProfile, Permission.ViewContent,
+            Permission.ManageContent, Permission.CommentOnReviews, Permission.ViewSocialAccounts,
         ],
         // Reviewers inspect exact versions and decide; they do not author or edit content (PRD §7.3).
         [OrganizationRole.Reviewer] =
         [
-            Permission.ViewOrganization, Permission.ViewMembers, Permission.ViewBrandProfile, Permission.ViewCampaigns,
+            Permission.ViewOrganization, Permission.ViewMembers, Permission.ViewBrandProfile, Permission.ViewContent,
             Permission.ReviewContent, Permission.CommentOnReviews, Permission.ViewSocialAccounts,
         ],
     };

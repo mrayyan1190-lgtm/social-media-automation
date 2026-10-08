@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Media.DTOs;
 using SocialMediaAutomation.Application.Posts.DTOs;
 using SocialMediaAutomation.Application.Tests;
@@ -28,8 +27,7 @@ public class PostAndMediaTests(ApiFactory factory)
         CallToAction = "Book a demo",
         DestinationUrl = "https://brightline.example/demo",
         Hashtags = new[] { "FinanceOps" },
-        MediaAssetId = mediaAssetId,
-        AltText = altText,
+        Images = mediaAssetId is null ? null : new[] { new { MediaAssetId = mediaAssetId, AltText = altText } },
     };
 
     private static object NewPost(string platform, Guid? mediaAssetId = null) => new
@@ -37,16 +35,11 @@ public class PostAndMediaTests(ApiFactory factory)
         Platform = platform,
         Body = "Version one body",
         Hashtags = new[] { "Brightline" },
-        MediaAssetId = mediaAssetId,
-        AltText = mediaAssetId is null ? null : "Product screenshot",
+        Images = mediaAssetId is null ? null : new[] { new { MediaAssetId = mediaAssetId, AltText = "Product screenshot" } },
     };
 
-    private async Task<(HttpClient Client, string CampaignUrl)> CampaignAsync(DemoData.DemoUser user, string org)
-    {
-        var client = await factory.SignInAsync(user);
-        var campaign = await client.CreateCampaignAsync(org);
-        return (client, $"{org}/campaigns/{campaign.Id}");
-    }
+    private async Task<(HttpClient Client, string OrgUrl)> SignInAsync(DemoData.DemoUser user, string org) =>
+        (await factory.SignInAsync(user), org);
 
     private static async Task<MediaAssetDto> UploadAsync(HttpClient client, string org, byte[] bytes, string fileName = "image.png", string declaredType = "image/png")
     {
@@ -74,11 +67,11 @@ public class PostAndMediaTests(ApiFactory factory)
     [Fact]
     public async Task Creating_a_post_creates_version_1_as_the_current_version()
     {
-        var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
+        var (creator, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
 
-        var response = await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"));
+        var response = await creator.CreatePostAsync(orgUrl, NewPost("LinkedIn"));
         var post = await response.ReadAsync<PostDto>();
-        var summaries = await (await creator.GetAsync(ApiClient.PostsOf(campaignUrl))).ReadAsync<List<PostListItemDto>>();
+        var summaries = await (await creator.GetAsync($"{orgUrl}/posts")).ReadAsync<List<PostListItemDto>>();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(EditorialState.DRAFT, post.EditorialState);
@@ -86,7 +79,8 @@ public class PostAndMediaTests(ApiFactory factory)
         Assert.Equal(post.CurrentVersionId, post.CurrentVersion.Id);
         Assert.Equal(PostVersionSource.Manual, post.CurrentVersion.CreationSource);
         Assert.Equal(DemoData.CreatorA.Id, post.CurrentVersion.CreatedByUserId);
-        Assert.Equal((SocialPlatform.LinkedIn, 1), (Assert.Single(summaries).Platform, summaries[0].CurrentVersionNumber));
+        var summary = Assert.Single(summaries, s => s.Id == post.Id);
+        Assert.Equal((SocialPlatform.LinkedIn, 1), (summary.Platform, summary.CurrentVersionNumber));
     }
 
     [Fact]
@@ -94,8 +88,8 @@ public class PostAndMediaTests(ApiFactory factory)
     [Trait("Acceptance", "05 stale edit rejected")]
     public async Task Edit_creates_version_2_and_version_1_stays_unchanged()
     {
-        var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var v1Post = await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var (creator, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
+        var v1Post = await (await creator.CreatePostAsync(orgUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
 
         var v2Post = await (await ReviseAsync(creator, OrgA, v1Post, Content("Edited body"))).ReadAsync<PostDto>();
         var stale = await ReviseAsync(creator, OrgA, v1Post, Content("Stale edit"));
@@ -115,10 +109,10 @@ public class PostAndMediaTests(ApiFactory factory)
     [Fact]
     public async Task Database_rejects_in_place_changes_and_cross_post_current_version()
     {
-        var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var linkedIn = await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var (creator, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
+        var linkedIn = await (await creator.CreatePostAsync(orgUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var media = await UploadAsync(creator, OrgA, ImageProbeTests.JpegHeader(1080, 1080), "a.jpg", "image/jpeg");
-        var instagram = await (await creator.CreatePostAsync(campaignUrl, NewPost("Instagram", media.Id))).ReadAsync<PostDto>();
+        var instagram = await (await creator.CreatePostAsync(orgUrl, NewPost("Instagram", media.Id))).ReadAsync<PostDto>();
         var unused = await UploadAsync(creator, OrgA, ImageProbeTests.PngHeader(400, 400));
         // LinkedIn v1 becomes a non-current version, so only the same-post FK (not the unique pointer index) can reject reuse.
         await (await ReviseAsync(creator, OrgA, linkedIn, Content("LinkedIn v2"))).ReadAsync<PostDto>();
@@ -137,29 +131,10 @@ public class PostAndMediaTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Campaign_holds_any_posts_and_moving_a_post_creates_no_version()
-    {
-        var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
-        await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
-        var unfiled = await (await creator.PostAsJsonAsync($"{OrgA}/posts", NewPost("Facebook"))).ReadAsync<PostDto>();
-        Assert.Null(unfiled.CampaignId);
-
-        var moved = await (await creator.PutJsonAsync($"{OrgA}/posts/{unfiled.Id}/campaign", new { CampaignId = campaignUrl.Split('/')[^1] },
-            ApiClient.ETag(unfiled.RowVersion))).ReadAsync<PostDto>();
-        var inCampaign = await (await creator.GetAsync(ApiClient.PostsOf(campaignUrl))).ReadAsync<List<PostListItemDto>>();
-
-        Assert.Equal((unfiled.CurrentVersionId, 1), (moved.CurrentVersionId, moved.CurrentVersion.VersionNumber));
-        Assert.Equal(3, inCampaign.Count);
-        await (await creator.PutJsonAsync($"{OrgA}/posts/{unfiled.Id}/campaign", new { CampaignId = (Guid?)null }, ApiClient.ETag(unfiled.RowVersion)))
-            .AssertErrorAsync(HttpStatusCode.Conflict, ErrorCodes.ConcurrencyConflict);
-    }
-
-    [Fact]
     public async Task Reviewer_cannot_create_or_edit_posts_or_upload()
     {
-        var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creator.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var (creator, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
+        var post = await (await creator.CreatePostAsync(orgUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var reviewer = await factory.SignInAsync(DemoData.ReviewerA);
 
         await (await reviewer.GetAsync($"{OrgA}/posts/{post.Id}")).ReadAsync<PostDto>();
@@ -210,32 +185,54 @@ public class PostAndMediaTests(ApiFactory factory)
     [Fact]
     public async Task Replacing_the_image_creates_a_new_version_and_keeps_the_previous_one()
     {
-        var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
+        var (creator, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
         var first = await UploadAsync(creator, OrgA, ImageProbeTests.JpegHeader(1080, 1080), "first.jpg", "image/jpeg");
         var second = await UploadAsync(creator, OrgA, ImageProbeTests.JpegHeader(1080, 1350), "second.jpg", "image/jpeg");
-        var v1 = await (await creator.CreatePostAsync(campaignUrl, NewPost("Instagram", first.Id))).ReadAsync<PostDto>();
+        var v1 = await (await creator.CreatePostAsync(orgUrl, NewPost("Instagram", first.Id))).ReadAsync<PostDto>();
 
         var v2 = await (await ReviseAsync(creator, OrgA, v1, NewPost("Instagram", second.Id))).ReadAsync<PostDto>();
         var altOnly = await (await ReviseAsync(creator, OrgA, v2, new
         {
-            Platform = "Instagram", Body = "Version one body", Hashtags = new[] { "Brightline" }, MediaAssetId = second.Id, AltText = "Portrait screenshot",
+            Platform = "Instagram", Body = "Version one body", Hashtags = new[] { "Brightline" }, Images = new[] { new { MediaAssetId = second.Id, AltText = "Portrait screenshot" } },
         })).ReadAsync<PostDto>();
         var versions = await (await creator.GetAsync($"{OrgA}/posts/{v1.Id}/versions")).ReadAsync<List<PostVersionDto>>();
 
         Assert.Equal(2, v2.CurrentVersion.VersionNumber);
-        Assert.Equal(second.Id, v2.CurrentVersion.MediaAssetId);
+        Assert.Equal(second.Id, v2.CurrentVersion.Images.Single().MediaAssetId);
         Assert.Equal(3, altOnly.CurrentVersion.VersionNumber);
-        Assert.Equal([second.Id, second.Id, first.Id], versions.Select(v => v.MediaAssetId!.Value));
-        Assert.Equal(1080, versions[^1].Media!.Height);
+        Assert.Equal([second.Id, second.Id, first.Id], versions.Select(v => v.Images.Single().MediaAssetId));
+        Assert.Equal(1080, versions[^1].Images.Single().Media.Height);
+    }
+
+    [Fact]
+    public async Task A_post_keeps_up_to_four_images_in_order_and_rejects_a_fifth()
+    {
+        var (creator, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
+        var images = new List<MediaAssetDto>();
+        for (var i = 0; i < 5; i++)
+            images.Add(await UploadAsync(creator, OrgA, ImageProbeTests.JpegHeader(1080, 1080 + i), $"img{i}.jpg", "image/jpeg"));
+        object WithImages(IEnumerable<MediaAssetDto> list) => new
+        {
+            Platform = "Instagram", Body = "Carousel", Images = list.Select((m, i) => new { MediaAssetId = m.Id, AltText = $"Slide {i + 1}" }).ToArray(),
+        };
+
+        var post = await (await creator.CreatePostAsync(orgUrl, WithImages(images.Take(4)))).ReadAsync<PostDto>();
+        var tooMany = await creator.CreatePostAsync(orgUrl, WithImages(images));
+
+        Assert.Equal(images.Take(4).Select(m => m.Id), post.CurrentVersion.Images.Select(i => i.MediaAssetId));
+        Assert.Equal(["Slide 1", "Slide 2", "Slide 3", "Slide 4"], post.CurrentVersion.Images.Select(i => i.AltText));
+        await tooMany.AssertErrorAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
+        var listed = await (await creator.GetAsync($"{OrgA}/posts")).ReadAsync<List<PostListItemDto>>();
+        Assert.Equal((images[0].Id, 4), listed.Where(p => p.Id == post.Id).Select(p => (p.MediaAssetId, p.ImageCount)).Single());
     }
 
     [Fact]
     public async Task Instagram_rejects_png_but_accepts_jpeg()
     {
-        var (creator, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
+        var (creator, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
         var png = await UploadAsync(creator, OrgA, ImageProbeTests.PngHeader(1080, 1080));
 
-        await (await creator.CreatePostAsync(campaignUrl, NewPost("Instagram", png.Id)))
+        await (await creator.CreatePostAsync(orgUrl, NewPost("Instagram", png.Id)))
             .AssertErrorAsync(HttpStatusCode.BadRequest, ErrorCodes.ValidationFailed);
     }
 
@@ -244,13 +241,13 @@ public class PostAndMediaTests(ApiFactory factory)
     [Fact]
     public async Task Image_from_another_workspace_cannot_be_attached_or_read()
     {
-        var (creatorA, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creatorA.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var (creatorA, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
+        var post = await (await creatorA.CreatePostAsync(orgUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var adminB = await factory.SignInAsync(DemoData.AdminB);
         var mediaB = await UploadAsync(adminB, OrgB, ImageProbeTests.PngHeader(800, 800));
 
         var attach = await ReviseAsync(creatorA, OrgA, post, Content(mediaAssetId: mediaB.Id, altText: "foreign"));
-        var create = await creatorA.CreatePostAsync(campaignUrl, NewPost("Instagram", mediaB.Id));
+        var create = await creatorA.CreatePostAsync(orgUrl, NewPost("Instagram", mediaB.Id));
         var readViaOwnOrg = await creatorA.GetAsync($"{OrgA}/media/{mediaB.Id}/content");
         var versions = await (await creatorA.GetAsync($"{OrgA}/posts/{post.Id}/versions")).ReadAsync<List<PostVersionDto>>();
 
@@ -263,14 +260,14 @@ public class PostAndMediaTests(ApiFactory factory)
     [Fact]
     public async Task Database_rejects_a_version_referencing_another_workspace_image()
     {
-        var (creatorA, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creatorA.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var (creatorA, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
+        var post = await (await creatorA.CreatePostAsync(orgUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var mediaB = await UploadAsync(await factory.SignInAsync(DemoData.AdminB), OrgB, ImageProbeTests.PngHeader(800, 800));
         await using var db = factory.CreateDbContext();
 
         var error = await Assert.ThrowsAsync<SqlException>(() => db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO PostVersions (Id, OrganizationId, PostId, VersionNumber, Body, Hashtags, MediaAssetId, CreationSource, CreatedByUserId, CreatedAtUtc)
-            VALUES ({Guid.NewGuid()}, {DemoData.OrganizationAId}, {post.Id}, 99, 'smuggled', '[]', {mediaB.Id}, 'Manual', {DemoData.CreatorA.Id}, SYSUTCDATETIME())
+            INSERT INTO PostVersionImages (PostVersionId, Position, OrganizationId, MediaAssetId, AltText)
+            VALUES ({post.CurrentVersionId}, 0, {DemoData.OrganizationAId}, {mediaB.Id}, NULL)
             """));
 
         Assert.Equal(547, error.Number);
@@ -281,15 +278,13 @@ public class PostAndMediaTests(ApiFactory factory)
     [Trait("Acceptance", "01 cross-tenant read denied")]
     public async Task Other_workspace_cannot_read_or_edit_posts()
     {
-        var (creatorA, campaignUrl) = await CampaignAsync(DemoData.CreatorA, OrgA);
-        var post = await (await creatorA.CreatePostAsync(campaignUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
+        var (creatorA, orgUrl) = await SignInAsync(DemoData.CreatorA, OrgA);
+        var post = await (await creatorA.CreatePostAsync(orgUrl, NewPost("LinkedIn"))).ReadAsync<PostDto>();
         var adminB = await factory.SignInAsync(DemoData.AdminB);
 
         await (await adminB.GetAsync($"{OrgA}/posts/{post.Id}")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await adminB.GetAsync($"{OrgB}/posts/{post.Id}")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await adminB.GetAsync($"{OrgB}/posts/{post.Id}/versions")).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
         await (await ReviseAsync(adminB, OrgB, post, Content("Hijack"))).AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
-        await (await adminB.CreatePostAsync($"{OrgB}/campaigns/{campaignUrl.Split('/')[^1]}", NewPost("Facebook")))
-            .AssertErrorAsync(HttpStatusCode.NotFound, ErrorCodes.NotFound);
     }
 }

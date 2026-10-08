@@ -20,7 +20,7 @@ public sealed class OrganizationsController(OrganizationService organizations) :
     public async Task<ActionResult<OrganizationDto>> Create(CreateOrganizationRequest request, CancellationToken cancellationToken)
     {
         var created = await organizations.CreateAsync(
-            new CreateOrganizationCommand(request.Name, request.Industry, request.DefaultLanguage, request.TimeZoneId, request.RequireDistinctReviewer),
+            new CreateOrganizationCommand(request.Name, request.Industry ?? "", request.DefaultLanguage, request.TimeZoneId, request.RequireDistinctReviewer),
             cancellationToken);
         Response.Headers.ETag = RowVersionHeaders.ToETag(created.RowVersion);
         return CreatedAtAction(nameof(Get), new { orgId = created.Id }, created);

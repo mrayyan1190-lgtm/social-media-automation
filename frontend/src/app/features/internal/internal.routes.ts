@@ -1,9 +1,10 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet, Routes } from '@angular/router';
 import { filter, firstValueFrom, map } from 'rxjs';
 import { InternalAuthService } from '../../core/auth/internal-auth.service';
-import { InternalApiService, ago } from './internal-api.service';
+import { ToastService } from '../../core/services/toast.service';
+import { InternalApiService, ago, words } from './internal-api.service';
 
 /** Sidebar icons (24×24 stroke paths). */
 const ICONS: Record<string, string> = {
@@ -18,7 +19,7 @@ const ICONS: Record<string, string> = {
   signout: 'M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3M16 17l5-5-5-5M21 12H9',
 };
 
-/** Sidebar sections. Operations and Monitoring group several routes, shown as tabs above the page. */
+/** Sidebar sections. Monitoring groups several routes, shown as tabs above the page. */
 const NAV: { heading: string; items: { key: string; label: string; path: string; routes: string[] }[] }[] = [
   { heading: 'Overview', items: [{ key: 'overview', label: 'Overview', path: '', routes: [''] }] },
   {
@@ -38,17 +39,17 @@ const NAV: { heading: string; items: { key: string; label: string; path: string;
   {
     heading: 'System',
     items: [
-      { key: 'operations', label: 'Operations', path: 'workers', routes: ['workers', 'queues', 'publications', 'reconciliation'] },
       { key: 'monitoring', label: 'Monitoring', path: 'system-health', routes: ['system-health', 'logs'] },
     ],
   },
 ];
 
+/** Pages with no sidebar entry (reached from Overview tiles and alerts); they still need a page title. */
+const PAGE_TITLES: Record<string, string> = {
+  workers: 'Workers', queues: 'Queues', publications: 'Publications', reconciliation: 'Reconciliation',
+};
+
 const TABS: Record<string, { path: string; label: string }[]> = {
-  operations: [
-    { path: 'workers', label: 'Workers' }, { path: 'queues', label: 'Queues' },
-    { path: 'publications', label: 'Publications' }, { path: 'reconciliation', label: 'Reconciliation' },
-  ],
   monitoring: [{ path: 'system-health', label: 'System Health' }, { path: 'logs', label: 'Logs' }],
 };
 
@@ -128,6 +129,11 @@ export class InternalLayoutComponent implements OnInit {
   protected readonly ago = ago;
   protected readonly reloadKey = signal(0);
   protected readonly meta = signal<{ environment: string; generatedAtUtc: string } | null>(null);
+  private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
+  /** Errors already shown as a popup (polls overlap on purpose, so nothing is missed between them). */
+  private readonly seenErrors = new Set<string>();
+  private errorWatch?: ReturnType<typeof setInterval>;
 
   private readonly url = toSignal(this.router.events.pipe(filter((e) => e instanceof NavigationEnd), map(() => this.router.url)),
     { initialValue: this.router.url });
@@ -135,10 +141,34 @@ export class InternalLayoutComponent implements OnInit {
   private readonly segment = computed(() => this.url().split('?')[0].replace(/^\/internal\/?/, '').split('/')[0]);
   protected readonly section = computed(() => NAV.flatMap((g) => g.items).find((i) => i.routes.includes(this.segment())) ?? null);
   protected readonly tabs = computed(() => TABS[this.section()?.key ?? ''] ?? null);
-  protected readonly title = computed(() => (this.segment() === 'profile' ? 'Admin Profile' : this.section()?.label ?? ''));
+  protected readonly title = computed(() => (this.segment() === 'profile' ? 'Admin Profile' : this.section()?.label ?? PAGE_TITLES[this.segment()] ?? ''));
 
   ngOnInit(): void {
     void this.loadMeta();
+    // Every error anywhere in the system (API, AI, publishing, workers) pops up here, never in the customer app.
+    void this.watchErrors();
+    this.errorWatch = setInterval(() => void this.watchErrors(), ERROR_POLL_MS);
+    this.destroyRef.onDestroy(() => clearInterval(this.errorWatch));
+  }
+
+  /**
+   * Polls Logs → All for failures and warnings of the last few minutes (overlapping windows absorb clock skew between
+   * browser and server) and shows each new one once as a popup.
+   */
+  private async watchErrors(): Promise<void> {
+    const from = new Date(Date.now() - ERROR_WINDOW_MS).toISOString();
+    const items = await firstValueFrom(this.api.allLog({ outcome: 'errors', from })).catch(() => null);
+    if (!items) return;
+    const fresh = items.filter((i) => !this.seenErrors.has(i.source + i.id)).reverse(); // oldest first
+    fresh.forEach((i) => this.seenErrors.add(i.source + i.id));
+    if (this.seenErrors.size > 2000) this.seenErrors.clear(); // ponytail: bounded memory; a reset may re-show the last few minutes once
+    const openLogs = { label: 'Open logs', run: () => void this.router.navigateByUrl('/internal/logs') };
+    // At most two popups at a time; a burst is summarised so the screen never fills up.
+    for (const i of fresh.slice(-2)) {
+      const text = `${i.outcome === 'FAILED' ? 'Error' : 'Warning'} · ${i.source} · ${words(i.event)}${i.workspace ? ` (${i.workspace})` : ''}: ${i.message}`;
+      this.toast.error(text.length > 260 ? `${text.slice(0, 257)}…` : text, openLogs);
+    }
+    if (fresh.length > 2) this.toast.error(`${fresh.length - 2} more errors or warnings just happened.`, openLogs);
   }
 
   protected refresh(): void {
@@ -157,6 +187,9 @@ export class InternalLayoutComponent implements OnInit {
     if (o) this.meta.set({ environment: o.environment, generatedAtUtc: o.generatedAtUtc });
   }
 }
+
+const ERROR_POLL_MS = 20_000;
+const ERROR_WINDOW_MS = 5 * 60_000;
 
 export const INTERNAL_ROUTES: Routes = [
   {

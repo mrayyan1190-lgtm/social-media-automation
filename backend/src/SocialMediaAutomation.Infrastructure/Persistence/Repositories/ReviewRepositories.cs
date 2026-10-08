@@ -66,8 +66,6 @@ internal sealed class ReviewRepository(CoreDbContext db) : IReviewRepository
         await (from r in db.ReviewRequests.AsNoTracking()
                join p in db.Posts on r.PostId equals p.Id
                join v in db.PostVersions on r.PostVersionId equals v.Id
-               join c in db.Campaigns on p.CampaignId equals c.Id into folders
-               from c in folders.DefaultIfEmpty()
                join s in db.Users on r.SubmittedByUserId equals s.Id
                join a in db.Users on r.AssignedReviewerUserId equals a.Id into assignees
                from a in assignees.DefaultIfEmpty()
@@ -76,7 +74,6 @@ internal sealed class ReviewRepository(CoreDbContext db) : IReviewRepository
                where r.OrganizationId == organizationId && (status == null || r.Status == status) && (postId == null || r.PostId == postId)
                orderby r.SubmittedAtUtc descending
                select new ReviewSummaryDto(r.Id, r.PostId, r.PostVersionId, r.VersionNumber, p.Platform,
-                   p.CampaignId, c == null ? null : c.Name, c == null ? null : c.Color,
                    (v.Hook ?? v.Body).Length > 140 ? (v.Hook ?? v.Body).Substring(0, 140) : (v.Hook ?? v.Body),
                    r.Status, r.SubmittedByUserId, s.DisplayName, r.AssignedReviewerUserId, a == null ? null : a.DisplayName,
                    r.SubmissionNote, r.SubmittedAtUtc, r.DecidedByUserId, d == null ? null : d.DisplayName,

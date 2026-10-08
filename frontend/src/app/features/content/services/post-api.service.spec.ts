@@ -9,7 +9,7 @@ import { PostApiService } from './post-api.service';
 describe('PostApiService / MediaApiService', () => {
   let http: HttpTestingController;
   const content: PostContent = {
-    hook: null, body: 'b', callToAction: null, destinationUrl: null, hashtags: [], mediaAssetId: 'm-1', altText: 'alt', socialAccountId: 'acct-1',
+    hook: null, body: 'b', callToAction: null, destinationUrl: null, hashtags: [], images: [{ mediaAssetId: 'm-1', altText: 'alt' }], socialAccountId: 'acct-1',
   };
 
   beforeEach(() => {

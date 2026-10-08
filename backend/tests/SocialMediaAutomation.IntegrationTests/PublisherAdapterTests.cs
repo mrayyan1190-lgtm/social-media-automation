@@ -38,8 +38,12 @@ public class PublisherAdapterTests
     private static readonly ApprovalPayload Payload = new(ApprovalPayload.CurrentVersion, "LinkedIn", Guid.NewGuid(), "Month-end (finally) easy",
         "Close the books in days.", "Book a demo", "https://brightline.example/demo", ["FinanceOps"], null, null, null, null);
 
-    private static PublishContext Context(SocialPlatform platform, string account, string[] capabilities, PublishMedia? media = null, string? container = null) =>
-        new(Guid.NewGuid(), platform, ExecutionMode.LIVE, account, capabilities, Payload, media, "secret-user-token", container);
+    private static PublishContext Context(
+        SocialPlatform platform, string account, string[] capabilities, PublishMedia? media = null, string? container = null, PublishMedia[]? images = null) =>
+        new(Guid.NewGuid(), platform, ExecutionMode.LIVE, account, capabilities, Payload, images ?? (media is null ? [] : [media]), "secret-user-token", container);
+
+    private static PublishMedia Image(string alt, string? publicUrl = null) =>
+        new(Guid.NewGuid(), "image/jpeg", new string('a', 64), alt, _ => Task.FromResult<Stream>(new MemoryStream([1, 2, 3])), publicUrl);
 
     private static HttpResponseMessage Json(string json, HttpStatusCode status = HttpStatusCode.OK, params (string Name, string Value)[] headers)
     {
@@ -94,6 +98,26 @@ public class PublisherAdapterTests
         Assert.Equal(["/rest/images", "/put", "/rest/posts"], handler.Requests.Select(r => r.Request.RequestUri!.AbsolutePath));
         var post = JsonNode.Parse(handler.Requests[2].Body!)!;
         Assert.Equal(("urn:li:image:9", "Dashboard"), (post["content"]!["media"]!["id"]!.GetValue<string>(), post["content"]!["media"]!["altText"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    public async Task LinkedIn_posts_several_images_as_one_multi_image_post()
+    {
+        var uploads = 0;
+        var handler = new StubHandler((request, _) => request.RequestUri!.AbsolutePath switch
+        {
+            "/rest/images" => Json($$$"""{"value":{"uploadUrl":"https://upload.test/put","image":"urn:li:image:{{{++uploads}}}"}}"""),
+            "/put" => Json("", HttpStatusCode.Created),
+            _ => Json("", HttpStatusCode.Created, ("x-restli-id", "urn:li:share:9")),
+        });
+
+        await new LinkedInPublisher(Client(handler), Config).PublishAsync(
+            Context(SocialPlatform.LinkedIn, "urn:li:person:xyz", ["publish_image"], images: [Image("One"), Image("Two")]), CancellationToken.None);
+
+        Assert.Equal(["/rest/images", "/put", "/rest/images", "/put", "/rest/posts"], handler.Requests.Select(r => r.Request.RequestUri!.AbsolutePath));
+        var images = JsonNode.Parse(handler.Requests[4].Body!)!["content"]!["multiImage"]!["images"]!.AsArray();
+        Assert.Equal([("urn:li:image:1", "One"), ("urn:li:image:2", "Two")],
+            images.Select(i => (i!["id"]!.GetValue<string>(), i["altText"]!.GetValue<string>())));
     }
 
     [Theory]
@@ -155,6 +179,26 @@ public class PublisherAdapterTests
         Assert.Equal(("p1_777", "https://www.facebook.com/p1_777", "trace-1"), (receipt.ExternalId, receipt.ExternalUrl, receipt.ProviderRequestId));
     }
 
+    [Fact]
+    public async Task Facebook_uploads_unpublished_photos_then_one_feed_post_attaches_them()
+    {
+        var photos = 0;
+        var handler = new StubHandler((request, _) => request.Method == HttpMethod.Get
+            ? Json("""{"access_token":"page-token","id":"p1"}""")
+            : request.RequestUri!.AbsolutePath.EndsWith("/photos") ? Json($$"""{"id":"ph-{{++photos}}"}""") : Json("""{"id":"p1_9"}"""));
+
+        var receipt = await new FacebookPublisher(Client(handler), Config).PublishAsync(
+            Context(SocialPlatform.Facebook, "p1", ["publish_image"], images: [Image("One"), Image("Two"), Image("Three")]), CancellationToken.None);
+
+        Assert.Equal(["/v21.0/p1", "/v21.0/p1/photos", "/v21.0/p1/photos", "/v21.0/p1/photos", "/v21.0/p1/feed"],
+            handler.Requests.Select(r => r.Request.RequestUri!.AbsolutePath));
+        Assert.All(handler.Requests.Skip(1).Take(3), r => Assert.Contains("name=published", r.Body));
+        var feed = Uri.UnescapeDataString(handler.Requests[4].Body!);
+        Assert.Contains("attached_media[0]={\"media_fbid\":\"ph-1\"}", feed);
+        Assert.Contains("attached_media[2]={\"media_fbid\":\"ph-3\"}", feed);
+        Assert.Equal("p1_9", receipt.ExternalId);
+    }
+
     [Theory]
     [InlineData("190", HttpStatusCode.BadRequest, PublishErrorCategory.ACTION_REQUIRED, "AUTH_EXPIRED")]
     [InlineData("4", HttpStatusCode.BadRequest, PublishErrorCategory.RETRYABLE, "THROTTLED")]
@@ -205,6 +249,26 @@ public class PublisherAdapterTests
         Assert.Contains("image_url=https%3A%2F%2Fcdn.test%2Fa.jpg", handler.Requests[0].Body);
         Assert.Contains("creation_id=c-1", handler.Requests[2].Body);
         Assert.Equal(("m-9", "https://www.instagram.com/p/xyz/"), (receipt.ExternalId, receipt.ExternalUrl));
+    }
+
+    [Fact]
+    public async Task Instagram_builds_a_carousel_from_item_containers()
+    {
+        var containers = 0;
+        var handler = new StubHandler((request, _) => Json($$"""{"id":"c-{{++containers}}"}"""));
+        var publisher = new InstagramPublisher(Client(handler), Config);
+        var context = Context(SocialPlatform.Instagram, "ig1", ["publish_image"],
+            images: [Image("One", "https://cdn.test/1.jpg"), Image("Two", "https://cdn.test/2.jpg")]);
+
+        await publisher.ValidateCapabilityAsync(context, CancellationToken.None);
+        var container = await publisher.PrepareAsync(context, CancellationToken.None);
+
+        Assert.Equal("c-3", container);
+        Assert.All(handler.Requests.Take(2), r => Assert.Contains("is_carousel_item=true", r.Body));
+        Assert.DoesNotContain("caption", handler.Requests[0].Body);
+        Assert.Contains("media_type=CAROUSEL", handler.Requests[2].Body);
+        Assert.Contains("children=c-1%2Cc-2", handler.Requests[2].Body);
+        Assert.Contains("caption=", handler.Requests[2].Body);
     }
 
     [Fact]

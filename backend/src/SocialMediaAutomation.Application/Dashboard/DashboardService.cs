@@ -36,7 +36,7 @@ public sealed class DashboardService(
 
     public async Task<DashboardDto> GetAsync(Guid organizationId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         var org = access.OrganizationId;
         var editorial = await posts.CountByEditorialStateAsync(org, cancellationToken);
         var delivery = await publications.CountByDeliveryStateAsync(org, cancellationToken);

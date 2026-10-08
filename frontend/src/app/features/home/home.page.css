@@ -181,3 +181,28 @@ a{color:inherit;text-decoration:none}
   .chead{flex-wrap:wrap}
   .chead .right{margin-left:0;width:100%;padding-left:48px}
 }
+
+/* ============ CREATOR HOME ============ */
+.quick{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:15px}
+.quick input{flex:1;min-width:0;height:42px;border:1px solid var(--line);border-radius:11px;padding:0 14px;font:inherit;font-size:14px;color:var(--ink);
+  background:#f8fafd;outline:none;transition:.15s}
+.quick input:focus{border-color:#b7c9f3;background:#fff;box-shadow:0 0 0 3px rgba(47,111,237,.1)}
+.qbtn{display:inline-flex;align-items:center;gap:7px;height:42px;padding:0 16px;border-radius:11px;border:1px solid var(--line);background:#fff;
+  font:inherit;font-size:13.5px;font-weight:620;color:var(--ink-2);cursor:pointer;white-space:nowrap;transition:.15s}
+.qbtn svg{width:15px;height:15px;display:block}
+.qbtn:hover{background:#f4f7fc}
+.qbtn.primary{border:0;color:#fff;background:linear-gradient(180deg,#3b78f0,#1f5bd8);box-shadow:0 8px 18px -10px rgba(31,91,216,.8)}
+.qbtn.primary:hover{filter:brightness(1.05)}
+.creator .pipe .rbody{display:flex;align-items:center;gap:8px;min-width:0}
+.creator .pipe .rbody .rtitle{min-width:0}
+.creator .pipe .rbody .chip{flex:none}
+
+/* Wide screens: the creator home fits the viewport below the top bar (like Composer and Planner); lists scroll inside their card. */
+@media (min-width:1101px){
+  .creator{height:calc(100vh - 99px);margin-bottom:-40px;display:flex;flex-direction:column}
+  .creator .kpis{margin-bottom:15px}
+  .creator .row{flex:1 1 0;min-height:0;margin-bottom:15px}
+  .creator .row:last-child{margin-bottom:0}
+  .creator .row .card{min-height:0;overflow:hidden}
+  .creator .rows,.creator .arows{min-height:0;overflow-y:auto}
+}

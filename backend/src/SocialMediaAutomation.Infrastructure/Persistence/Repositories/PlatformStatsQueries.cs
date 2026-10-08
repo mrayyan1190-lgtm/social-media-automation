@@ -40,7 +40,6 @@ internal sealed class PlatformStatsQueries(CoreDbContext db) : IPlatformStatsQue
             .OrderByDescending(o => o.CreatedAtUtc).Take(5)
             .Select(o => new WorkspaceRowDto(o.Id, o.Name, o.CreatedAtUtc,
                 db.OrganizationMembers.Count(m => m.OrganizationId == o.Id && m.Status == MembershipStatus.Active),
-                db.Campaigns.Count(c => c.OrganizationId == o.Id),
                 o.Status))
             .ToListAsync(cancellationToken);
         var workspaces = new WorkspaceOverviewDto(

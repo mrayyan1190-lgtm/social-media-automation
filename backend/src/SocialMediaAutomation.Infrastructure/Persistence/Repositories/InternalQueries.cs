@@ -34,7 +34,6 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
             {
                 o.Id, o.Name, o.Status, o.CreatedAtUtc,
                 Members = db.OrganizationMembers.Count(m => m.OrganizationId == o.Id && m.Status == MembershipStatus.Active),
-                Campaigns = db.Campaigns.Count(c => c.OrganizationId == o.Id),
                 SocialAccounts = db.SocialAccounts.Count(a => a.OrganizationId == o.Id && a.ConnectionStatus == ConnectionStatus.CONNECTED),
                 LastActivity = db.AuditLogs.Where(l => l.OrganizationId == o.Id).Max(l => (DateTime?)l.CreatedAtUtc),
                 Admin = (from m in db.OrganizationMembers
@@ -45,7 +44,7 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
             })
             .ToListAsync(cancellationToken);
 
-        return rows.Select(r => new WorkspaceListItemDto(r.Id, r.Name, r.Admin?.DisplayName, r.Admin?.Email, r.Members, r.Campaigns, r.SocialAccounts,
+        return rows.Select(r => new WorkspaceListItemDto(r.Id, r.Name, r.Admin?.DisplayName, r.Admin?.Email, r.Members, r.SocialAccounts,
             r.Status, r.CreatedAtUtc, r.LastActivity)).ToList();
     }
 
@@ -69,7 +68,6 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
 
         var usage = new WorkspaceUsageDto(
             members.Count(m => m.Status == MembershipStatus.Active),
-            await db.Campaigns.CountAsync(c => c.OrganizationId == id, cancellationToken),
             await db.Posts.CountAsync(p => p.OrganizationId == id, cancellationToken),
             accounts.Count(a => a.ConnectionStatus == ConnectionStatus.CONNECTED),
             await db.AiGenerationRequests.CountAsync(r => r.OrganizationId == id, cancellationToken),
@@ -225,11 +223,9 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
         from j in jobs
         join o in db.Organizations on j.OrganizationId equals o.Id
         join p in db.Posts on j.PostId equals p.Id
-        join c in db.Campaigns on p.CampaignId equals c.Id into folders
-        from c in folders.DefaultIfEmpty()
         join v in db.PostVersions on j.PostVersionId equals v.Id
         join a in db.SocialAccounts on j.SocialAccountId equals a.Id
-        select new PublicationListItemDto(j.Id, j.OrganizationId, o.Name, p.CampaignId, c == null ? null : c.Name, p.Id, v.VersionNumber, j.Platform, a.DisplayName, j.ExecutionMode,
+        select new PublicationListItemDto(j.Id, j.OrganizationId, o.Name, p.Id, v.VersionNumber, j.Platform, a.DisplayName, j.ExecutionMode,
             j.PublishAtUtc, j.DeliveryState, j.AttemptCount, j.MaxAttempts, j.LockedBy, j.LastErrorCode, j.LastErrorMessage, j.CorrelationId, j.CreatedAtUtc);
 
     // ---- Logs ----
@@ -388,11 +384,12 @@ internal sealed class InternalQueries(CoreDbContext db) : IInternalQueries
 
     // ---- Activity for configuration status and health ----
 
-    public async Task<AiActivityDto> AiActivityAsync(DateTime utcNow, CancellationToken cancellationToken, bool images = false)
+    public async Task<AiActivityDto> AiActivityAsync(DateTime utcNow, CancellationToken cancellationToken, bool images = false, AiProvider? provider = null)
     {
         var today = utcNow.Date;
         var hourAgo = utcNow.AddHours(-1);
-        var calls = db.AiCallLogs.AsNoTracking().Where(c => c.Purpose != AiCallPurpose.ModelListing && (c.Purpose == AiCallPurpose.ImageGeneration) == images);
+        var calls = db.AiCallLogs.AsNoTracking().Where(c => c.Purpose != AiCallPurpose.ModelListing && (c.Purpose == AiCallPurpose.ImageGeneration) == images
+            && (provider == null || c.Provider == provider));
         var requests = db.AiGenerationRequests.AsNoTracking().Where(r => (r.Kind == AiRequestKind.ImageGeneration) == images);
         var lastSuccess = await calls.Where(c => c.Succeeded).MaxAsync(c => (DateTime?)c.CreatedAtUtc, cancellationToken);
         var lastFailure = await calls.Where(c => !c.Succeeded).OrderByDescending(c => c.CreatedAtUtc)

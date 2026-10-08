@@ -47,10 +47,11 @@ export class LoginPageComponent {
     try {
       const { email, password } = this.form.getRawValue();
       const me = await this.auth.login(email, password);
-      // An unfinished onboarding step always wins over the return URL.
+      // System admins go to the platform console; for everyone else an unfinished onboarding step wins over the return URL.
       const step = me.onboarding.nextStep;
       await this.router.navigateByUrl(
-        step !== 'COMPLETE' ? ONBOARDING_ROUTES[step] : this.route.snapshot.queryParamMap.get('returnUrl') || '/home');
+        me.isSystemAdmin ? '/internal'
+          : step !== 'COMPLETE' ? ONBOARDING_ROUTES[step] : this.route.snapshot.queryParamMap.get('returnUrl') || '/home');
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {

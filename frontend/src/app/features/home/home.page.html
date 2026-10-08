@@ -53,6 +53,158 @@
 <ng-template #arrowUp><svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></ng-template>
 <ng-template #arrowRight><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h13M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></ng-template>
 
+<ng-template #activityCard>
+  <section class="card">
+    <div class="chead">
+      <span class="tile t-blue"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 12h4l2-5 3.5 10 2.5-6 1.5 3h3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div class="ctext"><h2>Recent activity</h2><p>{{ workspace.isAdmin() ? 'Latest updates from your team' : 'Your latest notifications' }}</p></div>
+      <div class="right"><a class="link" [routerLink]="ws('/notifications')">View all <ng-container *ngTemplateOutlet="arrowRight" /></a></div>
+    </div>
+    <div class="arows">
+      @for (a of activity(); track a.id) {
+        <a class="arw" [routerLink]="ws('/notifications')">
+          <span [class]="'aav ' + avatar(a.actor)">{{ a.actor.charAt(0).toUpperCase() }}</span>
+          <span class="atxt" [title]="a.actor + ' ' + a.text"><b>{{ a.actor }}</b> {{ a.text }}</span>
+          <span class="aright"><span class="atime">{{ ago(a.at) }}</span><span class="udot" [class.off]="!fresh(a.at)"></span></span>
+        </a>
+      } @empty {
+        <div class="empty">{{ loaded() ? 'No activity yet.' : 'Loading…' }}</div>
+      }
+    </div>
+  </section>
+</ng-template>
+
+@if (!workspace.isAdmin()) {
+<!-- ================= CREATOR HOME =================
+     A Creator writes and submits; the Admin reviews, schedules and publishes. So this home shows only the person's
+     own work: what to write next, what was sent back, and where their posts are. It fits one screen. -->
+<div class="creator">
+  <form class="card quick" (ngSubmit)="start()">
+    <span class="tile t-violet"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" fill="currentColor"/></svg></span>
+    <input name="idea" [(ngModel)]="idea" maxlength="2000" placeholder="What do you want to post today? Describe it and AI writes the draft…" aria-label="Post idea" />
+    <button type="submit" class="qbtn primary">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z" fill="currentColor"/></svg>
+      Write with AI
+    </button>
+    <a class="qbtn" [routerLink]="ws('/composer')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      New post
+    </a>
+  </form>
+
+<!-- KPIs: the creator's own posts -->
+<div class="kpis">
+  @for (k of kpis(); track k.label) {
+    <a class="card kpi" [routerLink]="ws(k.link)" [queryParams]="k.query ?? null" [title]="k.title ?? k.label">
+      <span [class]="'ktile t-' + k.tone">
+        @switch (k.icon) {
+          @case ('calendar') { <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15.5" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="12.5" width="3.4" height="3.4" rx="1" fill="currentColor"/></svg> }
+          @case ('clock') { <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12.5" r="8.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 8.2v4.6l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.2 3.2h5.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> }
+          @case ('doc') { <svg viewBox="0 0 24 24" fill="none"><path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5L14 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.8 3.8V9h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.6 13h6.8M8.6 16.4h4.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> }
+          @case ('pen') { <svg viewBox="0 0 24 24" fill="none"><path d="M15.5 4.5 19.5 8.5 9 19H5v-4L15.5 4.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13 7l4 4" stroke="currentColor" stroke-width="1.8"/></svg> }
+          @case ('bars') { <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 19.5V13M10 19.5V7.5M15.5 19.5v-4.5M21 19.5V4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg> }
+          @default { <svg viewBox="0 0 24 24" fill="none"><path d="M4 15.5l4.2-4.6 3.4 3.2L20 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.6 6.5H20v4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> }
+        }
+      </span>
+      <div class="kbody">
+        <div class="klabel">{{ k.label }}</div>
+        <div class="kline">
+          <span class="kbig num">{{ k.value }}</span>@if (k.unit) {<span class="kunit">{{ k.unit }}</span>}
+          @if (k.delta; as d) {
+            <span [class]="'delta ' + d.dir + (d.good ? ' good' : ' bad')" [title]="k.current === 0 ? 'Going out in the next 7 days' : 'Compared with the period before'">
+              @if (d.dir !== 'flat') { <ng-container *ngTemplateOutlet="arrowUp" /> }
+              <span class="num">{{ d.text }}</span>
+            </span>
+          }
+        </div>
+      </div>
+      <svg class="kbar" viewBox="0 0 31 30" aria-hidden="true">
+        @for (v of k.bars; track $index) {
+          <rect [attr.x]="$index * 5.4" [attr.y]="kbar(k.bars, $index).y" width="3.4" [attr.height]="kbar(k.bars, $index).h" rx="1.7"
+            [attr.fill]="colors[k.tone]" [attr.opacity]="$index === k.current ? .85 : .22" />
+        }
+      </svg>
+    </a>
+  }
+</div>
+
+
+  <div class="row mid">
+    <section class="card">
+      <div class="chead">
+        <span class="tile t-rose"><svg viewBox="0 0 24 24" fill="none"><path d="M15.5 4.5 19.5 8.5 9 19H5v-4L15.5 4.5Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg></span>
+        <div class="ctext"><h2>Changes requested</h2><p>Sent back by the Admin: edit, then submit again</p></div>
+        <div class="right"><a class="link" [routerLink]="ws('/planner')" [queryParams]="{ status: 'Changes Requested' }">View all <ng-container *ngTemplateOutlet="arrowRight" /></a></div>
+      </div>
+      <div class="rows">
+        @for (r of changesRequested(); track r.id) {
+          <a class="r attn" [routerLink]="ws(r.link)">
+            <ng-container *ngTemplateOutlet="thumb; context: { $implicit: r.mediaId, art: r.art }" />
+            <div class="rbody">
+              <div class="rtitle" [title]="r.title">{{ r.title }}</div>
+              <div class="rsub"><ng-container *ngTemplateOutlet="mark; context: { $implicit: r.platform, xs: true }" />
+                <span class="t" [title]="r.note ?? ''">{{ r.note ? '“' + r.note + '”' : 'No comment' }} <span class="sep"></span> {{ r.by }}</span></div>
+            </div>
+            <span class="gtime">{{ r.ago }}</span>
+            <span [class]="'chip ' + r.chip">{{ r.chipLabel }}</span>
+            <ng-container *ngTemplateOutlet="dots" />
+          </a>
+        } @empty {
+          <div class="empty ok">{{ loaded() ? 'Nothing was sent back. Nice work!' : 'Loading…' }}</div>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="chead">
+        <span class="tile t-slate"><svg viewBox="0 0 24 24" fill="none"><path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5L14 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.6 13h6.8M8.6 16.4h4.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+        <div class="ctext"><h2>Continue writing</h2><p>Your most recent drafts</p></div>
+        <div class="right"><a class="link" [routerLink]="ws('/planner')" [queryParams]="{ status: 'Draft' }">View all <ng-container *ngTemplateOutlet="arrowRight" /></a></div>
+      </div>
+      <div class="rows">
+        @for (r of continueWriting(); track r.id) {
+          <a class="r attn" [routerLink]="ws(r.link)">
+            <ng-container *ngTemplateOutlet="thumb; context: { $implicit: r.mediaId, art: r.art }" />
+            <div class="rbody">
+              <div class="rtitle" [title]="r.title">{{ r.title }}</div>
+              <div class="rsub"><ng-container *ngTemplateOutlet="mark; context: { $implicit: r.platform, xs: true }" /><span class="t">{{ r.platform }} <span class="sep"></span> edited {{ r.ago }}</span></div>
+            </div>
+            <span class="gtime"></span>
+            <span [class]="'chip ' + r.chip">{{ r.chipLabel }}</span>
+            <ng-container *ngTemplateOutlet="dots" />
+          </a>
+        } @empty {
+          <div class="empty">@if (loaded()) { No drafts yet. <a [routerLink]="ws('/ai-studio')">Write one with AI</a> } @else { Loading… }</div>
+        }
+      </div>
+    </section>
+  </div>
+
+  <div class="row bot">
+    <section class="card">
+      <div class="chead">
+        <span class="tile t-blue"><svg viewBox="0 0 24 24" fill="none"><path d="M8.5 7h11M8.5 12h11M8.5 17h7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="4.6" cy="7" r="1.35" fill="currentColor"/><circle cx="4.6" cy="12" r="1.35" fill="currentColor"/><circle cx="4.6" cy="17" r="1.35" fill="currentColor"/></svg></span>
+        <div class="ctext"><h2>My upcoming posts</h2><p>In review, approved and scheduled</p></div>
+        <div class="right"><a class="link" [routerLink]="ws('/planner')" [queryParams]="{ view: 'list' }">View all <ng-container *ngTemplateOutlet="arrowRight" /></a></div>
+      </div>
+      <div class="rows">
+        @for (r of myUpcoming(); track r.id) {
+          <a class="r pipe" [routerLink]="ws(r.link)">
+            <ng-container *ngTemplateOutlet="thumb; context: { $implicit: r.mediaId, art: r.art }" />
+            <div class="rbody"><div class="rtitle" [title]="r.title">{{ r.title }}</div><span [class]="'chip ' + r.chip">{{ r.chipLabel }}</span></div>
+            <ng-container *ngTemplateOutlet="mark; context: { $implicit: r.platform }" />
+            <div class="rdate2"><b>{{ r.date }}</b><span>{{ r.time }}</span></div>
+          </a>
+        } @empty {
+          <div class="empty">{{ loaded() ? 'Nothing on the way yet. Submit a draft for review to see it here.' : 'Loading…' }}</div>
+        }
+      </div>
+    </section>
+
+    <ng-container *ngTemplateOutlet="activityCard" />
+  </div>
+</div>
+} @else {
 <!-- ================= KPI ROW ================= -->
 <div class="kpis">
   @for (k of kpis(); track k.label) {
@@ -62,6 +214,7 @@
           @case ('calendar') { <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15.5" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="7" y="12.5" width="3.4" height="3.4" rx="1" fill="currentColor"/></svg> }
           @case ('clock') { <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12.5" r="8.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 8.2v4.6l3 1.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.2 3.2h5.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> }
           @case ('doc') { <svg viewBox="0 0 24 24" fill="none"><path d="M14 3.5H7.5A2.5 2.5 0 0 0 5 6v12a2.5 2.5 0 0 0 2.5 2.5h9A2.5 2.5 0 0 0 19 18V8.5L14 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13.8 3.8V9h5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.6 13h6.8M8.6 16.4h4.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg> }
+          @case ('pen') { <svg viewBox="0 0 24 24" fill="none"><path d="M15.5 4.5 19.5 8.5 9 19H5v-4L15.5 4.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M13 7l4 4" stroke="currentColor" stroke-width="1.8"/></svg> }
           @case ('bars') { <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 19.5V13M10 19.5V7.5M15.5 19.5v-4.5M21 19.5V4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg> }
           @default { <svg viewBox="0 0 24 24" fill="none"><path d="M4 15.5l4.2-4.6 3.4 3.2L20 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.6 6.5H20v4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> }
         }
@@ -111,7 +264,7 @@
         <div class="empty">
           @if (loaded()) {
             Nothing in the pipeline yet.
-            @if (workspace.canManageCampaigns()) { <a [routerLink]="ws('/ai-studio')">Create a post with AI</a> }
+            @if (workspace.canManageContent()) { <a [routerLink]="ws('/ai-studio')">Create a post with AI</a> }
           } @else { Loading… }
         </div>
       }
@@ -233,23 +386,7 @@
     </div>
   </section>
 
-  <section class="card">
-    <div class="chead">
-      <span class="tile t-blue"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 12h4l2-5 3.5 10 2.5-6 1.5 3h3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <div class="ctext"><h2>Recent activity</h2><p>{{ workspace.isAdmin() ? 'Latest updates from your team' : 'Your latest notifications' }}</p></div>
-      <div class="right"><a class="link" [routerLink]="ws('/notifications')">View all <ng-container *ngTemplateOutlet="arrowRight" /></a></div>
-    </div>
-    <div class="arows">
-      @for (a of activity(); track a.id) {
-        <a class="arw" [routerLink]="ws('/notifications')">
-          <span [class]="'aav ' + avatar(a.actor)">{{ a.actor.charAt(0).toUpperCase() }}</span>
-          <span class="atxt" [title]="a.actor + ' ' + a.text"><b>{{ a.actor }}</b> {{ a.text }}</span>
-          <span class="aright"><span class="atime">{{ ago(a.at) }}</span><span class="udot" [class.off]="!fresh(a.at)"></span></span>
-        </a>
-      } @empty {
-        <div class="empty">{{ loaded() ? 'No activity yet.' : 'Loading…' }}</div>
-      }
-    </div>
-  </section>
+  <ng-container *ngTemplateOutlet="activityCard" />
 
 </div>
+}

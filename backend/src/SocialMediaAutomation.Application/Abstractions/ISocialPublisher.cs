@@ -5,7 +5,7 @@ using SocialMediaAutomation.Domain.Enums;
 
 namespace SocialMediaAutomation.Application.Abstractions;
 
-/// <summary>The approved image as the publisher sees it: stable identity plus a way to read the bytes at dispatch time.</summary>
+/// <summary>One approved image as the publisher sees it: stable identity plus a way to read the bytes at dispatch time.</summary>
 public sealed record PublishMedia(Guid AssetId, string ContentType, string Sha256, string? AltText, Func<CancellationToken, Task<Stream>> OpenAsync,
     string? PublicUrl);
 
@@ -20,14 +20,15 @@ public sealed record PublishContext(
     string? ExternalAccountId,
     IReadOnlyList<string> Capabilities,
     ApprovalPayload Payload,
-    PublishMedia? Media,
+    // The approved images in publishing order; empty for a text post.
+    IReadOnlyList<PublishMedia> Media,
     string? AccessToken,
     string? ContainerId)
 {
     private bool PrintMembers(StringBuilder builder)
     {
         builder.Append($"JobId = {JobId}, Platform = {Platform}, ExecutionMode = {ExecutionMode}, ExternalAccountId = {ExternalAccountId}, ");
-        builder.Append($"HasMedia = {Media is not null}, ContainerId = {ContainerId}, AccessToken = ***");
+        builder.Append($"MediaCount = {Media.Count}, ContainerId = {ContainerId}, AccessToken = ***");
         return true;
     }
 }

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
-import { SocialPlatform } from '../../campaigns/models/campaign.model';
+import { SocialPlatform } from '../../../shared/models/platform.model';
 import { ExecutionMode, SocialAccount, SocialConnection, SocialProvider } from '../models/social-account.model';
 
 @Injectable({ providedIn: 'root' })

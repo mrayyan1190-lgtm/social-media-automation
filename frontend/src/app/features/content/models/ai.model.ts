@@ -1,5 +1,5 @@
 import { BrandTone } from '../../settings/models/brand-profile.model';
-import { ContentLength, EmojiMode, HashtagMode, SocialPlatform } from '../../campaigns/models/campaign.model';
+import { ContentLength, EmojiMode, HashtagMode, SocialPlatform } from '../../../shared/models/platform.model';
 
 export type AiRequestStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 export type RewriteAction = 'Rewrite' | 'Regenerate' | 'Shorten' | 'Expand' | 'MoreProfessional' | 'ImproveHook' | 'LessPromotional' | 'Custom';
@@ -18,18 +18,18 @@ export const REWRITE_ACTIONS: { value: RewriteAction; label: string }[] = [
 export interface GenerationInput {
   prompt: string;
   platforms: SocialPlatform[];
-  campaignId: string | null;
   /** Null uses the brand tone. */
   tone: BrandTone | null;
   length: ContentLength;
   hashtags: HashtagMode;
   emojis: EmojiMode;
-  /** Uploaded images for a vision model to read (the first is attached to the new post). */
+  /** Uploaded images for a vision model to read (with Text + Image all of them are attached to the new posts). */
   mediaAssetIds?: string[];
   visionModel?: string | null;
-  /** Text + Image: attach the first uploaded image, or (without uploads) generate one with `imageModel`. */
+  /** Text + Image: attach the uploaded images, or (without uploads) generate `imageCount` (1-4) with `imageModel`. */
   withImage?: boolean;
   imageModel?: string | null;
+  imageCount?: number;
   /** "All platforms": one shared post, identical on every platform (still one draft per platform to review). */
   unified?: boolean;
 }
@@ -48,7 +48,6 @@ export interface AiCapabilities {
 
 export interface AiGenerationRequest {
   id: string;
-  campaignId: string | null;
   kind: 'Generation' | 'Rewrite' | 'ImageGeneration';
   platforms: SocialPlatform[];
   postId: string | null;

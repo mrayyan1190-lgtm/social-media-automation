@@ -40,7 +40,9 @@ public sealed class PlatformAiConfiguration
     public void Update(AiProvider provider, string? baseUrl, string model, string? fallbackModel, int? maxOutputTokens, int? timeoutSeconds,
         bool enabled, Guid userId, DateTime utcNow)
     {
-        Provider = Guard.Defined(provider, "Provider");
+        Provider = Guard.Defined(provider, "Provider").IsImageOnly()
+            ? throw Guard.Invalid("Provider", $"{provider} is used only for image generation; choose a text model provider")
+            : provider;
         BaseUrl = provider == AiProvider.OpenAICompatible ? AiProviderSettings.ResolveBaseUrl(provider, baseUrl) : null;
         Model = Guard.Required(model, "Default model", AiProviderSettings.ModelMax);
         FallbackModel = Guard.Optional(fallbackModel, "Fallback model", AiProviderSettings.ModelMax);
@@ -65,7 +67,7 @@ public sealed class PlatformAiConfiguration
         UpdatedAtUtc = utcNow;
     }
 
-    // ---- Image generation (an OpenAI-compatible images endpoint, or Hugging Face text-to-image) ----
+    // ---- Image generation (an OpenAI-compatible images endpoint, Hugging Face text-to-image, or Stability AI) ----
 
     public const string ImageApiKeySecretName = "platform/ai/image-api-key";
 
@@ -75,8 +77,15 @@ public sealed class PlatformAiConfiguration
     /// </summary>
     public static readonly string[] ImageSizes = ["1024x1024", "1536x1024", "1792x1024"];
 
+    /// <summary>Stability AI's Stable Image endpoints; "core" (Stable Image Core) is the default.</summary>
+    public static readonly string[] StabilityImageModels = ["core", "ultra", "sd3"];
+
+    /// <summary>Cloudflare Workers AI text-to-image model offered here: FLUX.1 [schnell] (JPEG, 1024x1024).</summary>
+    public static readonly string[] CloudflareImageModels = ["@cf/black-forest-labs/flux-1-schnell"];
+
     public bool ImageEnabled { get; private set; }
     public AiProvider? ImageProvider { get; private set; }
+    /// <summary>OpenAI-compatible endpoint, or the Cloudflare account URL (holds the Account ID).</summary>
     public string? ImageBaseUrl { get; private set; }
     public string? ImageModel { get; private set; }
     public string? ImageSize { get; private set; }
@@ -86,21 +95,37 @@ public sealed class PlatformAiConfiguration
 
     public bool HasImageApiKey => ImageApiKeySecretRef is not null;
 
-    /// <summary>The LLM key belongs to the LLM provider's account, so a Hugging Face image model can only borrow a Hugging Face LLM key.</summary>
-    public bool ImageCanUseLlmKey => ImageProvider != AiProvider.HuggingFace || Provider == AiProvider.HuggingFace;
+    /// <summary>
+    /// The LLM key belongs to the LLM provider's account, so a Hugging Face image model can only borrow a Hugging Face LLM key,
+    /// and image-only providers (Stability AI, Cloudflare) always need their own image key.
+    /// </summary>
+    public bool ImageCanUseLlmKey => ImageProvider switch
+    {
+        AiProvider.HuggingFace => Provider == AiProvider.HuggingFace,
+        { } p when p.IsImageOnly() => false,
+        _ => true,
+    };
 
     public void UpdateImage(AiProvider provider, string? baseUrl, string model, string size, bool enabled, Guid userId, DateTime utcNow)
     {
         if (Guard.Defined(provider, "Image provider") == AiProvider.Groq)
-            throw Guard.Invalid("Image provider", "Groq does not offer image generation; use OpenAI, Hugging Face or an OpenAI-compatible endpoint");
+            throw Guard.Invalid("Image provider", "Groq does not offer image generation; use OpenAI, Hugging Face, Stability AI, Cloudflare Workers AI or an OpenAI-compatible endpoint");
         ImageProvider = provider;
-        ImageBaseUrl = provider == AiProvider.OpenAICompatible ? AiProviderSettings.ResolveBaseUrl(provider, baseUrl) : null;
+        ImageBaseUrl = provider is AiProvider.OpenAICompatible or AiProvider.CloudflareWorkersAI ? AiProviderSettings.ResolveBaseUrl(provider, baseUrl) : null;
         ImageModel = Guard.Required(model, "Image model", AiProviderSettings.ModelMax);
+        if (provider == AiProvider.StabilityAI && !StabilityImageModels.Contains(ImageModel))
+            throw Guard.Invalid("Image model", $"must be one of {string.Join(", ", StabilityImageModels)} for Stability AI");
+        if (provider == AiProvider.CloudflareWorkersAI && !CloudflareImageModels.Contains(ImageModel))
+            throw Guard.Invalid("Image model", $"must be {string.Join(", ", CloudflareImageModels)} for Cloudflare Workers AI");
         ImageSize = ImageSizes.Contains(size) ? size : throw Guard.Invalid("Image size", $"must be one of {string.Join(", ", ImageSizes)}");
         if (enabled && !HasImageApiKey && !(HasApiKey && ImageCanUseLlmKey))
             throw Guard.Invalid("Image API key", ImageCanUseLlmKey
                 ? "is required (or save an AI / LLM API key) before image generation can be enabled"
-                : "is required: a Hugging Face token (hf_…) must be saved as the image API key");
+                : provider == AiProvider.StabilityAI
+                    ? "is required: a Stability AI key (sk-…) must be saved as the image API key"
+                : provider == AiProvider.CloudflareWorkersAI
+                    ? "is required: a Cloudflare Workers AI API token must be saved as the image API key"
+                    : "is required: a Hugging Face token (hf_…) must be saved as the image API key");
         ImageEnabled = enabled;
         UpdatedByUserId = userId;
         UpdatedAtUtc = utcNow;

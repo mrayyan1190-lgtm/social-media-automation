@@ -1,7 +1,9 @@
 import { Component, ViewEncapsulation, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { AuthService } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { AppNotification, NotificationApiService } from '../../core/services/notification-api.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -9,7 +11,7 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
 import { MODE_LABELS, PROBLEM_DELIVERY, UPCOMING_DELIVERY, customerStatus } from '../../shared/models/states';
 import { ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
-import { SOCIAL_PLATFORMS, SocialPlatform } from '../campaigns/models/campaign.model';
+import { SOCIAL_PLATFORMS, SocialPlatform } from '../../shared/models/platform.model';
 import { PostListItem } from '../content/models/post.model';
 import { MediaApiService } from '../content/services/media-api.service';
 import { PostApiService } from '../content/services/post-api.service';
@@ -26,7 +28,7 @@ interface Kpi {
   label: string;
   value: number;
   tone: Tone;
-  icon: 'calendar' | 'clock' | 'doc' | 'bars' | 'trend';
+  icon: 'calendar' | 'clock' | 'doc' | 'bars' | 'trend' | 'pen';
   /** Shown after the value (e.g. %). */
   unit?: string;
   title?: string;
@@ -51,6 +53,8 @@ interface Row {
   query?: Record<string, string>;
   /** Pipeline: date and time; attention: "by …" and a relative time. */
   date?: string;
+  /** Creator home: the reviewer's comment on a post sent back for changes. */
+  note?: string;
   time?: string;
   by?: string;
   ago?: string;
@@ -76,7 +80,7 @@ const CW = 520, CH = 146, PL = 34, PR = 10, PT = 8, PB = 18;
  */
 @Component({
   selector: 'app-home-page',
-  imports: [ProblemBannerComponent, RouterLink, NgTemplateOutlet],
+  imports: [ProblemBannerComponent, RouterLink, NgTemplateOutlet, FormsModule],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
   // The page is a standalone design; Shadow DOM keeps the app's global element styles out of it.
@@ -88,7 +92,11 @@ export class HomePage {
   private readonly reviewsApi = inject(ReviewApiService);
   private readonly notificationsApi = inject(NotificationApiService);
   private readonly mediaApi = inject(MediaApiService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
   protected readonly workspace = inject(WorkspaceService);
+  /** Creator home: the quick-start prompt, handed to AI Studio. */
+  protected idea = '';
 
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly loaded = signal(false);
@@ -104,10 +112,16 @@ export class HomePage {
 
   private readonly zone = computed(() => this.workspace.timeZone());
   private readonly byId = computed(() => new Map(this.posts().map((p) => [p.id, p])));
+  /** Creator home works on the signed-in person's own posts only. */
+  private readonly mine = computed(() => {
+    const me = this.auth.me()?.userId;
+    return this.posts().filter((p) => p.createdByUserId === me);
+  });
 
   // ---- KPIs -----------------------------------------------------------------------------------------
 
   protected readonly kpis = computed<Kpi[]>(() => {
+    if (!this.workspace.isAdmin()) return this.creatorKpis();
     const posts = this.posts();
     const now = Date.now();
     const status = (p: PostListItem) => customerStatus(p.editorialState, p.latestDeliveryState);
@@ -135,6 +149,77 @@ export class HomePage {
         value: success.rate, delta: success.delta, bars: success.bars, current: 5, link: '/planner', query: { status: 'Failed' } },
     ];
   });
+
+  /**
+   * Creator home: only their own posts, in the order a writer works through them: drafts, sent back, waiting for the
+   * Admin, approved (the Admin schedules it) and published.
+   */
+  private readonly creatorKpis = computed<Kpi[]>(() => {
+    const posts = this.mine();
+    const now = Date.now();
+    const status = (p: PostListItem) => customerStatus(p.editorialState, p.latestDeliveryState);
+    const updated = (list: PostListItem[]) => list.map((p) => p.updatedAtUtc);
+    const drafts = posts.filter((p) => p.editorialState === 'DRAFT');
+    const changes = posts.filter((p) => p.editorialState === 'CHANGES_REQUESTED');
+    const review = posts.filter((p) => p.editorialState === 'IN_REVIEW');
+    const approved = posts.filter((p) => ['Approved', 'Scheduled'].includes(status(p)));
+    const published = posts.filter((p) => p.latestDeliveryState === 'PUBLISHED' && p.latestPublishAtUtc).map((p) => p.latestPublishAtUtc!);
+    return [
+      { label: 'My drafts', value: drafts.length, tone: 'slate', icon: 'doc', ...trend(drafts.map((p) => p.createdAtUtc), now, true),
+        link: '/planner', query: { status: 'Draft' } },
+      { label: 'Changes requested', title: 'Sent back by the Admin: edit and submit again', value: changes.length, tone: 'rose', icon: 'pen',
+        ...trend(updated(changes), now, false), link: '/planner', query: { status: 'Changes Requested' } },
+      { label: 'Waiting for review', value: review.length, tone: 'amber', icon: 'clock', ...trend(updated(review), now, false),
+        link: '/planner', query: { status: 'In Review' } },
+      { label: 'Approved', title: 'Approved; the Admin schedules or publishes them', value: approved.length, tone: 'blue', icon: 'calendar',
+        ...trend(updated(approved), now, true), link: '/planner', query: { status: 'Scheduled' } },
+      { label: 'Published', title: 'Your posts published in the last 30 days', value: published.filter((t) => utcMs(t) >= now - 30 * DAY).length,
+        tone: 'green', icon: 'bars', ...trend(published, now, true), link: '/planner', query: { status: 'Published' } },
+    ];
+  });
+
+  /** Creator home: posts the Admin sent back, newest first, with the reviewer's comment. */
+  protected readonly changesRequested = computed<Row[]>(() => {
+    const comments = new Map(this.reviews().filter((r) => r.status === 'CHANGES_REQUESTED')
+      // Oldest first, so the latest decision per post wins in the map.
+      .sort((a, b) => (a.decidedAtUtc ?? '').localeCompare(b.decidedAtUtc ?? ''))
+      .map((r) => [r.postId, { note: r.decisionComment ?? '', by: r.decidedByName ?? 'Admin' }]));
+    return this.mine().filter((p) => p.editorialState === 'CHANGES_REQUESTED')
+      .sort((a, b) => b.updatedAtUtc.localeCompare(a.updatedAtUtc)).slice(0, 3)
+      .map((p) => ({ id: p.id, title: p.hook || p.bodyExcerpt, platform: p.platform, mediaId: p.mediaAssetId ?? null, art: art(p.id), chip: 'attn' as Chip,
+        chipLabel: 'Edit', link: `/composer/${p.id}`, by: comments.get(p.id)?.by ?? 'Admin', note: comments.get(p.id)?.note, ago: this.ago(p.updatedAtUtc) }));
+  });
+
+  /** Creator home: the drafts touched most recently, to pick up where they left off. */
+  protected readonly continueWriting = computed<Row[]>(() =>
+    this.mine().filter((p) => p.editorialState === 'DRAFT').sort((a, b) => b.updatedAtUtc.localeCompare(a.updatedAtUtc)).slice(0, 4)
+      .map((p) => ({ id: p.id, title: p.hook || p.bodyExcerpt, platform: p.platform, mediaId: p.mediaAssetId ?? null, art: art(p.id), chip: 'draft' as Chip,
+        chipLabel: 'Draft', link: `/composer/${p.id}`, ago: this.ago(p.updatedAtUtc) })));
+
+  /** Creator home: their posts on the way out (in review, approved, scheduled), soonest first. */
+  protected readonly myUpcoming = computed<Row[]>(() => {
+    const order: Record<string, number> = { Scheduled: 0, Approved: 1, 'In Review': 2 };
+    return this.mine()
+      .map((p) => ({ p, s: customerStatus(p.editorialState, p.latestDeliveryState) }))
+      .filter(({ s }) => s in order)
+      .sort((a, b) => order[a.s] - order[b.s]
+        || (a.s === 'Scheduled' ? a.p.latestPublishAtUtc!.localeCompare(b.p.latestPublishAtUtc!) : b.p.updatedAtUtc.localeCompare(a.p.updatedAtUtc)))
+      .slice(0, 4)
+      .map(({ p, s }) => {
+        const at = s === 'Scheduled' && p.latestPublishAtUtc ? p.latestPublishAtUtc : p.updatedAtUtc;
+        const [chip, chipLabel]: [Chip, string] = s === 'Scheduled' ? ['sched', 'Scheduled'] : s === 'Approved' ? ['ready', 'Approved'] : ['review', 'In review'];
+        return { id: p.id, title: p.hook || p.bodyExcerpt, platform: p.platform, mediaId: p.mediaAssetId ?? null, art: art(p.id), chip, chipLabel,
+          link: `/composer/${p.id}`, date: this.fmt(at, { month: 'short', day: 'numeric', year: 'numeric' }), time: this.fmt(at, { timeStyle: 'short' }) };
+      });
+  });
+
+  /** Quick start: the idea goes to AI Studio as its prompt; empty opens a blank Composer. */
+  protected start(): void {
+    const idea = this.idea.trim();
+    void (idea
+      ? this.router.navigate([this.ws('/ai-studio')], { queryParams: { prompt: idea } })
+      : this.router.navigateByUrl(this.ws('/composer')));
+  }
 
   // ---- Content pipeline ----------------------------------------------------------------------------
 
@@ -312,7 +397,7 @@ export class HomePage {
       // Admins see the workspace's business events; others see their own notifications.
       this.activity.set(admin
         ? (await firstValueFrom(this.dashboardApi.audit(orgId))).map((e) => this.fromAudit(e)).filter((a): a is Activity => a !== null).slice(0, 3)
-        : (await firstValueFrom(this.notificationsApi.list(orgId))).slice(0, 3).map(fromNotification));
+        : (await firstValueFrom(this.notificationsApi.list(orgId))).slice(0, 5).map(fromNotification));
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {

@@ -10,8 +10,16 @@
 .cmp .spinner { width: 14px; height: 14px; }
 
 /* ============ LAYOUT ============ */
-.main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; align-items: stretch; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; align-items: start; }
 @media (max-width: 1080px) { .main { grid-template-columns: 1fr; } }
+/* Wide screens: the page itself never scrolls. The composer fills the viewport below the top bar, only the editor
+   column scrolls, and the preview stays completely still. (-40px cancels most of the wide page's 60px bottom padding.) */
+@media (min-width: 1081px) {
+  .cmp { height: calc(100vh - 99px); margin-bottom: -40px; }
+  .main { flex: 1; min-height: 0; align-items: stretch; }
+  .main > section { min-height: 0; overflow-y: auto; padding: 1px 6px 18px 1px; }
+  .preview { height: 100%; }
+}
 
 /* ============ EDITOR CARD ============ */
 .editor { background: var(--card); border: 1px solid var(--border-strong); border-radius: var(--radius);
@@ -30,10 +38,13 @@ textarea.post::placeholder { color: var(--faint); }
   border: 1px solid var(--border); background: #f2f4f7; flex: none; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb button { position: absolute; width: 24px; height: 24px; border-radius: 999px; border: none; cursor: pointer;
-  background: rgba(255, 255, 255, .95); color: var(--body); display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 1px 3px rgba(16, 24, 40, .18); }
+  background: rgba(15, 23, 42, .72); color: #fff; display: flex; align-items: center; justify-content: center;
+  /* Override the global button padding/min sizes, which stretched this into an oval and hid the icon. */
+  padding: 0; min-width: 0; min-height: 0; max-width: 24px; line-height: 0; flex: none;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .25); }
+.thumb button svg { display: block; flex: none; width: 12px; height: 12px; }
 .thumb .rm { top: 7px; right: 7px; }
-.thumb button:hover { background: #fff; }
+.thumb button:hover { background: rgba(15, 23, 42, .9); }
 
 .divider { height: 1px; background: var(--border); }
 
@@ -93,7 +104,7 @@ textarea.post::placeholder { color: var(--faint); }
 
 /* ============ PREVIEW PANEL ============ */
 .preview { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px 22px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .04); position: sticky; top: 20px; height: 100%; min-height: calc(100vh - 118px); min-width: 0; }
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04); overflow-y: auto; min-width: 0; }
 .pv-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .pv-head > span { font-size: 13.5px; font-weight: 700; }
 .pv-plats { display: flex; gap: 8px; }
@@ -163,3 +174,34 @@ textarea.post::placeholder { color: var(--faint); }
 
 @media (max-width: 1080px) { .preview { position: static; height: auto; min-height: 0; } }
 @media (max-width: 760px) { .panel.improve { width: min(400px, 90vw); } }
+
+/* multiple images: position badge and move-earlier button on thumbnails, grid in the preview */
+.thumb .pos { position: absolute; left: 7px; bottom: 7px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: rgba(15, 23, 42, .72); color: #fff; font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+.thumb .mv { top: 7px; left: 7px; }
+.pv-media.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.pv-media.grid img { aspect-ratio: 1; object-fit: cover; height: 100%; }
+.pv-media.grid.three img:last-child { grid-column: 1 / -1; aspect-ratio: 2 / 1; }
+.gi-note { margin: 8px 0 0; font-size: 12px; color: var(--muted, #64748b); }
+
+/* editorial state tag in the toolbar (replaces the "approved" banner) */
+.state-tag { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; text-decoration: none; }
+.state-tag.approved { background: #e8f6ee; color: #137a43; border: 1px solid #c5ead4; }
+a.state-tag.approved:hover { background: #d9f1e3; }
+.state-tag.changes { background: #fff4e5; color: #b45309; border: 1px solid #fde2b8; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; }
+.state-tag.changes:hover, .state-tag.changes[aria-expanded='true'] { background: #ffecd1; }
+.state-tag.changes .chev { transition: transform .15s; }
+.state-tag.changes[aria-expanded='true'] .chev { transform: rotate(180deg); }
+/* reviewer feedback card (opens above the tag, like the other toolbar panels) */
+.panel.feedback { width: min(420px, 90vw); padding: 14px 16px 16px; }
+.fb-head { display: flex; align-items: flex-start; gap: 10px; }
+.fb-icon { width: 30px; height: 30px; border-radius: 9px; background: #fff4e5; color: #b45309; display: grid; place-items: center; flex: none; }
+.fb-title { font-size: 13.5px; font-weight: 650; color: var(--ink); }
+.fb-meta { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.fb-close { margin-left: auto; width: 26px; height: 26px; border: 0; border-radius: 50%; background: #f2f4f7; color: #475467; display: grid; place-items: center;
+  cursor: pointer; padding: 0; flex: none; }
+.fb-close:hover { background: #e4e7ec; }
+.fb-comment { margin: 12px 0 10px; padding: 10px 12px; border-left: 3px solid #f59e0b; background: #fffaf2; border-radius: 0 8px 8px 0;
+  font-size: 14px; line-height: 1.5; color: var(--body); white-space: pre-wrap; word-break: break-word; }
+.fb-next { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }

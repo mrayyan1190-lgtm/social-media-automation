@@ -207,10 +207,11 @@ public sealed class PlatformAiConfigurationService(
     {
         await systemAdmins.RequireAsync(cancellationToken);
         var stored = await platform.GetAiConfigurationAsync(cancellationToken);
-        // Same key rule as the worker: a Hugging Face image model only borrows the LLM key when the LLM is Hugging Face too.
+        // Same key rule as the worker: a Hugging Face image model only borrows the LLM key when the LLM is Hugging Face too;
+        // image-only providers (Stability AI, Cloudflare) never borrow it.
         var key = !string.IsNullOrWhiteSpace(apiKey) ? apiKey.Trim()
             : stored is { HasImageApiKey: true } ? await secrets.GetAsync(PlatformAiConfiguration.ImageApiKeySecretName, cancellationToken)
-            : provider != AiProvider.HuggingFace || stored?.Provider == AiProvider.HuggingFace ? await resolver.PlatformApiKeyAsync(cancellationToken)
+            : !provider.IsImageOnly() && (provider != AiProvider.HuggingFace || stored?.Provider == AiProvider.HuggingFace) ? await resolver.PlatformApiKeyAsync(cancellationToken)
             : null;
         if (string.IsNullOrWhiteSpace(key))
             throw Guard.Invalid("Image API key", "is required to test the connection");
@@ -313,7 +314,7 @@ public sealed class PlatformAiConfigurationService(
 
     private async Task<AiImageConfigurationDto> ImageAsync(PlatformAiConfiguration? stored, CancellationToken cancellationToken)
     {
-        var activity = await queries.AiActivityAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken, images: true);
+        var activity = await queries.AiActivityAsync(timeProvider.GetUtcNow().UtcDateTime, cancellationToken, images: true, stored?.ImageProvider);
         var usable = await resolver.ResolveImageAsync(cancellationToken) is not null;
         var health = !usable ? HealthStatusCodes.NotConfigured
             : activity.CallsLastHour == 0 ? HealthStatusCodes.NotMonitored

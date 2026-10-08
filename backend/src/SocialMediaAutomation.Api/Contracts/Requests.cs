@@ -20,7 +20,7 @@ public sealed record CompleteProfileRequest(
 /// <summary>Workspace setup. DefaultLanguage defaults to "en"; the frontend may auto-detect the IANA time zone.</summary>
 public sealed record CreateOrganizationRequest(
     [Required, MaxLength(Organization.NameMaxLength)] string Name,
-    [Required, MaxLength(Organization.IndustryMaxLength)] string Industry,
+    [MaxLength(Organization.IndustryMaxLength)] string? Industry,
     [Required, MaxLength(64)] string TimeZoneId,
     [MaxLength(35)] string? DefaultLanguage = null,
     bool RequireDistinctReviewer = true);

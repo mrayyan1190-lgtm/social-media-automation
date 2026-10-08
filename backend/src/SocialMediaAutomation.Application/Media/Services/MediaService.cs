@@ -23,7 +23,7 @@ public sealed class MediaService(
     /// </summary>
     public async Task<MediaAssetDto> UploadAsync(Guid organizationId, string? fileName, Stream content, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageContent, cancellationToken);
 
         var bytes = await ReadBoundedAsync(content, cancellationToken);
         var image = ImageProbe.Inspect(bytes.Span)
@@ -44,19 +44,19 @@ public sealed class MediaService(
 
     public async Task<IReadOnlyList<MediaLibraryItemDto>> ListAsync(Guid organizationId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         return await media.ListAsync(access.OrganizationId, cancellationToken);
     }
 
     public async Task<MediaAssetDto> GetAsync(Guid organizationId, Guid mediaAssetId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         return MediaAssetDto.From(await LoadAsync(access, mediaAssetId, cancellationToken));
     }
 
     public async Task<(Stream Content, string ContentType)> OpenContentAsync(Guid organizationId, Guid mediaAssetId, CancellationToken cancellationToken)
     {
-        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewCampaigns, cancellationToken);
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ViewContent, cancellationToken);
         var asset = await LoadAsync(access, mediaAssetId, cancellationToken);
         return (await storage.OpenReadAsync(asset.ObjectKey, cancellationToken), asset.ContentType);
     }

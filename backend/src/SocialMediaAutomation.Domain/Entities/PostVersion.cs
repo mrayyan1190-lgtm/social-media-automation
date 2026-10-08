@@ -13,6 +13,7 @@ public sealed class PostVersion
 {
     public const int HookMax = 300;
     public const int AltTextMax = 1000;
+    public const int CallToActionMax = 200;
 
     private PostVersion() { }
 
@@ -29,14 +30,14 @@ public sealed class PostVersion
     /// <summary>Destination account (a SocialAccount of the same workspace and platform). Required before review.</summary>
     public Guid? SocialAccountId { get; private set; }
 
-    public Guid? MediaAssetId { get; private set; }
-    public string? AltText { get; private set; }
+    /// <summary>Attached images in publishing order (0 to <see cref="PlatformRules.MaxImages"/>), each with its own alt text.</summary>
+    public List<PostVersionImage> Images { get; private set; } = [];
     public PostVersionSource CreationSource { get; private set; }
     public Guid CreatedByUserId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
     internal static PostVersion Create(
-        Guid id, Post post, int versionNumber, PostContent content, MediaAsset? media, SocialAccount? destination, PostVersionSource source,
+        Guid id, Post post, int versionNumber, PostContent content, IReadOnlyList<MediaAsset> media, SocialAccount? destination, PostVersionSource source,
         Guid userId, DateTime utcNow)
     {
         var rules = PlatformRules.For(post.Platform);
@@ -48,28 +49,29 @@ public sealed class PostVersion
             VersionNumber = versionNumber,
             Hook = Guard.Optional(content.Hook, "Hook", HookMax),
             Body = Guard.Required(content.Body, "Body/caption", rules.MaxTextLength),
-            CallToAction = Guard.Optional(content.CallToAction, "CTA", Campaign.ShortTextMax),
+            CallToAction = Guard.Optional(content.CallToAction, "CTA", CallToActionMax),
             DestinationUrl = Guard.OptionalHttpUrl(content.DestinationUrl, "Destination URL"),
             Hashtags = Guard.Hashtags(content.Hashtags, "Hashtags", rules.MaxHashtags),
-            AltText = Guard.Optional(content.AltText, "Alt text", AltTextMax),
             CreationSource = Guard.Defined(source, "Creation source"),
             CreatedByUserId = userId,
             CreatedAtUtc = utcNow,
         };
 
-        if (content.MediaAssetId != media?.Id)
-            throw new InvalidOperationException("The loaded media asset does not match the requested MediaAssetId.");
-        if (media is not null)
+        var images = content.Images ?? [];
+        if (!images.Select(i => i.MediaAssetId).SequenceEqual(media.Select(m => m.Id)))
+            throw new InvalidOperationException("The loaded media assets do not match the requested images.");
+        if (images.Count > PlatformRules.MaxImages)
+            throw Guard.Invalid("Images", $"at most {PlatformRules.MaxImages} images can be attached to one post");
+        if (images.Select(i => i.MediaAssetId).Distinct().Count() != images.Count)
+            throw Guard.Invalid("Images", "the same image is attached more than once");
+        for (var position = 0; position < media.Count; position++)
         {
             // Defense in depth: the application already scopes the lookup, and a composite FK enforces it in SQL.
-            if (media.OrganizationId != post.OrganizationId)
+            if (media[position].OrganizationId != post.OrganizationId)
                 throw new BusinessException(ErrorCodes.TenantMismatch, "The image belongs to another workspace.");
-            media.EnsureSuitableFor(post.Platform);
-            version.MediaAssetId = media.Id;
-        }
-        else if (version.AltText is not null)
-        {
-            throw Guard.Invalid("Alt text", "requires an attached image");
+            media[position].EnsureSuitableFor(post.Platform);
+            version.Images.Add(new PostVersionImage(post.OrganizationId, position, media[position].Id,
+                Guard.Optional(images[position].AltText, "Alt text", AltTextMax)));
         }
 
         if (content.SocialAccountId != destination?.Id)
@@ -98,16 +100,40 @@ public sealed class PostVersion
     public bool HasSameContentAs(PostVersion other) =>
         Hook == other.Hook && Body == other.Body && CallToAction == other.CallToAction && DestinationUrl == other.DestinationUrl
         && Hashtags.SequenceEqual(other.Hashtags) && SocialAccountId == other.SocialAccountId
-        && MediaAssetId == other.MediaAssetId && AltText == other.AltText;
+        && Images.Select(i => (i.MediaAssetId, i.AltText)).SequenceEqual(other.Images.Select(i => (i.MediaAssetId, i.AltText)));
+
+    /// <summary>The first image (feed thumbnail), or null without images.</summary>
+    public PostVersionImage? Cover => Images.MinBy(i => i.Position);
 }
 
-/// <summary>Editable public-facing content of a post version. Media is referenced by id and validated against the loaded asset.</summary>
+/// <summary>One image of a version, at a fixed position. Immutable like the version itself (a trigger rejects UPDATE and DELETE).</summary>
+public sealed class PostVersionImage
+{
+    private PostVersionImage() { }
+
+    internal PostVersionImage(Guid organizationId, int position, Guid mediaAssetId, string? altText)
+    {
+        OrganizationId = organizationId;
+        Position = position;
+        MediaAssetId = mediaAssetId;
+        AltText = altText;
+    }
+
+    public Guid OrganizationId { get; private set; }
+    public int Position { get; private set; }
+    public Guid MediaAssetId { get; private set; }
+    public string? AltText { get; private set; }
+}
+
+/// <summary>Editable public-facing content of a post version. Images are referenced by id, in order, and validated against the loaded assets.</summary>
 public sealed record PostContent(
     string? Hook,
     string Body,
     string? CallToAction,
     string? DestinationUrl,
     IReadOnlyList<string>? Hashtags,
-    Guid? MediaAssetId,
-    string? AltText,
+    IReadOnlyList<PostImage>? Images,
     Guid? SocialAccountId = null);
+
+/// <summary>One requested image of a version: the asset and the alt text that describes it.</summary>
+public sealed record PostImage(Guid MediaAssetId, string? AltText = null);

@@ -26,7 +26,7 @@ public static partial class DeterministicValidator
         foreach (var term in snapshot.Brand.ProhibitedTerms.Where(term => ContainsTerm(text, term)))
             issues.Add(Critical("PROHIBITED_TERM", $"Uses the prohibited term \"{term}\".", term));
 
-        // URLs: only the campaign's approved destination URL may be published; none may be embedded in the text.
+        // URLs: only the post's approved destination URL may be published; none may be embedded in the text.
         foreach (Match url in UrlPattern().Matches(text))
             issues.Add(Critical("URL", "The text contains a URL; only the approved destination URL may be attached.", url.Value));
 
@@ -41,8 +41,8 @@ public static partial class DeterministicValidator
                 $"The figure \"{figure}\" does not appear in your request or brand profile; verify it or remove it.", IssueSource.DETERMINISTIC, figure));
         }
 
-        if (PlatformRules.For(platform).RequiresImage && version.MediaAssetId is null)
-            issues.Add(new EvaluationIssue(IssueSeverity.WARNING, "MEDIA", $"{platform} requires one image before this post can be submitted for review.", IssueSource.DETERMINISTIC));
+        if (PlatformRules.For(platform).RequiresImage && version.Images.Count == 0)
+            issues.Add(new EvaluationIssue(IssueSeverity.WARNING, "MEDIA", $"{platform} requires at least one image before this post can be submitted for review.", IssueSource.DETERMINISTIC));
 
         if (platform == SocialPlatform.LinkedIn && version.Hashtags.Count > 5)
             issues.Add(new EvaluationIssue(IssueSeverity.INFO, "PLATFORM_FIT", $"{version.Hashtags.Count} hashtags; LinkedIn posts read better with 3-5.", IssueSource.DETERMINISTIC));

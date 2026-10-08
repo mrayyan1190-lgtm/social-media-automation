@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Posts.DTOs;
 using SocialMediaAutomation.Application.SocialAccounts.DTOs;
 using SocialMediaAutomation.Domain.Constants;
@@ -185,8 +184,7 @@ public class SocialConnectionTests(ApiFactory factory)
             Assert.Equal("", (await db.OAuthConnections.SingleAsync(c => c.Id == connection.Id)).ProtectedAccessToken);
 
         // Content aimed at the disconnected destination cannot enter review.
-        var campaign = await creator.CreateCampaignAsync(OrgA);
-        var post = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
+        var post = await (await creator.CreatePostAsync(OrgA,
             new { Platform = "LinkedIn", Hook = "Month-end, minus the pain", Body = "Close the books in days.", SocialAccountId = account.Id })).ReadAsync<PostDto>();
         var submit = await creator.SendAsync(new HttpRequestMessage(HttpMethod.Post, $"{OrgA}/posts/{post.Id}/submit-review")
         {

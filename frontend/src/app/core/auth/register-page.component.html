@@ -64,7 +64,11 @@
   <section class="form-panel">
     <div class="topbar">
       <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
-      <div class="top-link">Already have an account? <a routerLink="/login">Sign in</a></div>
+      @if (googleMode()) {
+        <div class="top-link">Signed in as {{ form.controls.email.value }} · <a href="" (click)="$event.preventDefault(); signOut()">Sign out</a></div>
+      } @else {
+        <div class="top-link">Already have an account? <a routerLink="/login">Sign in</a></div>
+      }
     </div>
 
     <div class="form-wrap">
@@ -75,11 +79,13 @@
           <label for="signup-email">Email</label>
           <div class="input">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>
-            <input id="signup-email" formControlName="email" type="email" autocomplete="email" placeholder="you@company.com" />
+            <input id="signup-email" formControlName="email" type="email" autocomplete="email" placeholder="you@company.com" [readOnly]="googleMode()" />
           </div>
+          @if (googleMode()) { <span class="field-hint">Signed up with Google · this email cannot be changed.</span> }
           @if (form.controls.email.touched && form.controls.email.invalid) { <span class="field-error">Enter a valid email address.</span> }
         </div>
 
+        @if (!googleMode()) {
         <div class="field">
           <label for="signup-password">Password</label>
           <div class="input tog">
@@ -94,6 +100,7 @@
             <div class="field-error">Use at least 8 characters.</div>
           }
         </div>
+        }
 
         <div class="field">
           <label for="signup-workspace">Workspace Name</label>
@@ -109,14 +116,16 @@
 
         <app-problem-banner [problem]="problem()" />
 
-        <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Creating…' : 'Create Account' }}</button>
+        <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Creating…' : googleMode() ? 'Continue' : 'Create Account' }}</button>
 
+        @if (!googleMode()) {
         <div class="divider"><span>or sign up with</span></div>
 
         <button class="sso-wide" type="button" (click)="auth.continueWithGoogle()">
           <svg class="g" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.23-.2-1.78H12v3.42h5.52a4.76 4.76 0 0 1-2.05 3.04l-.03.12 2.98 2.31.2.02c1.84-1.7 2.98-4.2 2.98-7.13Z"/><path fill="#34A853" d="M12 22c2.69 0 4.94-.89 6.59-2.42l-3.14-2.43c-.84.57-1.95.97-3.45.97-2.58 0-4.77-1.74-5.56-4.15l-.11.01-3.1 2.4-.04.1A9.96 9.96 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.44 13.97A5.96 5.96 0 0 1 6.12 12c0-.69.12-1.36.31-1.97l-.01-.13-3.14-2.44-.1.05A10.02 10.02 0 0 0 2 12c0 1.61.38 3.13 1.06 4.48l3.38-2.51Z"/><path fill="#EA4335" d="M12 5.88c1.87 0 3.13.81 3.84 1.47l2.82-2.75C16.94 3 14.69 2 12 2a9.96 9.96 0 0 0-8.82 5.52l3.25 2.51C7.23 7.62 9.42 5.88 12 5.88Z"/></svg>
           Continue with Google
         </button>
+        }
 
       </form>
     </div>

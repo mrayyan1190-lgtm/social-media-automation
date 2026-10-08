@@ -3,6 +3,7 @@ namespace SocialMediaAutomation.Domain.Enums;
 /// <summary>
 /// Hosted AI providers. All speak the OpenAI chat-completions protocol; OpenAICompatible takes a custom base URL.
 /// HuggingFace (Inference Providers router) also serves text-to-image models through its own image protocol.
+/// StabilityAI and CloudflareWorkersAI are used for image generation only; they are never the text model.
 /// </summary>
 public enum AiProvider
 {
@@ -10,6 +11,14 @@ public enum AiProvider
     Groq,
     OpenAICompatible,
     HuggingFace,
+    StabilityAI,
+    CloudflareWorkersAI,
+}
+
+public static class AiProviders
+{
+    /// <summary>Providers configured for image generation only: they need their own image key and cannot be the LLM.</summary>
+    public static bool IsImageOnly(this AiProvider provider) => provider is AiProvider.StabilityAI or AiProvider.CloudflareWorkersAI;
 }
 
 public enum AiRequestKind

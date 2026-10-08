@@ -28,7 +28,7 @@ internal sealed class MediaAssetConfiguration : IEntityTypeConfiguration<MediaAs
         builder.HasIndex(m => m.ObjectKey).IsUnique();
         builder.HasOne<Organization>().WithMany().HasForeignKey(m => m.OrganizationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMemberReference(m => new { m.OrganizationId, m.CreatedByUserId });
-        // Target of PostVersions (OrganizationId, MediaAssetId): a version cannot reference another workspace's image.
+        // Target of PostVersionImages (OrganizationId, MediaAssetId): a version cannot reference another workspace's image.
         builder.HasAlternateKey(m => new { m.OrganizationId, m.Id });
     }
 }

@@ -21,13 +21,13 @@ export interface Overview {
 }
 
 export interface WorkspaceListItem {
-  id: string; name: string; primaryAdminName: string | null; primaryAdminEmail: string | null; members: number; campaigns: number;
+  id: string; name: string; primaryAdminName: string | null; primaryAdminEmail: string | null; members: number;
   socialAccounts: number; status: 'Active' | 'Suspended'; createdAtUtc: string; lastActivityAtUtc: string | null;
 }
 
 export interface WorkspaceDetail {
   id: string; name: string; timeZoneId: string; createdAtUtc: string; status: 'Active' | 'Suspended';
-  usage: { members: number; campaigns: number; posts: number; connectedSocialAccounts: number; aiRequests: number; publishedPosts: number };
+  usage: { members: number; posts: number; connectedSocialAccounts: number; aiRequests: number; publishedPosts: number };
   members: { userId: string; name: string; email: string; role: string; status: string }[];
   connections: { platform: string; displayName: string; status: string }[];
 }
@@ -88,7 +88,7 @@ export interface AiQueue {
 }
 
 export interface Publication {
-  id: string; organizationId: string; workspaceName: string; campaignId: string; campaignName: string; postId: string; versionNumber: number;
+  id: string; organizationId: string; workspaceName: string; postId: string; versionNumber: number;
   platform: string; destination: string; executionMode: string; publishAtUtc: string; state: string; attempts: number; maxAttempts: number;
   worker: string | null; lastErrorCode: string | null; lastErrorMessage: string | null; correlationId: string | null; createdAtUtc: string;
 }
@@ -136,6 +136,12 @@ export interface PublishingLogItem {
 }
 
 export interface SystemLogItem { id: string; atUtc: string; level: string; service: string; event: string; message: string; correlationId: string | null }
+
+/** Logs → All: one timeline of every log. Outcome is SUCCESS, FAILED, WARNING or INFO. */
+export interface ActivityLogItem {
+  id: string; atUtc: string; source: string; outcome: string; actor: string | null; workspace: string | null; event: string; message: string;
+  correlationId: string | null;
+}
 
 /** Query parameters with empty values removed. */
 function params(values: Record<string, string | string[] | null | undefined>): Record<string, string | string[]> {
@@ -216,6 +222,7 @@ export class InternalApiService {
 
   systemHealth(): Observable<HealthComponent[]> { return this.http.get<HealthComponent[]>(`${this.base}/system-health`); }
 
+  allLog(q: Record<string, string>): Observable<ActivityLogItem[]> { return this.http.get<ActivityLogItem[]>(`${this.base}/logs/all`, { params: params(q) }); }
   auditLog(q: Record<string, string>): Observable<AuditLogItem[]> { return this.http.get<AuditLogItem[]>(`${this.base}/logs/audit`, { params: params(q) }); }
   signInLog(q: Record<string, string>): Observable<SignInLogItem[]> { return this.http.get<SignInLogItem[]>(`${this.base}/logs/signins`, { params: params(q) }); }
   aiLog(q: Record<string, string>): Observable<AiLogItem[]> { return this.http.get<AiLogItem[]>(`${this.base}/logs/ai`, { params: params(q) }); }

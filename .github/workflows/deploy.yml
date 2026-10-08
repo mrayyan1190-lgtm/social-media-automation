@@ -1,0 +1,41 @@
+# Test, then build and ship to the Azure VM with the same script used for manual deploys.
+# Repo secrets: VM_HOST (azureuser@<public-ip>), VM_SSH_KEY (contents of the .pem file).
+# Schema changes are not applied here: run deploy/database.sql on the database first.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # ponytail: integration tests skipped (need SQL Server); add an mssql service container to run them here.
+      - name: Test
+        run: |
+          dotnet test backend/tests/SocialMediaAutomation.Domain.Tests
+          dotnet test backend/tests/SocialMediaAutomation.Application.Tests
+          dotnet test backend/tests/SocialMediaAutomation.ArchitectureTests
+
+      - name: Deploy
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          install -m 600 /dev/null ~/vm.pem
+          echo "$VM_SSH_KEY" > ~/vm.pem
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${VM_HOST#*@}" >> ~/.ssh/known_hosts
+          bash deploy/ec2/publish.sh "$VM_HOST" ~/vm.pem

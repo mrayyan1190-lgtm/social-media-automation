@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
-using SocialMediaAutomation.Application.Campaigns.DTOs;
 using SocialMediaAutomation.Application.Dashboard;
 using SocialMediaAutomation.Application.Posts.DTOs;
 using SocialMediaAutomation.Application.Publications.DTOs;
@@ -35,8 +34,7 @@ public class DashboardTests(ApiFactory factory)
         var creator = await factory.SignInAsync(DemoData.CreatorA);
         var account = (await (await creator.GetAsync($"{OrgA}/social-accounts?platform={platform}")).ReadAsync<List<SocialAccountDto>>())
             .First(a => a.ExecutionMode == ExecutionMode.SIMULATED);
-        var campaign = await creator.CreateCampaignAsync(OrgA);
-        var draft = await (await creator.CreatePostAsync($"{OrgA}/campaigns/{campaign.Id}",
+        var draft = await (await creator.CreatePostAsync(OrgA,
             new { Platform = platform, Hook = "Hook", Body = "Close the books in days.", SocialAccountId = account.Id })).ReadAsync<PostDto>();
         var review = await (await PostWithETagAsync(creator, $"{OrgA}/posts/{draft.Id}/submit-review", null, draft.RowVersion)).ReadAsync<ReviewSummaryDto>();
         await PostWithETagAsync(await factory.SignInAsync(DemoData.ReviewerA), $"{OrgA}/review-requests/{review.Id}/approve", null, review.RowVersion);

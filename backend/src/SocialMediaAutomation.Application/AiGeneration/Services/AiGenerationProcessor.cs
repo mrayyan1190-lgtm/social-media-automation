@@ -23,7 +23,6 @@ public sealed class AiGenerationProcessor(
     IAiWorkQueue queue,
     IAiRepository ai,
     IPostRepository posts,
-    ICampaignRepository campaigns,
     IMediaRepository media,
     ISocialAccountRepository socialAccounts,
     ActivityRecorder activity,
@@ -33,12 +32,15 @@ public sealed class AiGenerationProcessor(
     IImageGenerationProvider images,
     IMediaStorage mediaStorage,
     MediaService mediaService,
+    ISystemEventLog systemLog,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
 {
     public static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly List<AiCallLog> callLogs = [];
+    /// <summary>Technical reasons behind a customer warning (e.g. why an image was not made); they go to the admin System log only.</summary>
+    private readonly List<string> diagnostics = [];
 
     /// <summary>Claims at most one due request (one short SQL statement); process it with <see cref="ProcessAsync"/>.</summary>
     public Task<(Guid RequestId, Guid LeaseToken)?> ClaimNextAsync(string workerId, CancellationToken cancellationToken) =>
@@ -56,6 +58,7 @@ public sealed class AiGenerationProcessor(
     public async Task ProcessAsync(Guid requestId, Guid leaseToken, CancellationToken cancellationToken)
     {
         callLogs.Clear();
+        diagnostics.Clear();
         var request = await ai.GetRequestAsync(requestId, cancellationToken);
         if (request is null || request.Status != AiRequestStatus.PROCESSING || request.LeaseToken != leaseToken)
             return; // claimed by someone else meanwhile; nothing to do
@@ -86,6 +89,10 @@ public sealed class AiGenerationProcessor(
             request.Complete(leaseToken, Now, warning);
             callLogs.ForEach(ai.Add);
             await unitOfWork.SaveChangesAsync(cancellationToken);
+            if (warning is not null)
+                await systemLog.RecordAsync(SystemEventLevels.Warning, "AI Worker", "AI_REQUEST_PARTIAL",
+                    $"{request.Kind} request {request.Id} completed with a warning: {warning}{(diagnostics.Count > 0 ? $" Details: {string.Join(" | ", diagnostics)}" : "")}",
+                    request.CorrelationId, CancellationToken.None);
         }
         catch (LlmException ex)
         {
@@ -123,9 +130,9 @@ public sealed class AiGenerationProcessor(
     }
 
     /// <summary>
-    /// Writes one draft per platform. With uploaded images a vision model writes them (the first image is attached for
-    /// Text + Image); with an image plan the LLM-written image prompt is rendered and attached. Returns a warning when the
-    /// drafts were saved but their image could not be made or used.
+    /// Writes one draft per platform. With uploaded images a vision model writes them (all of them are attached for
+    /// Text + Image); with an image plan the LLM-written image prompt is rendered (1-4 times) and attached. Returns a
+    /// warning when the drafts were saved but an image could not be made or used.
     /// </summary>
     private async Task<string?> GenerateAsync(AiGenerationRequest request, AiInputSnapshot snapshot, LlmConnection connection, CancellationToken cancellationToken)
     {
@@ -145,23 +152,22 @@ public sealed class AiGenerationProcessor(
         var evaluations = await EvaluateAsync(request, snapshot, variants, connection, cancellationToken, imageUrls);
 
         var imagePrompt = ImagePromptOf(raw);
-        var (image, warning) = snapshot.ImagePlan is { } plan && (!plan.OnlyIfRequested || imagePrompt is not null)
-            ? await PlannedImageAsync(request, snapshot, plan, imagePrompt, variants.Values.First(), cancellationToken)
-            : (snapshot.Vision is { Attach: true } ? uploaded : null, null);
-        // The campaign is only a folder: if it was archived meanwhile, the drafts are still kept, just unfiled.
-        var campaign = request.CampaignId is { } campaignId ? await campaigns.GetAsync(campaignId, cancellationToken) : null;
-        if (campaign is { IsArchived: true } || campaign?.OrganizationId != request.OrganizationId)
-            campaign = null;
-
+        var (images, warning) = snapshot.ImagePlan is { } plan && (!plan.OnlyIfRequested || imagePrompt is not null)
+            ? await PlannedImagesAsync(request, snapshot, plan, imagePrompt, ImageCountOf(raw), variants.Values.First(), cancellationToken)
+            : (snapshot.Vision is { Attach: true } ? uploaded : [], null);
         // Every generation writes new drafts; nothing already under review or approved is touched.
         foreach (var (platform, variant) in variants)
         {
-            // One image per version: the same image goes on every draft whose platform accepts it.
-            var media = image is not null && Suits(image, platform) ? image : null;
-            if (image is not null && media is null)
-                warning ??= $"The image was not attached to the {platform} draft because {platform} does not accept it.";
-            var (post, version) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), request.OrganizationId, campaign, platform,
-                Content(variant, null) with { MediaAssetId = media?.Id }, media, null, PostVersionSource.AiGeneration, request.RequestedByUserId, Now);
+            // The same images go on every draft, each one only where its platform accepts it.
+            var media = images.Where(image => Suits(image, platform)).ToList();
+            if (media.Count < images.Count)
+                warning ??= $"Some images were not attached to the {platform} draft because {platform} does not accept them.";
+            // Version 1 already carries the destination (the first connected account, as Composer and AI Studio would pick),
+            // so submitting the draft as it is does not first have to save a second version just to add the account.
+            var destination = await DefaultDestinationAsync(request.OrganizationId, platform, cancellationToken);
+            var (post, version) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), request.OrganizationId, platform,
+                Content(variant, null) with { Images = ImagesOf(media), SocialAccountId = destination?.Id }, media, destination,
+                PostVersionSource.AiGeneration, request.RequestedByUserId, Now);
             posts.Add(post);
             posts.Add(version);
             activity.VersionCreated(post, version, request.RequestedByUserId, revokedApprovalId: null);
@@ -171,37 +177,75 @@ public sealed class AiGenerationProcessor(
     }
 
     /// <summary>
-    /// Text + Image: renders the LLM-written image prompt with the chosen image model (no transaction open). A failure does
-    /// not lose the drafts: they are saved without an image and the request completes with a warning the user sees.
+    /// Text + Image: renders the LLM-written image prompt with the chosen image model, once per requested image (no
+    /// transaction open). A failure does not lose the drafts: they keep the images that worked (possibly none) and the
+    /// request completes with a warning the user sees.
     /// </summary>
-    private async Task<(MediaAsset? Image, string? Warning)> PlannedImageAsync(
-        AiGenerationRequest request, AiInputSnapshot snapshot, ImagePlanSnapshot plan, string? llmPrompt, GeneratedVariant firstPost, CancellationToken cancellationToken)
+    private async Task<(IReadOnlyList<MediaAsset> Images, string? Warning)> PlannedImagesAsync(
+        AiGenerationRequest request, AiInputSnapshot snapshot, ImagePlanSnapshot plan, string? llmPrompt, int askedInPrompt, GeneratedVariant firstPost,
+        CancellationToken cancellationToken)
     {
         var connection = await llmConnections.ResolveImageAsync(cancellationToken);
         if (connection is null || connection.Provider != plan.Provider)
-            return (null, "No image was added: image generation was switched off or changed meanwhile.");
+        {
+            diagnostics.Add($"Image generation was switched off or its provider changed (planned {plan.Provider}, now {connection?.Provider.ToString() ?? "none"}).");
+            return ([], "No image was added this time.");
+        }
 
         await ReportAsync(request, AiRequestStage.GENERATING_IMAGE, cancellationToken);
-        try
+        // The picker and the user's own words ("make two images") can both ask for a number; the larger one wins.
+        var count = Math.Max(plan.Count ?? 1, askedInPrompt);
+        var prompt = PromptBuilder.GeneratedImage(snapshot, llmPrompt, firstPost);
+        var stored = new List<MediaAsset>();
+        var problem = false;
+        // ponytail: sequential provider calls (at most 4); parallelize if image latency starts to threaten the 5-minute lease.
+        for (var i = 0; i < count; i++)
         {
-            var generated = await images.GenerateAsync(connection with { Model = plan.Model, Size = plan.Size },
-                PromptBuilder.GeneratedImage(snapshot, llmPrompt, firstPost), cancellationToken);
-            callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.GeneratedImagePrompt, true, null, generated.HttpStatus,
-                null, null, generated.LatencyMs, null, null, Now));
-            return (await mediaService.StoreGeneratedAsync(request, null, generated.Bytes, cancellationToken, plan.Provider.ToString(), plan.Model), null);
+            try
+            {
+                var generated = await images.GenerateAsync(connection with { Model = plan.Model, Size = plan.Size }, Variation(prompt, i, count), cancellationToken);
+                callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.GeneratedImagePrompt, true, null, generated.HttpStatus,
+                    null, null, generated.LatencyMs, null, null, Now));
+                stored.Add(await mediaService.StoreGeneratedAsync(request, null, generated.Bytes, cancellationToken, plan.Provider.ToString(), plan.Model));
+            }
+            catch (LlmException ex)
+            {
+                callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.GeneratedImagePrompt, false, ex.Kind.ToString(), ex.HttpStatus,
+                    null, null, ex.LatencyMs, null, ex.Diagnostic ?? ex.Message, Now));
+                // The provider's reason (model, HTTP status, billing text) is for system administrators only.
+                diagnostics.Add($"Image {i + 1} of {count} ({plan.Provider} {plan.Model}): {ex.Kind} {ex.HttpStatus}: {ex.Diagnostic ?? ex.Message}");
+                problem = true;
+                break; // the provider is failing; more calls would most likely fail the same way
+            }
+            catch (BusinessException ex) when (ex.Code == ErrorCodes.ValidationFailed)
+            {
+                diagnostics.Add($"Image {i + 1} of {count} ({plan.Provider} {plan.Model}) was not usable: {ex.Message}");
+                problem = true;
+            }
         }
-        catch (LlmException ex)
-        {
-            callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.GeneratedImagePrompt, false, ex.Kind.ToString(), ex.HttpStatus,
-                null, null, ex.LatencyMs, null, ex.Diagnostic ?? ex.Message, Now));
-            // The provider's reason (model, HTTP status, billing text) is in the AI call log for system administrators only.
-            return (null, "The image could not be generated right now, so the posts were saved without one.");
-        }
-        catch (BusinessException ex) when (ex.Code == ErrorCodes.ValidationFailed)
-        {
-            return (null, $"The generated image could not be used: {ex.Message}");
-        }
+        if (!problem)
+            return (stored, null);
+        return (stored, stored.Count == 0
+            ? "The image could not be created this time, so the posts were saved without one."
+            : $"Only {stored.Count} of {count} images could be created this time.");
     }
+
+    /// <summary>
+    /// The same prompt for each requested image would return the same picture (providers cache identical requests and
+    /// most run without a random seed), so every image after the first asks for a different composition.
+    /// </summary>
+    private static string Variation(string prompt, int index, int count) =>
+        index == 0 ? prompt : $"{prompt}\n\nImage {index + 1} of {count}: show the same subject with a clearly different composition, angle and framing.";
+
+    /// <summary>The workspace's first eligible account for the platform (same order the UI lists them), or null when none is connected.</summary>
+    private async Task<SocialAccount?> DefaultDestinationAsync(Guid organizationId, SocialPlatform platform, CancellationToken cancellationToken)
+    {
+        var first = (await socialAccounts.ListAsync(organizationId, platform, cancellationToken)).FirstOrDefault(a => a.IsEligibleDestination);
+        var account = first is null ? null : await socialAccounts.GetAsync(first.Id, cancellationToken);
+        return account is { IsEligibleDestination: true } && account.OrganizationId == organizationId && account.Platform == platform ? account : null;
+    }
+
+    private static IReadOnlyList<PostImage> ImagesOf(IEnumerable<MediaAsset> media) => media.Select(m => new PostImage(m.Id)).ToList();
 
     private static bool Suits(MediaAsset image, SocialPlatform platform)
     {
@@ -241,22 +285,25 @@ public sealed class AiGenerationProcessor(
 
         var (platform, variant) = variants.Single();
 
-        // The instruction asked for a new or changed image: render it and put it on the new version (alt text starts empty).
-        MediaAsset? newImage = null;
+        // The instruction asked for a new or changed image: render it and put it on the new version in place of the
+        // current images (alt text starts empty).
+        IReadOnlyList<MediaAsset>? newImages = null;
         string? warning = null;
         if (snapshot.ImagePlan is { } plan && ImagePromptOf(raw) is { } imagePrompt)
         {
-            (newImage, warning) = await PlannedImageAsync(request, snapshot, plan, imagePrompt, variant, cancellationToken);
-            if (newImage is not null && !Suits(newImage, platform))
-                (newImage, warning) = (null, $"The new image was not used because {platform} does not accept it.");
+            var (rendered, imageWarning) = await PlannedImagesAsync(request, snapshot, plan, imagePrompt, ImageCountOf(raw), variant, cancellationToken);
+            newImages = rendered.Where(image => Suits(image, platform)).ToList();
+            warning = imageWarning ?? (newImages.Count < rendered.Count ? $"A new image was not used because {platform} does not accept it." : null);
+            if (newImages.Count == 0)
+                newImages = null;
         }
 
         PostVersion version;
         try
         {
             version = await ReviseWithAsync(request, post,
-                current => newImage is null ? Content(variant, current) : Content(variant, current) with { MediaAssetId = newImage.Id, AltText = null },
-                newImage, PostVersionSource.AiRewrite, cancellationToken);
+                current => newImages is null ? Content(variant, current) : Content(variant, current) with { Images = ImagesOf(newImages) },
+                newImages, PostVersionSource.AiRewrite, cancellationToken);
         }
         catch (AiOutputInvalidException) when (warning is not null)
         {
@@ -265,6 +312,19 @@ public sealed class AiGenerationProcessor(
         }
         Record(request, snapshot, platform, variant, version, evaluations);
         return warning;
+    }
+
+    /// <summary>How many images the user's words asked for, per the model; 1 when the output does not say.</summary>
+    private static int ImageCountOf(string raw)
+    {
+        try
+        {
+            return OutputParser.ParseImageCount(raw);
+        }
+        catch (AiOutputInvalidException)
+        {
+            return 1;
+        }
     }
 
     /// <summary>The LLM-written image prompt, or null when it wrote none (or "" because the user did not ask for an image).</summary>
@@ -285,14 +345,15 @@ public sealed class AiGenerationProcessor(
     /// other edit.
     /// </summary>
     /// <param name="contentFor">The next version's content, built from the current version.</param>
-    /// <param name="newImage">A replacement image (AI image generation); null keeps the current image.</param>
+    /// <param name="newImages">Replacement images (AI image generation); null keeps the current images.</param>
     private async Task<PostVersion> ReviseWithAsync(
-        AiGenerationRequest request, Post post, Func<PostVersion, PostContent> contentFor, MediaAsset? newImage,
+        AiGenerationRequest request, Post post, Func<PostVersion, PostContent> contentFor, IReadOnlyList<MediaAsset>? newImages,
         PostVersionSource source, CancellationToken cancellationToken)
     {
         var current = await posts.GetVersionAsync(request.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken)
             ?? throw new InvalidOperationException($"Post {post.Id} has no current version row.");
-        var image = newImage ?? (current.MediaAssetId is { } mediaId ? await media.GetAsync(mediaId, cancellationToken) : null);
+        var image = newImages ?? await media.GetImagesAsync(current, cancellationToken)
+            ?? throw new NonRetryableAiFailure(AiFailureCodes.TargetNotEditable, "An image of the post no longer exists.");
         var destination = current.SocialAccountId is { } accountId ? await socialAccounts.GetAsync(accountId, cancellationToken) : null;
         var approvalBefore = post.ActiveApprovalId;
         try
@@ -313,9 +374,9 @@ public sealed class AiGenerationProcessor(
     }
 
     /// <summary>
-    /// Image generation: the provider call happens with no transaction open; the image becomes an AI_GENERATED MediaAsset
-    /// and a new version of the post with the text unchanged. A replaced image on approved content revokes the approval
-    /// like any other edit, so the image is always reviewed by a person.
+    /// Image generation: the provider calls (one per requested image) happen with no transaction open; each image becomes
+    /// an AI_GENERATED MediaAsset and together they replace the post's images in a new version with the text unchanged.
+    /// Replaced images on approved content revoke the approval like any other edit, so they are always reviewed by a person.
     /// </summary>
     private async Task ImageAsync(AiGenerationRequest request, AiInputSnapshot snapshot, CancellationToken cancellationToken)
     {
@@ -329,35 +390,42 @@ public sealed class AiGenerationProcessor(
             throw new NonRetryableAiFailure(AiFailureCodes.NotConfigured, "Image generation was disabled or changed after this request. Request it again.");
         connection = connection with { Model = request.Model };
 
-        GeneratedImage generated;
-        try
+        var count = snapshot.Image?.Count ?? 1;
+        var prompt = PromptBuilder.Image(snapshot);
+        var assets = new List<MediaAsset>();
+        // ponytail: sequential provider calls (at most 4); parallelize if image latency starts to threaten the 5-minute lease.
+        for (var i = 0; i < count; i++)
         {
-            generated = await images.GenerateAsync(connection, PromptBuilder.Image(snapshot), cancellationToken);
-            callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.ImagePrompt, true, null, generated.HttpStatus, null, null,
-                generated.LatencyMs, null, null, Now));
-        }
-        catch (LlmException ex)
-        {
-            callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.ImagePrompt, false, ex.Kind.ToString(), ex.HttpStatus, null, null,
-                ex.LatencyMs, null, ex.Diagnostic ?? ex.Message, Now));
-            throw;
+            GeneratedImage generated;
+            try
+            {
+                generated = await images.GenerateAsync(connection, Variation(prompt, i, count), cancellationToken);
+                callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.ImagePrompt, true, null, generated.HttpStatus, null, null,
+                    generated.LatencyMs, null, null, Now));
+            }
+            catch (LlmException ex)
+            {
+                callLogs.Add(AiCallLog.Create(request, AiCallPurpose.ImageGeneration, AiVersions.ImagePrompt, false, ex.Kind.ToString(), ex.HttpStatus, null, null,
+                    ex.LatencyMs, null, ex.Diagnostic ?? ex.Message, Now));
+                throw;
+            }
+
+            try
+            {
+                assets.Add(await mediaService.StoreGeneratedAsync(request, post.Platform, generated.Bytes, cancellationToken));
+            }
+            catch (BusinessException ex) when (ex.Code == ErrorCodes.ValidationFailed)
+            {
+                // e.g. a PNG for Instagram (JPEG only) or an unsupported size: retrying the same model will not help.
+                throw new NonRetryableAiFailure(AiFailureCodes.ImageNotSuitable, $"The generated image cannot be used on {post.Platform}: {ex.Message}");
+            }
         }
 
-        MediaAsset asset;
-        try
-        {
-            asset = await mediaService.StoreGeneratedAsync(request, post.Platform, generated.Bytes, cancellationToken);
-        }
-        catch (BusinessException ex) when (ex.Code == ErrorCodes.ValidationFailed)
-        {
-            // e.g. a PNG for Instagram (JPEG only) or an unsupported size: retrying the same model will not help.
-            throw new NonRetryableAiFailure(AiFailureCodes.ImageNotSuitable, $"The generated image cannot be used on {post.Platform}: {ex.Message}");
-        }
-
-        // Alt text describes a specific image, so the new image starts without the old description; the reviewer sees that.
+        // Alt text describes a specific image, so new images start without the old descriptions; the reviewer sees that.
         var version = await ReviseWithAsync(request, post, current => new PostContent(current.Hook, current.Body, current.CallToAction,
-            current.DestinationUrl, current.Hashtags, asset.Id, null, current.SocialAccountId), asset, PostVersionSource.AiImage, cancellationToken);
-        ai.Add(AiRequestOutput.Create(request, version, post.Platform, JsonSerializer.Serialize(new { mediaAssetId = asset.Id }, AiVersions.Json), Now));
+            current.DestinationUrl, current.Hashtags, ImagesOf(assets), current.SocialAccountId), assets, PostVersionSource.AiImage, cancellationToken);
+        ai.Add(AiRequestOutput.Create(request, version, post.Platform,
+            JsonSerializer.Serialize(new { mediaAssetId = assets[0].Id, mediaAssetIds = assets.Select(a => a.Id) }, AiVersions.Json), Now));
     }
 
     /// <summary>One advisory evaluation call for all variants. Its failure never blocks the drafts; it becomes a visible warning.</summary>
@@ -408,7 +476,7 @@ public sealed class AiGenerationProcessor(
                 yield return new(IssueSeverity.CRITICAL, "CONTRADICTORY_CLAIM", $"Contradicts the supplied facts: \"{claim.Text}\".", IssueSource.AI, claim.Text);
             else if (!claim.Supported)
                 yield return new(IssueSeverity.CRITICAL, "UNSUPPORTED_CLAIM",
-                    $"Unsupported {claim.Kind ?? "claim"}: \"{claim.Text}\". No supplied fact backs it; remove it or add evidence as a campaign fact.", IssueSource.AI, claim.Text);
+                    $"Unsupported {claim.Kind ?? "claim"}: \"{claim.Text}\". No supplied fact backs it; remove it or back it with evidence.", IssueSource.AI, claim.Text);
         }
         foreach (var finding in evaluation.Issues ?? [])
         {
@@ -420,15 +488,14 @@ public sealed class AiGenerationProcessor(
         }
     }
 
-    /// <summary>Model text becomes a version only through the domain; the link, image and destination are kept from the current version.</summary>
+    /// <summary>Model text becomes a version only through the domain; the link, images and destination are kept from the current version.</summary>
     private static PostContent Content(GeneratedVariant variant, PostVersion? current) => new(
         Hook: variant.Hook,
         Body: variant.Body!,
         CallToAction: variant.Cta,
         DestinationUrl: current?.DestinationUrl,
         Hashtags: variant.Hashtags,
-        MediaAssetId: current?.MediaAssetId,
-        AltText: current?.AltText,
+        Images: current?.Images.OrderBy(i => i.Position).Select(i => new PostImage(i.MediaAssetId, i.AltText)).ToList(),
         SocialAccountId: current?.SocialAccountId);
 
     private async Task<string> CallAsync(
@@ -505,15 +572,15 @@ public sealed class AiGenerationProcessor(
 
     /// <summary>
     /// The uploaded images as data URIs for the vision model (read from storage on every attempt, never logged), and the
-    /// first image, which the new post keeps.
+    /// assets themselves, which the new posts keep for Text + Image.
     /// </summary>
-    private async Task<(IReadOnlyList<string>? Urls, MediaAsset? First)> VisionImagesAsync(
+    private async Task<(IReadOnlyList<string>? Urls, IReadOnlyList<MediaAsset> Assets)> VisionImagesAsync(
         AiGenerationRequest request, AiInputSnapshot snapshot, CancellationToken cancellationToken)
     {
         if (snapshot.Vision is not { } vision)
-            return (null, null);
+            return (null, []);
         var urls = new List<string>();
-        MediaAsset? first = null;
+        var assets = new List<MediaAsset>();
         foreach (var id in vision.MediaAssetIds)
         {
             var asset = await media.GetAsync(id, cancellationToken);
@@ -523,9 +590,9 @@ public sealed class AiGenerationProcessor(
             using var buffer = new MemoryStream();
             await stream.CopyToAsync(buffer, cancellationToken);
             urls.Add($"data:{asset.ContentType};base64,{Convert.ToBase64String(buffer.GetBuffer(), 0, (int)buffer.Length)}");
-            first ??= asset;
+            assets.Add(asset);
         }
-        return (urls, first);
+        return (urls, assets);
     }
 
     /// <summary>Drops any partial work, then records the failure (and the call logs) under the lease.</summary>
@@ -539,6 +606,12 @@ public sealed class AiGenerationProcessor(
         request.Fail(leaseToken, code, message, retryable, Now);
         logs.ForEach(ai.Add);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        // The customer sees a plain sentence (AiGenerationRequestDto); the admin sees exactly what happened.
+        await systemLog.RecordAsync(retryable ? SystemEventLevels.Warning : SystemEventLevels.Error, "AI Worker",
+            retryable ? "AI_REQUEST_RETRYING" : "AI_REQUEST_FAILED",
+            $"{request.Kind} request {request.Id} (attempt {request.AttemptCount}/{request.MaxAttempts}) {code}: {message}"
+            + (diagnostics.Count > 0 ? $" Details: {string.Join(" | ", diagnostics)}" : ""),
+            request.CorrelationId, CancellationToken.None);
     }
 
     private DateTime Now => timeProvider.GetUtcNow().UtcDateTime;

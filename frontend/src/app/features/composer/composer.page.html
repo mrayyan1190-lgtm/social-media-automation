@@ -4,15 +4,7 @@
     <p class="banner info">
       Version {{ version()?.versionNumber }} is waiting for review, so editing is locked.
       @if (workspace.isAdmin() && latestReview(); as r) { <a [routerLink]="['/approvals', r.id]">Open review</a> }
-      @else if (workspace.canManageCampaigns()) { <a routerLink="/composer">Write a new post</a> }
-    </p>
-  } @else if (state() === 'CHANGES_REQUESTED' && changesRequested()) {
-    <p class="banner error">Changes requested by {{ changesRequested()?.decidedByName }}: “{{ changesRequested()?.decisionComment }}” Edit the post, save it, then submit it again.</p>
-  } @else if (state() === 'APPROVED') {
-    <p class="banner success">
-      Version {{ version()?.versionNumber }} is approved. Any edit creates a new version that needs review again.
-      @if (workspace.isAdmin()) { Schedule or publish it in <a routerLink="/approvals" [queryParams]="{ tab: 'approved' }">Approvals → Approved</a>. }
-      @else { The Admin schedules or publishes it. }
+      @else if (workspace.canManageContent()) { <a routerLink="/composer">Write a new post</a> }
     </p>
   }
 
@@ -33,19 +25,27 @@
         <textarea class="post" placeholder="What do you want to share?" aria-label="Post"
           [ngModel]="text()" (ngModelChange)="text.set($event); expanded.set(false)" [disabled]="!canEdit()"></textarea>
 
-        @if (image(); as img) {
+        @if (images().length) {
           <div class="thumbs">
-            <div class="thumb">
-              <img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" />
-              @if (canEdit()) {
-                <button type="button" class="rm" title="Remove" aria-label="Remove image" (click)="removeImage()">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg>
-                </button>
-              }
-            </div>
+            @for (img of images(); track img.asset.id; let i = $index) {
+              <div class="thumb">
+                <img [src]="previewUrl(img.asset.id)" [alt]="img.altText || 'Post image ' + (i + 1)" />
+                @if (images().length > 1) { <span class="pos">{{ i + 1 }}</span> }
+                @if (canEdit()) {
+                  @if (i > 0) {
+                    <button type="button" class="mv" title="Move earlier" aria-label="Move image earlier" (click)="moveImageLeft(i)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>
+                    </button>
+                  }
+                  <button type="button" class="rm" title="Remove" aria-label="Remove image" (click)="removeImage(img.asset.id)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                  </button>
+                }
+              </div>
+            }
           </div>
         } @else if (platform() === 'Instagram') {
-          <p class="hint">Instagram needs one JPEG image: drop it below or generate one from Media.</p>
+          <p class="hint">Instagram needs at least one JPEG image (up to {{ maxImages }} make a carousel): drop them below or generate them from Media.</p>
         }
 
         <div class="divider"></div>
@@ -101,44 +101,54 @@
               }
             </div>
 
-            <!-- Media: AI image generation (uploads go through the dropzone below) -->
-            @if (imageAvailable()) {
-              <div class="dd-wrap">
-                <button type="button" class="chip" [attr.aria-expanded]="menu() === 'image'" (click)="toggleMenu('image')" [disabled]="!!busy()">
-                  @if (busy() === 'image' || busy() === 'upload') { <span class="spinner" aria-hidden="true"></span> }
-                  @else { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 18 5-5 3.5 3.5L16 13l4 5"/></svg> }
-                  {{ busy() === 'image' ? 'Generating…' : busy() === 'upload' ? 'Uploading…' : 'Media' }}
-                  <ng-container *ngTemplateOutlet="chev" />
-                </button>
-                @if (menu() === 'image') {
-                  <div class="panel image" role="menu">
-                    <div class="gi-head">
-                      <div class="gic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z"/></svg></div>
-                      <div>
-                        <div class="t">{{ image() ? 'Generate another image' : 'Generate image' }}</div>
-                        <div class="d">{{ text().trim() ? 'AI illustrates this post' : 'Write the post first' }}</div>
-                      </div>
+          }
+          <!-- Approved: a compact tag instead of a banner; editing creates a new version that needs review again -->
+          <!-- Changes requested: the tag opens the reviewer's feedback above it -->
+          @if (state() === 'CHANGES_REQUESTED' && changesRequested(); as r) {
+            <div class="dd-wrap">
+              <button type="button" class="state-tag changes" [attr.aria-expanded]="menu() === 'changes'" (click)="toggleMenu('changes')"
+                title="See what the reviewer asked to change">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15.5 4.5 19.5 8.5 9 19H5v-4L15.5 4.5Z"/></svg>
+                Changes requested
+                <svg class="chev" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 15l6-6 6 6"/></svg>
+              </button>
+              @if (menu() === 'changes') {
+                <div class="panel feedback" role="dialog" aria-label="Requested changes">
+                  <div class="fb-head">
+                    <span class="fb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                    <div>
+                      <div class="fb-title">Changes requested by {{ r.decidedByName ?? 'the reviewer' }}</div>
+                      <div class="fb-meta">Version {{ r.versionNumber }}@if (r.decidedAtUtc) { · {{ r.decidedAtUtc | date: 'medium' }} }</div>
                     </div>
-                    @if (caps().imageModels.length) {
-                      <div class="gi-label">Model</div>
-                      <select class="gi-model" [ngModel]="imageModel()" (ngModelChange)="imageModel.set($event)" aria-label="Model">
-                        @for (m of caps().imageModels; track m; let first = $first) { <option [value]="m">{{ m.split('/')[1] }}{{ first ? ' (default)' : '' }}</option> }
-                      </select>
-                    }
-                    <button type="button" class="gi-generate" (click)="newImage(null)" [disabled]="!text().trim()">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z"/></svg>
-                      Generate image
+                    <button type="button" class="fb-close" aria-label="Close" (click)="menu.set(null)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg>
                     </button>
                   </div>
-                }
-              </div>
+                  <blockquote class="fb-comment">{{ r.decisionComment || 'No comment was added.' }}</blockquote>
+                  <p class="fb-next">Edit the post (or use Improve / Ask AI), then press <b>Submit</b> to send it for review again.</p>
+                </div>
+              }
+            </div>
+          }
+          @if (state() === 'APPROVED') {
+            @if (workspace.isAdmin()) {
+              <a class="state-tag approved" routerLink="/approvals" [queryParams]="{ tab: 'approved' }"
+                title="Approved. Any edit creates a new version that needs review again. Click to schedule or publish.">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7"/></svg>
+                Approved · v{{ version()?.versionNumber }}
+              </a>
+            } @else {
+              <span class="state-tag approved" title="Approved. Any edit creates a new version that needs review again. The Admin schedules or publishes it.">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7"/></svg>
+                Approved · v{{ version()?.versionNumber }}
+              </span>
             }
           }
           @if (limit(); as max) { <span class="counter" [class.over]="length() > max">{{ length() }}/{{ max }}</span> }
         </div>
 
         <!-- Ask AI: edits this post as a new version, or writes a new draft when the post is empty or locked -->
-        @if (workspace.canManageCampaigns()) {
+        @if (workspace.canManageContent()) {
           <div class="ai-strip">
             <div class="ai-input">
               <input type="text" maxlength="500" aria-label="Ask AI"
@@ -186,10 +196,10 @@
           </span>
           <span class="dz-title">Paste, Drop or <b>Upload</b></span>
           <span class="dz-types">
-            JPEG, PNG · up to 8 MB
+            JPEG, PNG · up to 8 MB each · {{ images().length }}/{{ maxImages }} images
             <svg class="dz-help" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.6-2.4 2.1-2.4 3.6M12 17h.01"/></svg>
           </span>
-          <input type="file" accept="image/jpeg,image/png" hidden (change)="upload($event)" [disabled]="!!busy()" />
+          <input type="file" accept="image/jpeg,image/png" multiple hidden (change)="upload($event)" [disabled]="!!busy() || images().length >= maxImages" />
         </label>
       }
     </section>
@@ -212,7 +222,11 @@
         <div class="pv-text pv-empty">Your post will appear here.</div>
       }
       @if (link().trim()) { <p class="pv-link">{{ link() }}</p> }
-      @if (image(); as img) { <div class="pv-media"><img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" /></div> }
+      @if (images().length) {
+        <div class="pv-media" [class.grid]="images().length > 1" [class.three]="images().length === 3">
+          @for (img of images(); track img.asset.id; let i = $index) { <img [src]="previewUrl(img.asset.id)" [alt]="img.altText || 'Post image ' + (i + 1)" /> }
+        </div>
+      }
     </aside>
   </div>
 </div>

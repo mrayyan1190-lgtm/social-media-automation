@@ -11,17 +11,17 @@ namespace SocialMediaAutomation.Api.Controllers;
 [Route("api/v1/organizations/{orgId:guid}")]
 public sealed class PostsController(PostService posts) : ControllerBase
 {
-    /// <summary>Every non-archived post in the workspace (or of one campaign) with its latest publication job (Planner, Home).</summary>
+    /// <summary>Every non-archived post in the workspace with its latest publication job (Planner, Home).</summary>
     [HttpGet("posts")]
-    public Task<IReadOnlyList<PostListItemDto>> List(Guid orgId, [FromQuery] Guid? campaignId, CancellationToken cancellationToken) =>
-        posts.ListAsync(orgId, campaignId, cancellationToken);
+    public Task<IReadOnlyList<PostListItemDto>> List(Guid orgId, CancellationToken cancellationToken) =>
+        posts.ListAsync(orgId, cancellationToken);
 
-    /// <summary>Creates a platform post together with its Version 1 (Composer), optionally in a campaign folder.</summary>
+    /// <summary>Creates a platform post together with its Version 1 (Composer).</summary>
     [HttpPost("posts")]
     public async Task<ActionResult<PostDto>> Create(Guid orgId, CreatePostRequest request, CancellationToken cancellationToken)
     {
         var post = WithETag(await posts.CreateAsync(
-            new CreatePostCommand(orgId, request.CampaignId, request.Platform!.Value, request.ToContent()), cancellationToken));
+            new CreatePostCommand(orgId, request.Platform!.Value, request.ToContent()), cancellationToken));
         return CreatedAtAction(nameof(Get), new { orgId, postId = post.Id }, post);
     }
 
@@ -38,12 +38,6 @@ public sealed class PostsController(PostService posts) : ControllerBase
     public async Task<PostDto> Revise(Guid orgId, Guid postId, SavePostContentRequest request, CancellationToken cancellationToken) =>
         WithETag(await posts.ReviseAsync(
             new RevisePostCommand(orgId, postId, request.ToContent(), RowVersionHeaders.ReadIfMatch(Request)), cancellationToken));
-
-    /// <summary>Files the post into a campaign folder (or none). Requires If-Match with the post's ETag. Creates no version.</summary>
-    [HttpPut("posts/{postId:guid}/campaign")]
-    public async Task<PostDto> MoveToCampaign(Guid orgId, Guid postId, MovePostToCampaignRequest request, CancellationToken cancellationToken) =>
-        WithETag(await posts.MoveToCampaignAsync(
-            new MovePostToCampaignCommand(orgId, postId, request.CampaignId, RowVersionHeaders.ReadIfMatch(Request)), cancellationToken));
 
     private PostDto WithETag(PostDto post)
     {

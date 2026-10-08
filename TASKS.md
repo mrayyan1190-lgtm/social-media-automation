@@ -2039,3 +2039,5 @@ Then implement only that scope.
 The objective is not to finish the largest amount of code.
 
 The objective is to finish the **correct end-to-end product**.
+
+- [ ] Multiple images per post (approved 2026-10-08): up to 4 ordered images per PostVersion (PostVersionImages table, migration `MultiImagePosts`), approval payload covers every image, LinkedIn multiImage / Facebook attached_media / Instagram carousel publishing, AI generates 1-4 images and attaches all uploaded reference images, Composer multi-upload with reorder and count picker. Code done; manual verification pending.

@@ -4,32 +4,29 @@ using SocialMediaAutomation.Domain.Enums;
 
 namespace SocialMediaAutomation.Api.Contracts;
 
-/// <summary>The full public-facing content of the next version. Omitting MediaAssetId removes the image; omitting SocialAccountId clears the destination.</summary>
+/// <summary>
+/// The full public-facing content of the next version. Images are in publishing order (at most 4); omitting them removes
+/// every image; omitting SocialAccountId clears the destination.
+/// </summary>
 public record SavePostContentRequest(
     string? Hook,
     string Body,
     string? CallToAction,
     string? DestinationUrl,
     string[]? Hashtags,
-    Guid? MediaAssetId,
-    string? AltText,
+    PostImage[]? Images,
     Guid? SocialAccountId = null)
 {
-    public PostContent ToContent() => new(Hook, Body, CallToAction, DestinationUrl, Hashtags, MediaAssetId, AltText, SocialAccountId);
+    public PostContent ToContent() => new(Hook, Body, CallToAction, DestinationUrl, Hashtags, Images, SocialAccountId);
 }
 
 public sealed record CreatePostRequest(
     [Required] SocialPlatform? Platform,
-    Guid? CampaignId,
     string? Hook,
     string Body,
     string? CallToAction,
     string? DestinationUrl,
     string[]? Hashtags,
-    Guid? MediaAssetId,
-    string? AltText,
+    PostImage[]? Images,
     Guid? SocialAccountId = null)
-    : SavePostContentRequest(Hook, Body, CallToAction, DestinationUrl, Hashtags, MediaAssetId, AltText, SocialAccountId);
-
-/// <summary>The campaign folder to file the post into; null removes it from its campaign.</summary>
-public sealed record MovePostToCampaignRequest(Guid? CampaignId);
+    : SavePostContentRequest(Hook, Body, CallToAction, DestinationUrl, Hashtags, Images, SocialAccountId);

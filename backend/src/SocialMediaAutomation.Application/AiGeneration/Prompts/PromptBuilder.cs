@@ -86,7 +86,11 @@ public static class PromptBuilder
     /// </summary>
     private const string ImagePlanRules = """
         IMAGE PROMPT:
-        Also return "imagePrompt".
+        Also return "imagePrompt" and "imageCount".
+
+        "imageCount" is how many images the user's own words ask for ("two images", "3 photos", "a carousel of 4",
+        in any language), from 1 to 4. Use 1 when they do not say a number; never more than 4. All images are rendered
+        from the same imagePrompt, each with a different composition.
 
         "imagePrompt" must:
         - Be written in English, even when the social posts use another language.
@@ -301,7 +305,7 @@ public static class PromptBuilder
 
         var imagePromptField = snapshot.ImagePlan is null
             ? ""
-            : "\"imagePrompt\":\"<detailed English image-generation prompt>\",";
+            : "\"imagePrompt\":\"<detailed English image-generation prompt>\",\"imageCount\":<1-4>,";
 
         return new LlmChatRequest(
             SystemPrompt: $$"""
@@ -609,7 +613,7 @@ public static class PromptBuilder
 
                 Schema {{AiVersions.ContentSchema}}:
 
-                {"schemaVersion":"{{AiVersions.ContentSchema}}",{{(snapshot.ImagePlan is null ? "" : "\"imagePrompt\":\"<image prompt or empty string>\",")}}"variants":[{"platform":"{{rewrite.Platform}}","language":"<BCP-47 tag>","hook":"<opening line>","body":"<body only>","cta":"<CTA or empty string>","hashtags":["ExampleHashtag"]}]}
+                {"schemaVersion":"{{AiVersions.ContentSchema}}",{{(snapshot.ImagePlan is null ? "" : "\"imagePrompt\":\"<image prompt or empty string>\",\"imageCount\":<1-4>,")}}"variants":[{"platform":"{{rewrite.Platform}}","language":"<BCP-47 tag>","hook":"<opening line>","body":"<body only>","cta":"<CTA or empty string>","hashtags":["ExampleHashtag"]}]}
 
                 Return exactly one variant.
                 platform must be exactly "{{rewrite.Platform}}".
