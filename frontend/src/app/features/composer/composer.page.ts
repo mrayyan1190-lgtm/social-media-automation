@@ -1,4 +1,4 @@
-import { Location } from '@angular/common';
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,7 +7,6 @@ import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { ToastService } from '../../core/services/toast.service';
 import { TopbarActionService } from '../../core/services/topbar-action.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { PlatformIconComponent } from '../../shared/components/platform-icon.component';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
@@ -27,14 +26,14 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
  * kept). Grammar and hashtags have no dedicated server action, so they are fixed Custom instructions.
  */
 const IMPROVE_ACTIONS: { label: string; icon: string; action: RewriteAction; instruction: string | null }[] = [
-  { label: 'Rephrase', icon: '↻', action: 'Rewrite', instruction: null },
-  { label: 'Shorten', icon: '−', action: 'Shorten', instruction: null },
-  { label: 'Lengthen', icon: '+', action: 'Expand', instruction: null },
-  { label: 'Stronger hook', icon: '✦', action: 'ImproveHook', instruction: null },
-  { label: 'More professional', icon: '◆', action: 'MoreProfessional', instruction: null },
-  { label: 'Less promotional', icon: '◇', action: 'LessPromotional', instruction: null },
-  { label: 'Fix grammar', icon: '✓', action: 'Custom', instruction: 'Fix grammar, spelling and punctuation only. Keep the wording, tone and meaning.' },
-  { label: 'Add hashtags', icon: '#', action: 'Custom', instruction: 'Keep the text as it is and add 3 to 5 relevant hashtags.' },
+  { label: 'Rephrase', icon: 'M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6', action: 'Rewrite', instruction: null },
+  { label: 'Shorten', icon: 'M5 12h14', action: 'Shorten', instruction: null },
+  { label: 'Lengthen', icon: 'M12 5v14M5 12h14', action: 'Expand', instruction: null },
+  { label: 'Stronger hook', icon: 'M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2z', action: 'ImproveHook', instruction: null },
+  { label: 'More professional', icon: 'M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z', action: 'MoreProfessional', instruction: null },
+  { label: 'Less promotional', icon: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M8 8l8 8', action: 'LessPromotional', instruction: null },
+  { label: 'Fix grammar', icon: 'M5 13l4 4L19 7', action: 'Custom', instruction: 'Fix grammar, spelling and punctuation only. Keep the wording, tone and meaning.' },
+  { label: 'Add hashtags', icon: 'M9 4 7 20M17 4l-2 16M4 9h17M3 15h17', action: 'Custom', instruction: 'Keep the text as it is and add 3 to 5 relevant hashtags.' },
 ];
 
 /**
@@ -44,11 +43,11 @@ const IMPROVE_ACTIONS: { label: string; icon: string; action: RewriteAction; ins
  */
 @Component({
   selector: 'app-composer-page',
-  imports: [FormsModule, RouterLink, PlatformIconComponent, ProblemBannerComponent],
+  imports: [FormsModule, RouterLink, NgTemplateOutlet, ProblemBannerComponent],
   templateUrl: './composer.page.html',
   styleUrl: './composer.page.css',
-  // Close an open Improve / Image menu when clicking anywhere else.
-  host: { '(document:click)': 'closeMenus($event)' },
+  // Close an open Improve / Image menu when clicking anywhere else; a pasted image is uploaded like a dropped one.
+  host: { '(document:click)': 'closeMenus($event)', '(document:paste)': 'onPaste($event)' },
 })
 export class ComposerPage {
   private readonly router = inject(Router);
@@ -71,6 +70,9 @@ export class ComposerPage {
   protected readonly improveActions = IMPROVE_ACTIONS;
   /** The open toolbar menu (Publish to / Improve / Media). */
   protected readonly menu = signal<'publish' | 'improve' | 'image' | null>(null);
+  /** Preview "See more" toggle and dropzone drag highlight. */
+  protected readonly expanded = signal(false);
+  protected readonly dragging = signal(false);
 
   // Loaded data
   protected readonly post = signal<Post | null>(null);
@@ -114,9 +116,6 @@ export class ComposerPage {
   protected readonly latestReview = computed(() => this.reviews().at(0) ?? null);
   /** A rewrite (any Improve with AI item) is running. */
   protected readonly isRewriting = computed(() => IMPROVE_ACTIONS.some((a) => a.action === this.busy()));
-  /** Who the preview shows as the author: the chosen account, else the workspace. */
-  protected readonly previewName = computed(() => this.accounts().find((a) => a.id === this.accountId())?.displayName
-    ?? this.workspace.memberships().find((m) => m.organizationId === this.workspace.orgId())?.organizationName ?? 'Your brand');
   protected readonly changesRequested = computed(() => this.reviews().find((r) => r.status === 'CHANGES_REQUESTED') ?? null);
 
   constructor() {
@@ -164,12 +163,31 @@ export class ComposerPage {
     return this.media.previewUrl(this.workspace.orgId()!, mediaAssetId);
   }
 
-  protected async upload(event: Event): Promise<void> {
+  protected upload(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
+    if (file) void this.uploadFile(file);
+  }
+
+  protected onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragging.set(false);
+    const file = event.dataTransfer?.files[0];
+    if (file && this.canEdit() && !this.busy()) void this.uploadFile(file);
+  }
+
+  /** Only pasted image files are taken; pasted text keeps going into the focused field as usual. */
+  protected onPaste(event: ClipboardEvent): void {
+    const file = [...(event.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
+    if (!file || !this.canEdit() || this.busy()) return;
+    event.preventDefault();
+    void this.uploadFile(file);
+  }
+
+  private async uploadFile(file: File): Promise<void> {
     const orgId = this.workspace.orgId();
-    if (!file || !orgId) return;
+    if (!orgId) return;
     // Early hints only; the server inspects the bytes and applies the authoritative rules.
     if (!['image/jpeg', 'image/png'].includes(file.type)) return this.fail('Choose a JPEG or PNG image.');
     if (file.size > MAX_IMAGE_BYTES) return this.fail('Images must be at most 8 MB.');
@@ -190,7 +208,7 @@ export class ComposerPage {
   }
 
   protected closeMenus(event: Event): void {
-    if (this.menu() && !(event.target instanceof Element && event.target.closest('.cmp-pop'))) this.menu.set(null);
+    if (this.menu() && !(event.target instanceof Element && event.target.closest('.dd-wrap'))) this.menu.set(null);
   }
 
   protected async improve(action: RewriteAction, instruction: string | null): Promise<void> {

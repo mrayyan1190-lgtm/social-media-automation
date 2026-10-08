@@ -56,7 +56,7 @@ a{color:inherit;text-decoration:none}
 
 /* artwork */
 .art{flex:1;display:flex;align-items:center;padding:26px 0}
-.art-inner{position:relative;width:100%;max-width:450px}
+.art-inner{position:relative;width:100%;max-width:450px;transform:scale(1.12);transform-origin:left center}
 
 .cal{
   background:#fff;border-radius:14px;padding:13px;
@@ -193,13 +193,9 @@ label{font-size:12.5px;font-weight:600;color:var(--ink)}
 .sso button:hover{background:#f7f9fc;border-color:#ccd5e3}
 .sso svg{width:19px;height:19px}
 
-.footer{font-size:11.5px;color:var(--body);text-align:center;line-height:1.6}
-.footer a{color:var(--blue);font-weight:600}
-.footer a:hover{text-decoration:underline}
 
-.hint{font-size:11.5px;color:var(--muted);line-height:1.5}
-.meter{display:flex;gap:5px;margin-top:2px}
-.meter i{flex:1;height:4px;border-radius:3px;background:#e9edf4;display:block;transition:background .18s}
+.meter{display:flex;justify-content:flex-end;gap:6px;margin-top:2px}
+.meter i{width:30px;height:4px;border-radius:3px;background:#ebe9f7;display:block;transition:background .18s}
 .meter.s1 i:nth-child(1){background:#ef4444}
 .meter.s2 i:nth-child(-n+2){background:#f59e0b}
 .meter.s3 i:nth-child(-n+3){background:#3b82f6}
@@ -222,7 +218,7 @@ label{font-size:12.5px;font-weight:600;color:var(--ink)}
   .shell{grid-template-columns:1fr}
   .panel{padding:28px 26px 32px}
   .art{padding:22px 0}
-  .art-inner{margin:0 auto}
+  .art-inner{margin:0 auto;transform-origin:center}
   .copy{margin-left:auto;margin-right:auto;text-align:center}
   .form-panel{padding:24px 26px 32px}
   .form-wrap{padding:24px 0}
@@ -230,6 +226,7 @@ label{font-size:12.5px;font-weight:600;color:var(--ink)}
 @media (max-width:560px){
   .top-link{display:none}
   .chip-ai,.chip-new{display:none}
+  .art-inner{transform:none}
   .copy h1{font-size:20px}
   .form-panel{padding:20px 18px 28px}
 }

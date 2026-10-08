@@ -16,162 +16,203 @@
     </p>
   }
 
-  <div class="cmp-layout">
-    <!-- Editor: destination on top, the caption, AI tools, "ask AI", then save / submit -->
-    <section class="cmp-card cmp-editor">
-      <!-- Caption (and the attached image); scrolls inside the card when long -->
-      <div class="cmp-body">
-        <textarea class="cmp-post" placeholder="What do you want to share?" aria-label="Post"
-          [ngModel]="text()" (ngModelChange)="text.set($event)" [disabled]="!canEdit()"></textarea>
-        @if (image(); as img) {
-          <figure class="cmp-figure">
-            <img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" />
-            @if (canEdit()) { <button type="button" class="cmp-fig-x" aria-label="Remove image" (click)="removeImage()">&times;</button> }
-          </figure>
-        } @else if (platform() === 'Instagram') {
-          <p class="cmp-hint">Instagram needs one JPEG image: add it from Media.</p>
-        }
-      </div>
+  <!-- Platform glyphs (brand-coloured in the chip, white on the active preview tab) -->
+  <ng-template #glyph let-p>
+    @switch (p) {
+      @case ('LinkedIn') { <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg> }
+      @case ('Facebook') { <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12z"/></svg> }
+      @default { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg> }
+    }
+  </ng-template>
+  <ng-template #chev><svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg></ng-template>
 
-      <!-- AI tools for the open post: each result is saved as a new version; the previous one is kept -->
-      <div class="cmp-tools">
-        <!-- Publish to: platform (fixed once the post exists) and account, like AI Studio's platform menu -->
-        <div class="cmp-pop">
-          <button type="button" class="cmp-tool pub" [attr.aria-expanded]="menu() === 'publish'" (click)="toggleMenu('publish')" aria-label="Publish to">
-            @if (platform(); as p) { <app-platform-icon [platform]="p" /> }
-            <span class="cmp-pub-label">{{ platform() ?? 'Publish to' }}</span>
-            <svg class="cmp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          @if (menu() === 'publish') {
-            <div class="cmp-dd" role="menu">
-              <span class="cmp-dd-label">Publish to</span>
-              @for (p of platforms; track p) {
-                <button type="button" class="cmp-dd-row" role="menuitemradio" [class.selected]="platform() === p" [attr.aria-checked]="platform() === p"
-                  [disabled]="!canEdit() || (!isNew() && platform() !== p)" (click)="choosePlatform(p)">
-                  <app-platform-icon [platform]="p" />
-                  <span><b>{{ p }}</b><small>{{ connected(p) ? 'Connected' : 'No account connected' }}</small></span>
-                  <svg class="cmp-dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <div class="main">
+    <!-- ============ LEFT: EDITOR ============ -->
+    <section>
+      <div class="editor">
+        <textarea class="post" placeholder="What do you want to share?" aria-label="Post"
+          [ngModel]="text()" (ngModelChange)="text.set($event); expanded.set(false)" [disabled]="!canEdit()"></textarea>
+
+        @if (image(); as img) {
+          <div class="thumbs">
+            <div class="thumb">
+              <img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" />
+              @if (canEdit()) {
+                <button type="button" class="rm" title="Remove" aria-label="Remove image" (click)="removeImage()">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg>
                 </button>
               }
-              <!-- The first connected account of the platform is used automatically -->
-              @if (platform() && !accountId()) {
-                <p class="cmp-dd-note">No connected {{ platform() }} account.
-                  @if (workspace.isAdmin()) { <a routerLink="/social-accounts">Connect one</a> } @else { Ask your Admin to connect one. }</p>
+            </div>
+          </div>
+        } @else if (platform() === 'Instagram') {
+          <p class="hint">Instagram needs one JPEG image: drop it below or generate one from Media.</p>
+        }
+
+        <div class="divider"></div>
+
+        <div class="toolbar">
+          <!-- Publish to: platform (fixed once the post exists); its first connected account is used -->
+          <div class="dd-wrap">
+            <button type="button" class="chip" [attr.aria-expanded]="menu() === 'publish'" (click)="toggleMenu('publish')" aria-label="Publish to">
+              @if (platform(); as p) { <span class="brand" [class]="'brand ' + p.toLowerCase()"><ng-container *ngTemplateOutlet="glyph; context: { $implicit: p }" /></span> }
+              {{ platform() ?? 'Publish to' }}
+              <ng-container *ngTemplateOutlet="chev" />
+            </button>
+            @if (menu() === 'publish') {
+              <div class="panel pub" role="menu">
+                <div class="panel-title">Publish to</div>
+                @for (p of platforms; track p) {
+                  <button type="button" class="pub-item" role="menuitemradio" [class.selected]="platform() === p" [attr.aria-checked]="platform() === p"
+                    [disabled]="!canEdit() || (!isNew() && platform() !== p)" (click)="choosePlatform(p)">
+                    <span class="brand" [class]="'brand ' + p.toLowerCase()"><ng-container *ngTemplateOutlet="glyph; context: { $implicit: p }" /></span>
+                    <span class="pub-txt"><b>{{ p }}</b><small>{{ connected(p) ? 'Connected' : 'No account connected' }}</small></span>
+                    <svg class="check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                }
+                @if (platform() && !accountId()) {
+                  <p class="pub-note">No connected {{ platform() }} account.
+                    @if (workspace.isAdmin()) { <a routerLink="/social-accounts">Connect one</a> } @else { Ask your Admin to connect one. }</p>
+                }
+              </div>
+            }
+          </div>
+
+          @if (canEdit()) {
+            <!-- Improve with AI: each result is saved as a new version; the previous one is kept -->
+            <div class="dd-wrap">
+              <button type="button" class="chip" [attr.aria-expanded]="menu() === 'improve'" (click)="toggleMenu('improve')"
+                [disabled]="!!busy() || !text().trim() || !caps().textGeneration" [title]="text().trim() ? '' : 'Write the post first'">
+                @if (isRewriting()) { <span class="spinner" aria-hidden="true"></span> }
+                @else { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg> }
+                {{ isRewriting() ? 'Improving…' : 'Improve' }}
+                <ng-container *ngTemplateOutlet="chev" />
+              </button>
+              @if (menu() === 'improve') {
+                <div class="panel improve" role="menu">
+                  <div class="panel-title">Improve with AI</div>
+                  <div class="imp-grid">
+                    @for (a of improveActions; track a.label) {
+                      <button type="button" class="imp-item" role="menuitem" (click)="improve(a.action, a.instruction)">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path [attr.d]="a.icon"/></svg>{{ a.label }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Media: AI image generation (uploads go through the dropzone below) -->
+            @if (imageAvailable()) {
+              <div class="dd-wrap">
+                <button type="button" class="chip" [attr.aria-expanded]="menu() === 'image'" (click)="toggleMenu('image')" [disabled]="!!busy()">
+                  @if (busy() === 'image' || busy() === 'upload') { <span class="spinner" aria-hidden="true"></span> }
+                  @else { <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 18 5-5 3.5 3.5L16 13l4 5"/></svg> }
+                  {{ busy() === 'image' ? 'Generating…' : busy() === 'upload' ? 'Uploading…' : 'Media' }}
+                  <ng-container *ngTemplateOutlet="chev" />
+                </button>
+                @if (menu() === 'image') {
+                  <div class="panel image" role="menu">
+                    <div class="gi-head">
+                      <div class="gic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z"/></svg></div>
+                      <div>
+                        <div class="t">{{ image() ? 'Generate another image' : 'Generate image' }}</div>
+                        <div class="d">{{ text().trim() ? 'AI illustrates this post' : 'Write the post first' }}</div>
+                      </div>
+                    </div>
+                    @if (caps().imageModels.length) {
+                      <div class="gi-label">Model</div>
+                      <select class="gi-model" [ngModel]="imageModel()" (ngModelChange)="imageModel.set($event)" aria-label="Model">
+                        @for (m of caps().imageModels; track m; let first = $first) { <option [value]="m">{{ m.split('/')[1] }}{{ first ? ' (default)' : '' }}</option> }
+                      </select>
+                    }
+                    <button type="button" class="gi-generate" (click)="newImage(null)" [disabled]="!text().trim()">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z"/></svg>
+                      Generate image
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          }
+          @if (limit(); as max) { <span class="counter" [class.over]="length() > max">{{ length() }}/{{ max }}</span> }
+        </div>
+
+        <!-- Ask AI: edits this post as a new version, or writes a new draft when the post is empty or locked -->
+        @if (workspace.canManageCampaigns()) {
+          <div class="ai-strip">
+            <div class="ai-input">
+              <input type="text" maxlength="500" aria-label="Ask AI"
+                [placeholder]="!canEdit() ? 'This post is locked for review. Describe a new post…' : text().trim() ? 'Ask AI to change this post…' : 'Describe the post you want AI to write…'"
+                [ngModel]="aiInstruction()" (ngModelChange)="aiInstruction.set($event)" (keydown.enter)="generateWithAi()" />
+              <button type="button" class="ai-send" aria-label="Generate" (click)="generateWithAi()" [disabled]="!!busy() || !aiInstruction().trim() || !platform()">
+                @if (busy() === 'generate' || busy() === 'Custom') { <span class="spinner" aria-hidden="true"></span> }
+                @else { <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg> }
+              </button>
+            </div>
+          </div>
+        }
+
+        <div class="divider"></div>
+
+        <div class="editor-foot">
+          <span class="save-state">
+            @if (busy() === 'save') { Saving… }
+            @else if (dirty()) { Unsaved changes }
+            @else if (version(); as v) { Saved · version {{ v.versionNumber }} }
+            @else { Not saved yet }
+          </span>
+          @if (canEdit()) {
+            <div class="foot-right">
+              <button type="button" class="btn-ghost" (click)="saveDraft()" [disabled]="!!busy() || !dirty()">Save draft</button>
+              @if (state() !== 'APPROVED') {
+                <button type="button" class="btn-primary" (click)="submitForReview()" [disabled]="!!busy() || !accountId()"
+                  [title]="accountId() ? 'Send this exact version for review' : 'Choose an account first'">
+                  {{ busy() === 'submit' ? 'Submitting…' : 'Submit' }}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
               }
             </div>
           }
         </div>
-
-        @if (canEdit()) {
-          <div class="cmp-pop">
-            <button type="button" class="cmp-tool ai" [attr.aria-expanded]="menu() === 'improve'" (click)="toggleMenu('improve')"
-              [disabled]="!!busy() || !text().trim() || !caps().textGeneration" [title]="text().trim() ? '' : 'Write the post first'">
-              @if (isRewriting()) { <span class="spinner" aria-hidden="true"></span> }
-              @else { <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2 5.4 5.4 2-5.4 2-2 5.4-2-5.4-5.4-2 5.4-2 2-5.4z"/><path d="M18.8 14.2l1 2.7 2.7 1-2.7 1-1 2.7-1-2.7-2.7-1 2.7-1 1-2.7z"/></svg> }
-              {{ isRewriting() ? 'Improving…' : 'Improve' }}
-              <svg class="cmp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            @if (menu() === 'improve') {
-              <div class="cmp-dd" role="menu">
-                <div class="cmp-dd-grid">
-                  @for (a of improveActions; track a.label) {
-                    <button type="button" class="cmp-dd-item" role="menuitem" (click)="improve(a.action, a.instruction)">
-                      <span class="cmp-dd-ic">{{ a.icon }}</span>{{ a.label }}
-                    </button>
-                  }
-                </div>
-              </div>
-            }
-          </div>
-
-          <div class="cmp-pop">
-            <button type="button" class="cmp-tool img" [attr.aria-expanded]="menu() === 'image'" (click)="toggleMenu('image')" [disabled]="!!busy()">
-              @if (busy() === 'image' || busy() === 'upload') { <span class="spinner" aria-hidden="true"></span> }
-              @else { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg> }
-              {{ busy() === 'image' ? 'Generating…' : busy() === 'upload' ? 'Uploading…' : 'Media' }}
-              <svg class="cmp-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-            </button>
-            @if (menu() === 'image') {
-              <div class="cmp-dd" role="menu">
-                @if (imageAvailable()) {
-                  <button type="button" class="cmp-dd-row" role="menuitem" (click)="newImage(null)" [disabled]="!text().trim()">
-                    <span class="cmp-dd-ic">✦</span>
-                    <span><b>{{ image() ? 'Generate another image' : 'Generate image' }}</b><small>{{ text().trim() ? 'AI illustrates this post' : 'Write the post first' }}</small></span>
-                  </button>
-                  @if (caps().imageModels.length) {
-                    <label class="cmp-dd-model">Model
-                      <select [ngModel]="imageModel()" (ngModelChange)="imageModel.set($event)">
-                        @for (m of caps().imageModels; track m; let first = $first) { <option [value]="m">{{ m.split('/')[1] }}{{ first ? ' (default)' : '' }}</option> }
-                      </select>
-                    </label>
-                  }
-                  <div class="cmp-dd-sep"></div>
-                }
-                <label class="cmp-dd-row" role="menuitem">
-                  <span class="cmp-dd-ic">⇪</span>
-                  <span><b>Upload from computer</b><small>JPEG or PNG, up to 8 MB</small></span>
-                  <input type="file" accept="image/jpeg,image/png" hidden (change)="menu.set(null); upload($event)" />
-                </label>
-              </div>
-            }
-          </div>
-        }
-        @if (limit(); as max) { <span class="cmp-counter" [class.over]="length() > max * 0.9">{{ length() }}/{{ max }}</span> }
       </div>
 
-      <!-- Ask AI: edits this post as a new version, or writes a new draft when the post is empty or locked -->
-      @if (workspace.canManageCampaigns()) {
-        <div class="cmp-composer">
-          <div class="cmp-composer-row">
-            <input class="cmp-prompt" type="text" maxlength="500" aria-label="Ask AI"
-              [placeholder]="!canEdit() ? 'This post is locked for review. Describe a new post…' : text().trim() ? 'Ask AI to change this post…' : 'Describe the post you want AI to write…'"
-              [ngModel]="aiInstruction()" (ngModelChange)="aiInstruction.set($event)" (keydown.enter)="generateWithAi()" />
-            <button type="button" class="cmp-send" [class.is-idle]="!aiInstruction().trim()" [class.is-loading]="busy() === 'generate' || busy() === 'Custom'"
-              aria-label="Send to AI" (click)="generateWithAi()" [disabled]="!!busy() || !aiInstruction().trim() || !platform()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
-            </button>
-          </div>
-        </div>
+      <!-- Upload dropzone: click, drop or paste a JPEG/PNG -->
+      @if (canEdit()) {
+        <label class="dropzone" [class.drag]="dragging()" (dragover)="$event.preventDefault(); dragging.set(true)" (dragleave)="dragging.set(false)"
+          (drop)="onDrop($event)">
+          <span class="dz-icon">
+            @if (busy() === 'upload') { <span class="spinner" aria-hidden="true"></span> }
+            @else { <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 17.8 8.6 4.7 4.7 0 0 1 17 18"/><path d="M12 20v-8M9 15l3-3 3 3"/></svg> }
+          </span>
+          <span class="dz-title">Paste, Drop or <b>Upload</b></span>
+          <span class="dz-types">
+            JPEG, PNG · up to 8 MB
+            <svg class="dz-help" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.6-2.4 2.1-2.4 3.6M12 17h.01"/></svg>
+          </span>
+          <input type="file" accept="image/jpeg,image/png" hidden (change)="upload($event)" [disabled]="!!busy()" />
+        </label>
       }
-
-      <footer class="cmp-foot">
-        <span class="cmp-status">
-          @if (busy() === 'save') { Saving… }
-          @else if (dirty()) { Unsaved changes }
-          @else if (version(); as v) { Saved · version {{ v.versionNumber }} }
-          @else { Not saved yet }
-        </span>
-        @if (canEdit()) {
-          <button type="button" class="cmp-btn" (click)="saveDraft()" [disabled]="!!busy() || !dirty()">Save draft</button>
-          @if (state() !== 'APPROVED') {
-            <button type="button" class="cmp-btn primary" (click)="submitForReview()" [disabled]="!!busy() || !accountId()"
-              [title]="accountId() ? 'Send this exact version for review' : 'Choose an account first'">
-              {{ busy() === 'submit' ? 'Submitting…' : 'Submit' }}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
-            </button>
-          }
-        }
-      </footer>
     </section>
 
-    <!-- Live preview: full height; the post scrolls inside when it is long -->
-    <aside class="cmp-preview" aria-label="Preview">
-      <div class="cmp-prev-head">
+    <!-- ============ RIGHT: PREVIEW ============ -->
+    <aside class="preview" aria-label="Preview">
+      <div class="pv-head">
         <span>Preview</span>
-        <span class="cmp-prev-tabs">
-          @for (p of platforms; track p) { <span class="cmp-prev-tab" [class.active]="platform() === p"><app-platform-icon [platform]="p" /></span> }
-        </span>
-      </div>
-      <div class="cmp-prev-card">
-        <div class="cmp-prev-who">
-          <span class="cmp-prev-avatar">{{ previewName().charAt(0) }}</span>
-          <span><b>{{ previewName() }}</b><small>Just now · {{ platform() ?? 'Choose a platform' }}</small></span>
+        <div class="pv-plats">
+          @for (p of platforms; track p) {
+            <span class="plat" [class]="'plat ' + p.toLowerCase()" [class.active]="platform() === p" [title]="p"><ng-container *ngTemplateOutlet="glyph; context: { $implicit: p }" /></span>
+          }
         </div>
-        @if (text().trim()) { <p class="cmp-prev-text">{{ text() }}</p> }
-        @else { <p class="cmp-prev-text cmp-soft">Your post will appear here.</p> }
-        @if (link().trim()) { <p class="cmp-prev-link">{{ link() }}</p> }
-        @if (image(); as img) { <img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" /> }
       </div>
+
+      @if (text().trim()) {
+        <div class="pv-text" [class.clamped]="text().length > 380 && !expanded()">{{ text() }}</div>
+        @if (text().length > 380) { <button type="button" class="seemore" (click)="expanded.set(!expanded())">{{ expanded() ? 'Show less' : '…See more' }}</button> }
+      } @else {
+        <div class="pv-text pv-empty">Your post will appear here.</div>
+      }
+      @if (link().trim()) { <p class="pv-link">{{ link() }}</p> }
+      @if (image(); as img) { <div class="pv-media"><img [src]="previewUrl(img.id)" [alt]="altText() || 'Post image'" /></div> }
     </aside>
   </div>
 </div>

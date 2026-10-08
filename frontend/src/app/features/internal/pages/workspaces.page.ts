@@ -17,6 +17,7 @@ import { AuditLogItem, InternalApiService, WorkspaceDetail, WorkspaceListItem, a
         <option value="">All statuses</option><option value="Active">Active</option><option value="Suspended">Suspended</option>
       </select>
       <label class="date">Created from <input type="date" [(ngModel)]="createdFrom" (ngModelChange)="load()" /></label>
+      <span class="count-note">{{ rows().length }} {{ rows().length === 1 ? 'workspace' : 'workspaces' }}</span>
     </div>
     <app-problem-banner [problem]="problem()" />
     <div class="table-wrap">

@@ -81,9 +81,16 @@ internal static class AuthenticationExtensions
         return services;
     }
 
-    /// <summary>The session carries only the user id; organization access is re-checked against the database on every request.</summary>
-    public static ClaimsPrincipal SessionPrincipal(Guid userId) =>
-        new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], CookieAuthenticationDefaults.AuthenticationScheme));
+    /// <summary>
+    /// The session carries the user id, plus the system-role claim for a system administrator so one sign-in opens the
+    /// internal area too. Organization access and the system-admin flag are re-checked against the database on every request.
+    /// </summary>
+    public static ClaimsPrincipal SessionPrincipal(Guid userId, bool isSystemAdmin = false)
+    {
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, userId.ToString()) };
+        if (isSystemAdmin) claims.Add(new Claim(SystemRoles.ClaimType, SystemRoles.SystemAdmin));
+        return new(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme));
+    }
 }
 
 /// <summary>

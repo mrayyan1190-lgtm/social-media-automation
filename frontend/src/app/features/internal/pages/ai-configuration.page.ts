@@ -21,9 +21,11 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
       @if (cfg.source === 'ENVIRONMENT') {
         <p class="banner info">Currently using the deployment's environment configuration. Saving here stores platform settings, which take precedence.</p>
       }
-      <div class="admin-grid wide-left">
+      @let img = cfg.image;
+      @let vis = cfg.vision;
+      <div class="ai-grid">
         <form class="card form-grid" (ngSubmit)="save()">
-          <h2>Configuration</h2>
+          <div class="card-head"><h2>Text Generation</h2><span [class]="'badge delivery ' + tone(cfg.status.health)">{{ labels[cfg.status.health] }}</span></div>
           <label>Provider *
             <select name="provider" [(ngModel)]="provider" required>
               <option value="OpenAI">OpenAI</option><option value="Groq">Groq</option><option value="HuggingFace">Hugging Face</option>
@@ -60,6 +62,13 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
           <label class="checkbox"><input name="enabled" type="checkbox" [(ngModel)]="enabled" /> AI Enabled</label>
 
+          <div>
+            <div class="statline"><span>Configuration</span><span [class]="'badge delivery ' + tone(cfg.status.configured)">{{ labels[cfg.status.configured] }}</span></div>
+            <div class="statline"><span>Requests Today</span><strong>{{ cfg.status.requestsToday }}</strong></div>
+            <div class="statline"><span>Failed Today</span><strong [class.text-danger]="cfg.status.failedToday > 0">{{ cfg.status.failedToday }}</strong></div>
+            <div class="statline"><span>Last Successful Request</span><span>{{ when(cfg.status.lastSuccessAtUtc) }}</span></div>
+            <div class="statline"><span>Last Failure</span><span [class.problem-text]="!!cfg.status.lastFailure">{{ cfg.status.lastFailure ? cfg.status.lastFailure + ' · ' + when(cfg.status.lastFailureAtUtc) : '—' }}</span></div>
+          </div>
           @if (test(); as t) {
             <p [class]="'banner ' + (t.succeeded && t.modelAvailable ? 'success' : 'error')">{{ t.message }}</p>
           }
@@ -69,24 +78,8 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
         </form>
 
-        <section class="card">
-          <h2>Provider Status</h2>
-          <ul class="kv">
-            <li><span>Configuration</span><span [class]="'badge delivery ' + tone(cfg.status.configured)">{{ labels[cfg.status.configured] }}</span></li>
-            <li><span>Health</span><span [class]="'badge delivery ' + tone(cfg.status.health)">{{ labels[cfg.status.health] }}</span></li>
-            <li><span>Default Model</span><span>{{ cfg.status.defaultModel || '—' }}</span></li>
-            <li><span>Last Successful Request</span><span>{{ when(cfg.status.lastSuccessAtUtc) }}</span></li>
-            <li><span>Last Failure</span><span>{{ cfg.status.lastFailure ? cfg.status.lastFailure + ' · ' + when(cfg.status.lastFailureAtUtc) : '—' }}</span></li>
-            <li><span>Requests Today</span><strong>{{ cfg.status.requestsToday }}</strong></li>
-            <li><span>Failed Today</span><strong [class.text-danger]="cfg.status.failedToday > 0">{{ cfg.status.failedToday }}</strong></li>
-          </ul>
-          <p class="hint">Health reflects real calls in the last hour; with no recent calls it is "Not Monitored". Use Test Connection to check now.</p>
-        </section>
-      </div>
-      @let img = cfg.image;
-      <div class="admin-grid wide-left">
         <form class="card form-grid" (ngSubmit)="saveImage()">
-          <h2>Image Generation</h2>
+          <div class="card-head"><h2>Image Generation</h2><span [class]="'badge delivery ' + tone(img.status.health)">{{ labels[img.status.health] }}</span></div>
           <p class="hint">Creates images for posts. Each image becomes a new post version and is reviewed by a person before it can be scheduled.</p>
           <label>Provider *
             <select name="imgProvider" [ngModel]="imgProvider" (ngModelChange)="chooseImgProvider($event)">
@@ -136,6 +129,13 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
           <label class="checkbox"><input name="imgEnabled" type="checkbox" [(ngModel)]="imgEnabled" /> Image Generation Enabled</label>
 
+          <div>
+            <div class="statline"><span>Configuration</span><span [class]="'badge delivery ' + tone(img.status.configured)">{{ labels[img.status.configured] }}</span></div>
+            <div class="statline"><span>API Key</span><span>{{ img.ownApiKey ? 'Separate image key' : cfg.apiKeyConfigured ? 'Uses the AI / LLM key' : 'None' }}</span></div>
+            <div class="statline"><span>Images Today</span><strong>{{ img.status.requestsToday }}</strong></div>
+            <div class="statline"><span>Failed Today</span><strong [class.text-danger]="img.status.failedToday > 0">{{ img.status.failedToday }}</strong></div>
+            <div class="statline"><span>Last Failure</span><span [class.problem-text]="!!img.status.lastFailure">{{ img.status.lastFailure ? img.status.lastFailure + ' · ' + when(img.status.lastFailureAtUtc) : '—' }}</span></div>
+          </div>
           @if (imgTest(); as t) { <p [class]="'banner ' + (t.succeeded && t.modelAvailable ? 'success' : 'error')">{{ t.message }}</p> }
           <div class="actions">
             <button type="button" (click)="testImage()" [disabled]="busy()">{{ busy() === 'img-test' ? 'Testing…' : 'Test Connection' }}</button>
@@ -143,25 +143,8 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
         </form>
 
-        <section class="card">
-          <h2>Image Provider Status</h2>
-          <ul class="kv">
-            <li><span>Configuration</span><span [class]="'badge delivery ' + tone(img.status.configured)">{{ labels[img.status.configured] }}</span></li>
-            <li><span>Health</span><span [class]="'badge delivery ' + tone(img.status.health)">{{ labels[img.status.health] }}</span></li>
-            <li><span>Model</span><span>{{ img.model || '—' }} · {{ img.size || '—' }}</span></li>
-            <li><span>API Key</span><span>{{ img.ownApiKey ? 'Separate image key' : cfg.apiKeyConfigured ? 'Uses the AI / LLM key' : 'None' }}</span></li>
-            <li><span>Last Successful Image</span><span>{{ when(img.status.lastSuccessAtUtc) }}</span></li>
-            <li><span>Last Failure</span><span>{{ img.status.lastFailure ? img.status.lastFailure + ' · ' + when(img.status.lastFailureAtUtc) : '—' }}</span></li>
-            <li><span>Images Today</span><strong>{{ img.status.requestsToday }}</strong></li>
-            <li><span>Failed Today</span><strong [class.text-danger]="img.status.failedToday > 0">{{ img.status.failedToday }}</strong></li>
-          </ul>
-          <p class="hint">Test Connection only checks the key and model list; it does not generate (or bill) an image.</p>
-        </section>
-      </div>
-      @let vis = cfg.vision;
-      <div class="admin-grid wide-left">
         <form class="card form-grid" (ngSubmit)="saveVision()">
-          <h2>Image Understanding (Vision)</h2>
+          <div class="card-head"><h2>Image Understanding (Vision)</h2><span [class]="'badge delivery ' + (vis.usable ? 'success' : 'neutral')">{{ vis.usable ? 'Configured' : vis.enabled ? 'Not Configured' : 'Disabled' }}</span></div>
           <p class="hint">Reads images users upload in Create with AI and Composer, so posts can be written about them. Uses the Hugging Face token saved above; users can pick another of these models in Advanced Options.</p>
           <label>Default Vision Model *
             <select name="visModel" [(ngModel)]="visModel">
@@ -174,7 +157,7 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
             @if (vis.tokenSource !== 'NONE' && !replacingVisKey()) {
               <div class="secret-set">
                 <span class="badge delivery success">Configured ✓</span>
-                <span class="hint">{{ vis.hasOwnApiKey ? 'Last updated: ' + when(vis.apiKeyUpdatedAtUtc) : vis.tokenSource === 'IMAGE_KEY' ? 'Uses the Image Generation token' : 'Uses the AI / LLM key (Hugging Face)' }}</span>
+                <span class="hint">{{ vis.hasOwnApiKey ? 'Last updated: ' + when(vis.apiKeyUpdatedAtUtc) : 'Uses the AI / LLM key (Hugging Face)' }}</span>
                 <button type="button" (click)="replacingVisKey.set(true)">{{ vis.hasOwnApiKey ? 'Replace API Key' : 'Use a Separate Key' }}</button>
               </div>
             } @else {
@@ -186,6 +169,10 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
           <label class="checkbox"><input name="visEnabled" type="checkbox" [(ngModel)]="visEnabled" /> Image Understanding Enabled</label>
 
+          <div>
+            <div class="statline"><span>Token</span><span>{{ vis.tokenSource === 'VISION_KEY' ? 'Separate vision key' : vis.tokenSource === 'LLM_KEY' ? 'AI / LLM key' : 'None' }}</span></div>
+            <div class="statline"><span>Images per Request</span><strong>up to 4</strong></div>
+          </div>
           @if (visTest(); as t) { <p [class]="'banner ' + (t.succeeded ? 'success' : 'error')">{{ t.message }}</p> }
           <div class="actions">
             <button type="button" (click)="testVision()" [disabled]="busy() || vis.tokenSource === 'NONE'" title="Save a new token first; the test uses the saved token">{{ busy() === 'vis-test' ? 'Testing…' : 'Test Connection' }}</button>
@@ -193,16 +180,6 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
           </div>
         </form>
 
-        <section class="card">
-          <h2>Vision Status</h2>
-          <ul class="kv">
-            <li><span>Configuration</span><span [class]="'badge delivery ' + (vis.usable ? 'success' : 'neutral')">{{ vis.usable ? 'Configured' : vis.enabled ? 'Not Configured' : 'Disabled' }}</span></li>
-            <li><span>Default Model</span><span>{{ vis.model }}</span></li>
-            <li><span>Token</span><span>{{ vis.tokenSource === 'VISION_KEY' ? 'Separate vision key' : vis.tokenSource === 'IMAGE_KEY' ? 'Image Generation token' : vis.tokenSource === 'LLM_KEY' ? 'AI / LLM key' : 'None' }}</span></li>
-            <li><span>Images per Request</span><span>up to 4</span></li>
-          </ul>
-          <p class="hint">Test Connection sends one tiny test image to the model, so it checks the token, the model and that its Hugging Face provider accepts images (costs a fraction of a cent).</p>
-        </section>
       </div>
     } @else {
       <p class="muted">Loading…</p>

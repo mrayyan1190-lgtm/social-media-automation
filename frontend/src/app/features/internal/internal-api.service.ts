@@ -53,7 +53,7 @@ export interface AiConfiguration {
 
 /** Image understanding: its own token or a saved Hugging Face token (tokenSource says which); never carries the token. */
 export interface AiVisionConfiguration {
-  enabled: boolean; model: string; models: string[]; tokenSource: 'VISION_KEY' | 'IMAGE_KEY' | 'LLM_KEY' | 'NONE'; usable: boolean;
+  enabled: boolean; model: string; models: string[]; tokenSource: 'VISION_KEY' | 'LLM_KEY' | 'NONE'; usable: boolean;
   hasOwnApiKey: boolean; apiKeyUpdatedAtUtc: string | null;
 }
 

@@ -22,3 +22,4 @@ Thumbs.db
 
 # Local development object storage
 .local-storage/
+/out/

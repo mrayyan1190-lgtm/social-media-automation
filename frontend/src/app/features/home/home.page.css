@@ -59,9 +59,13 @@ a{color:inherit;text-decoration:none}
 .rows{padding:0 8px 10px;flex:1 1 auto}
 .r{display:grid;align-items:center;column-gap:10px;border-radius:11px;cursor:pointer;transition:.14s}
 .r:hover{background:#f8fafd}
-.r.pipe{padding:15px 8px;grid-template-columns:40px 240px 84px minmax(0,1fr) 26px 108px 26px}
+.r.pipe{padding:15px 8px;grid-template-columns:40px minmax(0,1fr) 64px 84px}
+/* header shares the row grid so each label sits exactly over its column */
+.r.pipe.phead{padding:2px 8px 4px;cursor:default;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.r.pipe.phead:hover{background:none}
+.phead .hc{grid-column:span 2}
+.phead .hch{justify-self:center}
 .r.attn{padding:10px 8px;grid-template-columns:40px minmax(0,1fr) 46px 108px 26px}
-.r.pipe .sp{display:block}
 .thumb{width:40px;height:40px;border-radius:10px;display:block;object-fit:cover;box-shadow:inset 0 0 0 1px rgba(15,28,51,.07);background:#eef2f8}
 .rbody{min-width:0}
 .rtitle{font-size:13.5px;font-weight:600;letter-spacing:-.12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -155,10 +159,6 @@ a{color:inherit;text-decoration:none}
 .udot{width:7px;height:7px;border-radius:50%;background:var(--blue);display:block}
 .udot.off{background:transparent}
 
-@media (max-width:1500px){
-  .r.pipe{grid-template-columns:40px minmax(0,1fr) 84px 26px 108px 26px}
-  .r.pipe .sp{display:none}
-}
 @media (max-width:1300px){
   .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
   .r.attn{grid-template-columns:40px minmax(0,1fr) 108px 26px}
@@ -170,14 +170,14 @@ a{color:inherit;text-decoration:none}
   .pbody{grid-template-columns:1fr;gap:4px}
 }
 @media (max-width:860px){
-  .r.pipe{grid-template-columns:40px minmax(0,1fr) 26px 108px 26px}
-  .r.pipe .rdate2{display:none}
+  .r.pipe{grid-template-columns:40px minmax(0,1fr) 64px}
+  .r.pipe .rdate2,.phead .hdt{display:none}
 }
 @media (max-width:700px){ .kpis{grid-template-columns:repeat(2,1fr)} }
 @media (max-width:560px){
   .kpis{grid-template-columns:1fr}
-  .r.pipe{grid-template-columns:40px minmax(0,1fr) 108px 26px}
-  .r.pipe .pm{display:none}
+  .r.pipe{grid-template-columns:40px minmax(0,1fr)}
+  .r.pipe .pm,.phead .hch{display:none}
   .chead{flex-wrap:wrap}
   .chead .right{margin-left:0;width:100%;padding-left:48px}
 }

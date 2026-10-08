@@ -17,7 +17,7 @@ public sealed record AiConfigurationDto(
     AiImageConfigurationDto Image, AiVisionConfigurationDto Vision);
 
 /// <summary>
-/// Image understanding (vision). TokenSource: VISION_KEY (its own token), IMAGE_KEY or LLM_KEY (a token saved for those) or
+/// Image understanding (vision). TokenSource: VISION_KEY (its own token), LLM_KEY (the Hugging Face LLM key) or
 /// NONE. Models: what can be chosen. Usable: enabled and a Hugging Face token exists. The token itself is never returned.
 /// </summary>
 public sealed record AiVisionConfigurationDto(
@@ -302,7 +302,6 @@ public sealed class PlatformAiConfigurationService(
         var source = stored?.HuggingFaceTokenSecretName switch
         {
             PlatformAiConfiguration.VisionApiKeySecretName => "VISION_KEY",
-            PlatformAiConfiguration.ImageApiKeySecretName => "IMAGE_KEY",
             PlatformAiConfiguration.ApiKeySecretName => "LLM_KEY",
             _ => "NONE",
         };

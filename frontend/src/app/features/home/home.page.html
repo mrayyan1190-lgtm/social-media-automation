@@ -99,15 +99,13 @@
       <div class="right"><a class="link" [routerLink]="ws('/planner')" [queryParams]="{ view: 'list' }">View all <ng-container *ngTemplateOutlet="arrowRight" /></a></div>
     </div>
     <div class="rows">
+      <div class="r pipe phead"><span class="hc">Content</span><span class="hch">Channel</span><span class="hdt">Date &amp; time</span></div>
       @for (r of pipeline(); track r.id) {
         <a class="r pipe" [routerLink]="ws(r.link)">
           <ng-container *ngTemplateOutlet="thumb; context: { $implicit: r.mediaId, art: r.art }" />
           <div class="rbody"><div class="rtitle" [title]="r.title">{{ r.title }}</div></div>
-          <div class="rdate2"><b>{{ r.date }}</b><span>{{ r.time }}</span></div>
-          <span class="sp"></span>
           <ng-container *ngTemplateOutlet="mark; context: { $implicit: r.platform }" />
-          <span [class]="'chip ' + r.chip"><ng-container *ngTemplateOutlet="chipIcon; context: { $implicit: r.chip }" />{{ r.chipLabel }}</span>
-          <ng-container *ngTemplateOutlet="dots" />
+          <div class="rdate2"><b>{{ r.date }}</b><span>{{ r.time }}</span></div>
         </a>
       } @empty {
         <div class="empty">

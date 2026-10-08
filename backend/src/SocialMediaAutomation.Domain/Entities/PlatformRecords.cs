@@ -106,11 +106,11 @@ public sealed class PlatformAiConfiguration
         UpdatedAtUtc = utcNow;
     }
 
-    // ---- Image understanding (Hugging Face vision models: its own token, or a Hugging Face token saved above) ----
+    // ---- Image understanding (Hugging Face vision models: its own token, or the LLM key when the LLM is Hugging Face) ----
 
     public const string VisionApiKeySecretName = "platform/ai/vision-api-key";
 
-    /// <summary>Optional token for image understanding only; when absent a Hugging Face token saved above is used.</summary>
+    /// <summary>Optional token for image understanding only; when absent the LLM key is used if the LLM is Hugging Face.</summary>
     public string? VisionApiKeySecretRef { get; private set; }
     public DateTime? VisionApiKeyUpdatedAtUtc { get; private set; }
 
@@ -121,12 +121,11 @@ public sealed class PlatformAiConfiguration
     public string? VisionModel { get; private set; }
 
     /// <summary>
-    /// The Hugging Face token image understanding uses: its own vision token when saved, else the image key (images on
-    /// Hugging Face), else the LLM key (LLM on Hugging Face).
+    /// The Hugging Face token image understanding uses: its own vision token when saved, else the LLM key (LLM on Hugging
+    /// Face). Never the image-generation key: vision and image generation are billed and rotated separately.
     /// </summary>
     public string? HuggingFaceTokenSecretName =>
         HasVisionApiKey ? VisionApiKeySecretName
-        : ImageProvider == AiProvider.HuggingFace && HasImageApiKey ? ImageApiKeySecretName
         : Provider == AiProvider.HuggingFace && HasApiKey ? ApiKeySecretName
         : null;
 

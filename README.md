@@ -467,7 +467,7 @@ The AI worker polls SQL every `Workers:Ai:PollIntervalSeconds` and processes que
 Workspace Admin is a customer role and never grants platform access. System Admin is a platform-level flag on the user (`Users.IsSystemAdmin`), not an `OrganizationMember` role, and no product screen or endpoint can assign it.
 
 - Sign in at `/internal/login` (`POST /api/internal/auth/login`). Valid credentials without the flag get `403 FORBIDDEN` and no session. Customers keep using `/login`.
-- Every `/api/internal/*` endpoint (`/me`, `/overview`) requires the `RequireSystemAdmin` policy: a session from the internal sign-in and the flag still set in the database. The legacy org-scoped `ai-settings` and `operations` endpoints also require the flag.
+- Every `/api/internal/*` endpoint (`/me`, `/overview`) requires the `RequireSystemAdmin` policy: a session carrying the system-role claim (issued by `/internal/login`, and by the customer `/login` when the user has the flag, so one sign-in is enough) and the flag still set in the database. The legacy org-scoped `ai-settings` and `operations` endpoints also require the flag.
 - In Development the API seeds `systemadmin@local.test` from `Seed:SystemAdmin:Email/Password` in `appsettings.Development.json` (created only if no user has that email; never seeded outside Development). Change these values locally; never commit a real password.
 - Production: there is no seed. Grant the flag to an existing user directly in the database (`UPDATE Users SET IsSystemAdmin = 1 WHERE NormalizedEmail = '<EMAIL IN UPPER CASE>'`).
 - Pages (grouped sidebar): Overview; Workspaces (suspend/reactivate, audit history) and Users (disable/enable, sign-in and audit activity); AI / LLM and Social Providers configuration; Workers, Queues, Publications and Reconciliation (Check Provider Status, Confirm Published, Confirm Failed; never a blind resend); System Health; Logs (Audit, Sign-ins, AI, Publishing, System). All read/write endpoints live under `/api/internal/*` and are listed in `InternalControllers.cs`.
@@ -575,6 +575,20 @@ Sign in at http://localhost:4200 with a seeded demo account (§13.5) and the `Se
 - The post composer (`/posts/{id}`): edit, AI rewrites, versions, submit for review, schedule / publish now. Older links (`/dashboard`, `/approvals`, `/calendar`, `/settings/brand|team|social-connections`) redirect to the new pages. Role-based hiding in the UI is a convenience only; the API enforces every rule. Browser storage holds only UX preferences (the selected workspace id and whether Home's Get Started panel was hidden), never a token.
 
 ---
+
+### 9. Deploy to AWS EC2
+
+One EC2 instance (Ubuntu 24.04) runs nginx (serves the Angular build and proxies `/api/` to the API), plus the API and the worker as systemd services. SQL Server is external (company VPS). Scripts are in `deploy/ec2/`.
+
+1. Launch EC2 with Ubuntu 24.04 and attach an Elastic IP. Security group: 22 from your IP only, 80 and 443 from anywhere. Allow 1433 from the Elastic IP on the VPS SQL Server firewall.
+2. Point a domain at the Elastic IP. HTTPS is required because the session cookie is `Secure` in Production.
+3. On the server: `sudo bash setup-server.sh <domain> <email>` (swap, nginx, Let's Encrypt, `sma-api` and `sma-worker` units).
+4. Fill `/etc/sma.env` from `deploy/ec2/sma.env.example`.
+5. Apply the schema to the VPS database once: run `deploy/database.sql` (idempotent).
+6. From your PC (Git Bash, repo root): `bash deploy/ec2/publish.sh ubuntu@<elastic-ip> <key.pem>`. This builds self-contained linux-x64 binaries and the Angular app, uploads them, and restarts both services. Run it again for each redeploy.
+7. Register `https://<domain>/api/v1/oauth/<platform>/callback` (and `/api/v1/auth/google/callback`) with the providers you use.
+
+Logs: `journalctl -u sma-api -f`, `journalctl -u sma-worker -f`. Back up `/var/lib/sma` (media and the DataProtection key ring; losing the keys makes stored LLM keys unreadable).
 
 ## 14. Manager demo path
 

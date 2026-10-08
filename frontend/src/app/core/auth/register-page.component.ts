@@ -35,11 +35,6 @@ export class RegisterPageComponent {
     if (!v) return 0;
     return [v.length >= 8, /[A-Z]/.test(v) && /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
   });
-  readonly hint = computed(() => {
-    const score = this.strength();
-    if (!this.password()) return 'Use 8+ characters with a number or symbol.';
-    return score <= 1 ? 'Weak password.' : score === 2 ? 'Fair — add a number or symbol.' : score === 3 ? 'Good password.' : 'Strong password.';
-  });
 
   async submit(): Promise<void> {
     if (this.form.invalid) {

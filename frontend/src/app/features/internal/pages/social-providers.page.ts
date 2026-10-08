@@ -140,7 +140,7 @@ export class ProviderCardComponent implements OnInit {
   template: `
     <div class="page-header"><div><h1>Social Providers</h1><p class="muted">Platform app credentials that customers' LinkedIn, Facebook and Instagram connections use.</p></div></div>
     <app-problem-banner [problem]="problem()" />
-    <div class="admin-grid">
+    <div class="soc-grid">
       @for (p of providers(); track p.provider) {
         <app-provider-card [provider]="p" (changed)="replace($event)" />
       } @empty { <p class="muted">Loading…</p> }

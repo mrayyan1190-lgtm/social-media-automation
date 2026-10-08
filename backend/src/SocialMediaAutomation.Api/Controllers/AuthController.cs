@@ -34,8 +34,9 @@ public sealed class AuthController(AccountService accounts, SignInRecorder signI
         if (userId is not { } id)
             throw new BusinessException(ErrorCodes.InvalidCredentials, "Invalid email or password.");
 
-        await SignInAsync(id);
-        return await accounts.GetMeAsync(id, cancellationToken);
+        var me = await accounts.GetMeAsync(id, cancellationToken);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, AuthenticationExtensions.SessionPrincipal(id, me.IsSystemAdmin));
+        return me;
     }
 
     [AllowAnonymous]

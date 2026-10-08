@@ -89,11 +89,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12s3.6-6.5 9-6.5S21 12 21 12s-3.6 6.5-9 6.5S3 12 3 12Z"/><circle cx="12" cy="12" r="2.5"/><path d="m4 20 16-16" [style.display]="showPassword() ? 'block' : 'none'"/></svg>
             </button>
           </div>
-          <div class="meter" [class]="strength() ? 'meter s' + strength() : 'meter'" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="meter" [class]="strength() ? 'meter s' + strength() : 'meter'" aria-hidden="true"><i></i><i></i><i></i></div>
           @if (form.controls.password.touched && form.controls.password.invalid) {
             <div class="field-error">Use at least 8 characters.</div>
-          } @else {
-            <div class="hint">{{ hint() }}</div>
           }
         </div>
 
@@ -120,7 +118,6 @@
           Continue with Google
         </button>
 
-        <div class="footer">Already have an account? <a routerLink="/login">Sign in</a></div>
       </form>
     </div>
   </section>

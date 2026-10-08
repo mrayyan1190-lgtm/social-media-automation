@@ -59,4 +59,19 @@ public class AiProviderSettingsTests
         shared.UpdateImage(AiProvider.HuggingFace, null, "black-forest-labs/FLUX.1-schnell", "1024x1024", true, user, now);
         Assert.True(shared.ImageCanUseLlmKey);
     }
+
+    [Fact]
+    public void Vision_never_uses_the_image_generation_key()
+    {
+        var (user, now) = (Guid.NewGuid(), DateTime.UtcNow);
+        var config = PlatformAiConfiguration.Create(user, now);
+        config.ApiKeyReplaced(user, now);
+        config.Update(AiProvider.Groq, null, "openai/gpt-oss-120b", null, null, null, true, user, now);
+        config.ImageApiKeyReplaced(user, now);
+        config.UpdateImage(AiProvider.HuggingFace, null, "Tongyi-MAI/Z-Image-Turbo", "1024x1024", true, user, now);
+        Assert.Null(config.HuggingFaceTokenSecretName);
+
+        config.VisionApiKeyReplaced(user, now);
+        Assert.Equal(PlatformAiConfiguration.VisionApiKeySecretName, config.HuggingFaceTokenSecretName);
+    }
 }

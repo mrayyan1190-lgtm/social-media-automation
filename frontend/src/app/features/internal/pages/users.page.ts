@@ -23,6 +23,7 @@ import { InternalApiService, UserDetail, UserListItem, WorkspaceListItem, ago, t
         @for (w of workspaces(); track w.id) { <option [value]="w.id">{{ w.name }}</option> }
       </select>
       <label class="date">Created from <input type="date" [(ngModel)]="createdFrom" (ngModelChange)="load()" /></label>
+      <span class="count-note">{{ rows().length }} {{ rows().length === 1 ? 'account' : 'accounts' }}</span>
     </div>
     <app-problem-banner [problem]="problem()" />
     <div class="table-wrap">
