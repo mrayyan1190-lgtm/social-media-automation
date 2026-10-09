@@ -1,11 +1,11 @@
 :host{
   --blue:#2563eb;
   --blue-600:#1d4ed8;
-  --ink:#0b1220;
-  --body:#5a6578;
-  --muted:#8c97a8;
-  --line:#e4e9f1;
-  --bg:#f8f9fb;
+  --ink:light-dark(#0b1220, #e7ebf2);
+  --body:light-dark(#5a6578, #99a2b3);
+  --muted:light-dark(#8c97a8, #6e7c91);
+  --line:light-dark(#e4e9f1, #253247);
+  --bg:light-dark(#f8f9fb, #0b0e13);
   --font:"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
   font-family:var(--font);
   color:var(--ink);
@@ -19,7 +19,7 @@
 a{color:inherit;text-decoration:none}
 
 /* ---------- top bar ---------- */
-header{background:#fff;border-bottom:1px solid #eef1f6}
+header{background:var(--surface);border-bottom:1px solid light-dark(#eef1f6, #202b3c)}
 .bar-in{
   display:flex;align-items:center;justify-content:space-between;gap:16px;
   padding:14px 26px;
@@ -32,12 +32,12 @@ header{background:#fff;border-bottom:1px solid #eef1f6}
   box-shadow:0 6px 16px rgba(37,99,235,.32);
 }
 .brand-name{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1;color:var(--ink)}
-.brand-name span{font-weight:400;color:#8ea2c4}
+.brand-name span{font-weight:400;color:light-dark(#8ea2c4, #5976a6)}
 
 .bar-right{display:flex;align-items:center;gap:8px}
 .lang{
   display:inline-flex;align-items:center;gap:7px;
-  border:1px solid var(--line);background:#fff;border-radius:9px;
+  border:1px solid var(--line);background:var(--surface);border-radius:9px;
   padding:7px 11px;font:inherit;font-size:12.5px;font-weight:600;color:var(--ink);
   cursor:pointer;line-height:1;
 }
@@ -47,11 +47,11 @@ header{background:#fff;border-bottom:1px solid #eef1f6}
   width:32px;height:32px;border:0;background:none;border-radius:8px;
   display:grid;place-items:center;cursor:pointer;color:var(--body);
 }
-.kebab:hover{background:#f1f4f9}
+.kebab:hover{background:light-dark(#f1f4f9, #1c273a)}
 .kebab svg{width:16px;height:16px}
 
 /* thin progress line under the header */
-.progress{height:3px;background:#e6eaf1;position:relative}
+.progress{height:3px;background:light-dark(#e6eaf1, #263143);position:relative}
 .progress i{
   position:absolute;left:0;top:0;bottom:0;width:66.66%;
   background:var(--blue);display:block;
@@ -82,18 +82,18 @@ header{background:#fff;border-bottom:1px solid #eef1f6}
 /* ---------- form ---------- */
 form{display:flex;flex-direction:column;gap:13px;width:100%;max-height:75vh;justify-content:center}
 .field{display:flex;flex-direction:column;gap:6px}
-label{font-size:12.5px;font-weight:600;color:#3f4a5c;line-height:1.3}
+label{font-size:12.5px;font-weight:600;color:light-dark(#3f4a5c, #b1bac9);line-height:1.3}
 
 .input{position:relative;display:flex;align-items:center}
-.input > svg{position:absolute;left:14px;width:15px;height:15px;color:#98a2b3;pointer-events:none}
+.input > svg{position:absolute;left:14px;width:15px;height:15px;color:light-dark(#98a2b3, #6c7b93);pointer-events:none}
 .input input,
 .input select{
   width:100%;font:inherit;font-size:13.5px;color:var(--ink);
   height:42px;padding:0 14px 0 38px;
-  background:#fff;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;
   outline:none;transition:border-color .15s, box-shadow .15s;
 }
-.input input::placeholder{color:#9aa5b8}
+.input input::placeholder{color:light-dark(#9aa5b8, #697a96)}
 .input input:focus,
 .input select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 .input.area > svg{top:13px}
@@ -101,10 +101,10 @@ label{font-size:12.5px;font-weight:600;color:#3f4a5c;line-height:1.3}
   width:100%;font:inherit;font-size:13.5px;color:var(--ink);line-height:1.55;
   min-height:62px;resize:none;
   padding:11px 14px 11px 38px;
-  background:#fff;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;
   outline:none;transition:border-color .15s, box-shadow .15s;
 }
-.input textarea::placeholder{color:#9aa5b8}
+.input textarea::placeholder{color:light-dark(#9aa5b8, #697a96)}
 .input textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 .req{color:var(--blue);font-weight:700;margin-left:2px}
 .opt{font-size:11px;font-weight:500;color:var(--muted);line-height:1.2;margin-top:-4px}
@@ -122,8 +122,8 @@ label{font-size:12.5px;font-weight:600;color:#3f4a5c;line-height:1.3}
 
 
 /* Validation feedback: only rendered when a field or the API reports a problem. */
-.field-error{font-size:11.5px;color:#dc2626;line-height:1.5}
-.error{font-size:12.5px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:9px 12px}
+.field-error{font-size:11.5px;color:light-dark(#dc2626, #e87272);line-height:1.5}
+.error{font-size:12.5px;color:light-dark(#b91c1c, #ea7171);background:light-dark(#fef2f2, #491818);border:1px solid light-dark(#fecaca, #491818);border-radius:10px;padding:9px 12px}
 
 /* ---------- responsive ---------- */
 @media (max-width:1060px){

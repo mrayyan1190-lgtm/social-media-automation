@@ -6,6 +6,8 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Apply the saved theme before first paint; without one, the OS preference applies. -->
+  <script>try { var t = localStorage.getItem('theme'); if (t) document.documentElement.dataset['theme'] = t; } catch (e) {}</script>
 </head>
 <body>
   <app-root></app-root>

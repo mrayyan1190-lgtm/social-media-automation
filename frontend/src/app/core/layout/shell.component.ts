@@ -56,6 +56,8 @@ interface SubItem {
 /** Publisher shortcuts share the Planner route; only the one whose filter matches the URL is highlighted. */
 const EXACT: IsActiveMatchOptions = { paths: 'exact', queryParams: 'exact', fragment: 'ignored', matrixParams: 'ignored' };
 const RAIL_KEY = 'shell-rail';
+/** Read by the inline script in index.html before first paint; keep the two in sync. */
+const THEME_KEY = 'theme';
 
 const TITLES: Record<string, string> = {
   home: 'Home', 'ai-studio': 'AI Studio', composer: 'Composer', planner: 'Publisher', approvals: 'Approvals',
@@ -144,6 +146,14 @@ const TITLES: Record<string, string> = {
               <input #q type="search" placeholder="Search posts, people…" aria-label="Search posts" />
             </form>
             <div class="tacts">
+              <button type="button" class="icon-btn" aria-label="Dark theme" [attr.aria-pressed]="dark()"
+                [title]="dark() ? 'Switch to light theme' : 'Switch to dark theme'" (click)="toggleTheme()">
+                @if (dark()) {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.6v2.1M12 19.3v2.1M2.6 12h2.1M19.3 12h2.1M5.4 5.4l1.5 1.5M17.1 17.1l1.5 1.5M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5"/></svg>
+                } @else {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 14.6A8.2 8.2 0 0 1 9.4 4 8.2 8.2 0 1 0 20 14.6Z"/></svg>
+                }
+              </button>
               <a class="icon-btn" [routerLink]="ws('/notifications')" [title]="unread() ? unread() + ' new notifications' : 'Notifications'"
                 [attr.aria-label]="'Notifications' + (unread() ? ', ' + unread() + ' unread' : '')">
                 <svg viewBox="0 0 24 24" fill="none"><path d="M6.4 15.4V10a5.6 5.6 0 1 1 11.2 0v5.4l1.5 2.8H4.9l1.5-2.8Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -173,12 +183,12 @@ const TITLES: Record<string, string> = {
     </div>
   `,
   styles: [`
-    :host{display:block;--line:#e9edf4;--line-2:#f1f4f9;--ink:#0f1c33;--ink-2:#26334d;--muted:#6b7891;--faint:#98a3b6;--rose:#dc4d5b}
+    :host{display:block;--line:light-dark(#e9edf4, #212d42);--line-2:light-dark(#f1f4f9, #1c273a);--ink:light-dark(#0f1c33, #dbe1eb);--ink-2:light-dark(#26334d, #bfc9dd);--muted:light-dark(#6b7891, #848fa4);--faint:light-dark(#98a3b6, #6a7a95);--rose:#dc4d5b}
     .shell{display:flex;min-height:100vh}
-    .side{width:264px;flex:none;background:#fff;border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;
+    .side{width:264px;flex:none;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;
       flex-direction:column;z-index:60;box-shadow:16px 0 44px -36px rgba(15,28,51,.55);transition:width .2s ease}
     .brand{display:flex;align-items:center;gap:12px;margin:14px 12px 8px;padding:10px 12px;min-width:0;border-radius:14px;
-      background:linear-gradient(180deg,#f8faff,#f1f5fd);border:1px solid #e6ecf7}
+      background:linear-gradient(180deg,light-dark(#f8faff, #181f31),light-dark(#f1f5fd, #182849));border:1px solid light-dark(#e6ecf7, #182949)}
     .logo{position:relative;width:40px;height:40px;border-radius:12px;flex:none;display:grid;place-items:center;color:#fff;font-size:18px;font-weight:800;
       letter-spacing:-.5px;background:linear-gradient(145deg,#4f8df7 0%,#2563eb 45%,#123a7a 100%);
       box-shadow:0 10px 20px -10px rgba(18,58,122,.9),inset 0 1px 0 rgba(255,255,255,.35);overflow:hidden}
@@ -187,61 +197,61 @@ const TITLES: Record<string, string> = {
     .bname-wrap{min-width:0;display:block}
     .bname{font-size:16.5px;font-weight:760;letter-spacing:-.45px;line-height:1.2;display:block;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .bselect{font:inherit;font-size:15.5px;font-weight:740;color:var(--ink);border:0;background:none;padding:0;max-width:170px;height:auto;min-height:0;cursor:pointer}
-    .btag{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7b8aa8;margin-top:3px}
+    .btag{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:light-dark(#7b8aa8, #6a7b9d);margin-top:3px}
     .btag::before{content:"";width:6px;height:6px;border-radius:50%;background:#2f6fed;box-shadow:0 0 0 3px rgba(47,111,237,.15);flex:none}
 
     .snav{flex:1;overflow-y:auto;padding:4px 12px 12px}
     .snav::-webkit-scrollbar{width:8px}
-    .snav::-webkit-scrollbar-thumb{background:#e7ecf4;border-radius:8px}
+    .snav::-webkit-scrollbar-thumb{background:light-dark(#e7ecf4, #212f44);border-radius:8px}
     .nitem{display:flex;align-items:center;gap:11px;width:100%;padding:9px 11px;border:0;background:none;border-radius:10px;font:inherit;
       font-size:13.5px;font-weight:550;color:var(--ink-2);text-decoration:none;cursor:pointer;transition:.15s;text-align:left;min-height:0;margin:0}
     .nitem + .nitem{margin-top:2px}
-    .nitem:hover{background:#f4f7fc}
-    .nitem app-nav-icon{color:#7d8aa0}
+    .nitem:hover{background:light-dark(#f4f7fc, #1a2536)}
+    .nitem app-nav-icon{color:light-dark(#7d8aa0, #738199)}
     .nl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .nitem.on{background:linear-gradient(135deg,#2f6fed,#123a7a);color:#fff;font-weight:650;box-shadow:0 12px 26px -14px rgba(20,60,140,.9)}
     .nitem.on app-nav-icon{color:#fff}
     .grp{margin-top:2px}
     .grp .chev{margin-left:auto;color:var(--faint);display:grid;place-items:center;transition:transform .18s}
     .grp .chev svg{width:15px;height:15px;display:block}
-    .grp.open,.grp.inside{background:#f4f7fc;color:var(--ink)}
+    .grp.open,.grp.inside{background:light-dark(#f4f7fc, #1a2536);color:var(--ink)}
     .grp.open .chev{transform:rotate(180deg)}
-    .nitem.out{color:#b23b48}
-    .nitem.out app-nav-icon{color:#cf6b76}
-    .cnt{margin-left:auto;font-size:11px;font-weight:700;color:#5b6a86;background:#eef1f7;border-radius:20px;padding:1.5px 7px;font-variant-numeric:tabular-nums}
-    .cnt.warn{background:#fdf3e2;color:#a96f0a}
-    .cnt.rose{background:#fdeef0;color:#c34a57}
+    .nitem.out{color:light-dark(#b23b48, #d6848d)}
+    .nitem.out app-nav-icon{color:light-dark(#cf6b76, #d7848d)}
+    .cnt{margin-left:auto;font-size:11px;font-weight:700;color:light-dark(#5b6a86, #8d9ab2);background:light-dark(#eef1f7, #1e283e);border-radius:20px;padding:1.5px 7px;font-variant-numeric:tabular-nums}
+    .cnt.warn{background:light-dark(#fdf3e2, #493718);color:light-dark(#a96f0a, #f3c068)}
+    .cnt.rose{background:light-dark(#fdeef0, #49181f);color:light-dark(#c34a57, #d6848d)}
     .slabel{display:flex;align-items:center;gap:10px;margin:16px 12px 7px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
     .slabel::after{content:"";flex:1;height:1px;background:var(--line-2)}
     .sub{position:relative;margin:1px 0 4px 21px;padding-left:13px;display:flex;flex-direction:column;gap:1px}
-    .sub::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:2px;border-radius:2px;background:#e6ebf4}
+    .sub::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:2px;border-radius:2px;background:light-dark(#e6ebf4, #212e45)}
     .sitem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;font-size:13px;color:var(--muted);text-decoration:none;cursor:pointer;transition:.14s;position:relative}
-    .sitem:hover{background:#f4f7fc;color:var(--ink-2)}
-    .sitem.on{background:#eaf1fe;color:#2059c6;font-weight:650}
+    .sitem:hover{background:light-dark(#f4f7fc, #1a2536);color:var(--ink-2)}
+    .sitem.on{background:light-dark(#eaf1fe, #182949);color:light-dark(#2059c6, #739be8);font-weight:650}
     .sitem.on::before{content:"";position:absolute;left:-13px;top:7px;bottom:7px;width:2px;border-radius:2px;background:#2f6fed}
 
     .sfoot{border-top:1px solid var(--line);padding:10px 12px 14px}
-    .user{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:11px;background:#f7f9fc;border:1px solid var(--line-2);margin:6px 0;text-decoration:none;color:var(--ink)}
-    .user:hover{border-color:#e0e6f0}
+    .user{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:11px;background:light-dark(#f7f9fc, #192434);border:1px solid var(--line-2);margin:6px 0;text-decoration:none;color:var(--ink)}
+    .user:hover{border-color:light-dark(#e0e6f0, #25334c)}
     .uav{width:30px;height:30px;border-radius:50%;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;background:linear-gradient(140deg,#2f6fed,#123a7a)}
     .utext{min-width:0}
     .uname{display:block;font-size:13px;font-weight:650;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .urole{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
     .main{flex:1;min-width:0}
-    .top{background:rgba(255,255,255,.92);backdrop-filter:saturate(140%) blur(6px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+    .top{background:light-dark(rgba(255,255,255,.92), rgba(26, 31, 40, 0.92));backdrop-filter:saturate(140%) blur(6px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
     .top-in{display:flex;align-items:center;gap:14px;height:62px;padding:0 24px}
-    .tgl,.icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;display:grid;place-items:center;
+    .tgl,.icon-btn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:grid;place-items:center;
       color:var(--muted);flex:none;transition:.15s;position:relative;padding:0;min-height:0}
     .icon-btn{color:var(--ink-2)}
-    .tgl:hover,.icon-btn:hover{background:#f4f7fc;color:var(--ink)}
+    .tgl:hover,.icon-btn:hover{background:light-dark(#f4f7fc, #1a2536);color:var(--ink)}
     .tgl svg,.icon-btn svg{width:17px;height:17px;display:block}
-    .icon-btn .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--rose);box-shadow:0 0 0 2px #fff}
+    .icon-btn .dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--rose);box-shadow:0 0 0 2px var(--surface)}
     .ptitle{margin:0;font-size:21px;font-weight:750;letter-spacing:-.6px;line-height:1.2;white-space:nowrap;
-      background:linear-gradient(180deg,#0f1c33,#2a3b5c);-webkit-background-clip:text;background-clip:text;color:transparent}
+      background:linear-gradient(180deg,light-dark(#0f1c33, #dbe1eb),light-dark(#2a3b5c, #b5c1d7));-webkit-background-clip:text;background-clip:text;color:transparent}
     .search{margin:0 0 0 14px;flex:1;max-width:320px;display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--line);
-      border-radius:10px;background:#f7f9fc;transition:.15s}
-    .search:focus-within{background:#fff;border-color:#c7d7fa;box-shadow:0 0 0 3px rgba(47,111,237,.12)}
+      border-radius:10px;background:light-dark(#f7f9fc, #192434);transition:.15s}
+    .search:focus-within{background:var(--surface);border-color:light-dark(#c7d7fa, #182749);box-shadow:0 0 0 3px rgba(47,111,237,.12)}
     .search svg{width:15px;height:15px;display:block;color:var(--faint);flex:none}
     .search input{border:0;background:none;outline:none;box-shadow:none;font:inherit;font-size:13px;color:var(--ink);width:100%;height:auto;padding:0;min-height:0}
     .tacts{margin-left:auto;display:flex;align-items:center;gap:12px}
@@ -317,6 +327,10 @@ export class ShellComponent {
   // The collapsed icon rail is no longer offered (no toggle on wide screens), so the full sidebar always shows.
   protected readonly rail = signal(false);
   protected readonly unread = signal(0);
+  /** A pinned choice (data-theme) wins; otherwise the OS preference decides. */
+  protected readonly dark = signal(document.documentElement.dataset['theme']
+    ? document.documentElement.dataset['theme'] === 'dark'
+    : !!window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   protected readonly title = signal('Home');
   /** Home, Composer, AI Studio, Planner, Brand, Settings, Notifications, Members and the Approvals list use the full width beside the sidebar. */
   protected readonly wide = signal(false);
@@ -355,6 +369,17 @@ export class ShellComponent {
     this.rail.set(!this.rail());
     try {
       localStorage.setItem(RAIL_KEY, this.rail() ? '1' : '0');
+    } catch {
+      // Storage may be unavailable; the choice still applies until reload.
+    }
+  }
+
+  protected toggleTheme(): void {
+    const theme = this.dark() ? 'light' : 'dark';
+    this.dark.set(theme === 'dark');
+    document.documentElement.dataset['theme'] = theme;
+    try {
+      localStorage.setItem(THEME_KEY, theme);
     } catch {
       // Storage may be unavailable; the choice still applies until reload.
     }

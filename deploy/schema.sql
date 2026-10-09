@@ -3530,3 +3530,24 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009140126_PostGroups'
+)
+BEGIN
+    ALTER TABLE [Posts] ADD [GroupId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009140126_PostGroups'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261009140126_PostGroups', N'10.0.12');
+END;
+
+COMMIT;
+GO
+

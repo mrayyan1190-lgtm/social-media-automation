@@ -231,7 +231,7 @@ export class HomePage {
       .filter(({ s }) => s in order)
       .sort((a, b) => order[a.s] - order[b.s]
         || (a.s === 'Scheduled' ? a.p.latestPublishAtUtc!.localeCompare(b.p.latestPublishAtUtc!) : b.p.updatedAtUtc.localeCompare(a.p.updatedAtUtc)))
-      .slice(0, 5)
+      .slice(0, 4)
       .map(({ p, s }) => {
         const at = s === 'Scheduled' && p.latestPublishAtUtc ? p.latestPublishAtUtc : p.updatedAtUtc;
         const [chip, chipLabel]: [Chip, string] = s === 'Scheduled' ? ['sched', 'Scheduled'] : s === 'Approved' ? ['ready', 'Ready']

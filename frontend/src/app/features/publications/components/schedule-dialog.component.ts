@@ -55,27 +55,27 @@ import { browserTimeZone, formatOffset, offsetsFor, supportedTimeZones, toUtc } 
   `,
   // Self-contained (encapsulated, class-based) so pages with their own resets, like AI Studio, cannot restyle it.
   styles: `
-    .sd { width: min(480px, 94vw); max-width: none; padding: 0; border: none; border-radius: 16px; background: #fff; color: #101828;
-      box-shadow: 0 24px 60px rgba(15, 23, 42, .28); }
-    .sd::backdrop { background: rgba(15, 23, 42, .45); }
+    .sd { width: min(480px, 94vw); max-width: none; padding: 0; border: none; border-radius: 16px; background: var(--surface); color: light-dark(#101828, #e0e5ee);
+      box-shadow: 0 24px 60px light-dark(rgba(15, 23, 42, .28), rgba(0, 0, 0, 0.5)); }
+    .sd::backdrop { background: light-dark(rgba(15, 23, 42, .45), rgba(0, 0, 0, 0.81)); }
     .sd-form { display: flex; flex-direction: column; gap: 16px; padding: 20px 22px 18px; margin: 0; }
     .sd-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .sd-title { margin: 0; font-size: 17px; font-weight: 700; color: #101828; }
+    .sd-title { margin: 0; font-size: 17px; font-weight: 700; color: light-dark(#101828, #e0e5ee); }
     .sd-x { display: grid; place-items: center; width: 30px; height: 30px; min-height: 0; padding: 0; border: none; border-radius: 50%;
-      background: #f1f4f9; color: #475467; cursor: pointer; }
-    .sd-x:hover { background: #e4e9f2; color: #101828; }
+      background: light-dark(#f1f4f9, #1c273a); color: light-dark(#475467, #a7b3c3); cursor: pointer; }
+    .sd-x:hover { background: light-dark(#e4e9f2, #233048); color: light-dark(#101828, #e0e5ee); }
     .sd-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0; padding: 0; border: none; }
     .sd-field { display: flex; flex-direction: column; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: .05em;
-      text-transform: uppercase; color: #667085; }
+      text-transform: uppercase; color: light-dark(#667085, #8e96a8); }
     .sd-wide { grid-column: 1 / -1; }
-    .sd-input { box-sizing: border-box; width: 100%; height: 40px; padding: 0 12px; border: 1px solid #e3e8ef; border-radius: 10px;
-      background: #fff; font: inherit; font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: #101828; outline: none; }
-    .sd-input:focus { border-color: #93b4fd; box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
-    .sd-utc { margin: 0; padding: 9px 12px; border-radius: 10px; background: #f5f8ff; color: #344054; font-size: 12.5px; }
-    .sd-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 14px; margin-top: 2px; border-top: 1px solid #eef1f5; }
-    .sd-btn { height: 38px; min-height: 0; padding: 0 16px; border: 1px solid #e3e8ef; border-radius: 10px; background: #fff; color: #344054;
+    .sd-input { box-sizing: border-box; width: 100%; height: 40px; padding: 0 12px; border: 1px solid light-dark(#e3e8ef, #283546); border-radius: 10px;
+      background: var(--surface); font: inherit; font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: light-dark(#101828, #e0e5ee); outline: none; }
+    .sd-input:focus { border-color: light-dark(#93b4fd, #223d77); box-shadow: 0 0 0 3px rgba(37, 99, 235, .12); }
+    .sd-utc { margin: 0; padding: 9px 12px; border-radius: 10px; background: light-dark(#f5f8ff, #182749); color: light-dark(#344054, #b8c2d3); font-size: 12.5px; }
+    .sd-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 14px; margin-top: 2px; border-top: 1px solid light-dark(#eef1f5, #232d3b); }
+    .sd-btn { height: 38px; min-height: 0; padding: 0 16px; border: 1px solid light-dark(#e3e8ef, #283546); border-radius: 10px; background: var(--surface); color: light-dark(#344054, #b8c2d3);
       font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; }
-    .sd-btn:hover { background: #f8fafc; }
+    .sd-btn:hover { background: light-dark(#f8fafc, #192634); }
     .sd-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
     .sd-primary:hover { background: #1d4ed8; }
     .sd-btn:disabled { opacity: .55; cursor: not-allowed; }

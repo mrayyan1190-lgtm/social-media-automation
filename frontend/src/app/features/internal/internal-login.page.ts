@@ -25,7 +25,7 @@ import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
     </main>
   `,
   styles: `
-    .internal-login { background: #1f2933; min-height: 100vh; }
+    .internal-login { background: #1f2933; min-height: 100vh; color-scheme: light; }
     .eyebrow { margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: #b45309; font-weight: 600; }
   `,
 })

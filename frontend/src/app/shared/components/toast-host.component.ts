@@ -26,16 +26,16 @@ import { ToastService } from '../../core/services/toast.service';
     .toast-stack { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2000;
       display: flex; flex-direction: column; gap: 10px; width: min(560px, calc(100vw - 32px)); pointer-events: none; }
     .toast { pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
-      background: #fff; border: 1px solid #f3c7c3; border-left: 4px solid #d92d20; color: #1c2430;
-      box-shadow: 0 12px 32px rgba(16, 24, 40, 0.18); font: 500 14px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: var(--surface); border: 1px solid light-dark(#f3c7c3, #772922); border-left: 4px solid #d92d20; color: light-dark(#1c2430, #d6dde7);
+      box-shadow: 0 12px 32px light-dark(rgba(16, 24, 40, 0.18), rgba(0, 0, 0, 0.32)); font: 500 14px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       animation: toast-in 0.18s ease-out; }
-    .toast.success { border-color: #bfe3cb; border-left-color: #16a34a; }
-    .toast-icon { flex: none; width: 22px; height: 22px; color: #d92d20; }
-    .toast.success .toast-icon { color: #16a34a; }
+    .toast.success { border-color: light-dark(#bfe3cb, #2f6a43); border-left-color: #16a34a; }
+    .toast-icon { flex: none; width: 22px; height: 22px; color: light-dark(#d92d20, #ea7971); }
+    .toast.success .toast-icon { color: light-dark(#16a34a, #6fec9d); }
     .toast-icon svg { width: 22px; height: 22px; }
     .toast-text { flex: 1; min-width: 0; }
-    .toast-action { flex: none; border: 1px solid #d5dce7; background: #fff; border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; }
-    .toast-close { flex: none; border: none; background: none; font-size: 20px; line-height: 1; color: #6b778a; cursor: pointer; padding: 0 2px; }
+    .toast-action { flex: none; border: 1px solid light-dark(#d5dce7, #303e54); background: var(--surface); border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+    .toast-close { flex: none; border: none; background: none; font-size: 20px; line-height: 1; color: light-dark(#6b778a, #8a94a4); cursor: pointer; padding: 0 2px; }
     @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
   `,
 })

@@ -23,18 +23,18 @@ import { AuthService } from '../../core/auth/auth.service';
   styles: `
     :host { position: relative; display: inline-block; }
     .kebab { width: 32px; height: 32px; border: 0; background: none; border-radius: 8px; display: grid; place-items: center; cursor: pointer;
-      color: #475467; padding: 0; min-height: 0; }
-    .kebab:hover, .kebab[aria-expanded='true'] { background: #f1f4f9; }
+      color: light-dark(#475467, #a7b3c3); padding: 0; min-height: 0; }
+    .kebab:hover, .kebab[aria-expanded='true'] { background: light-dark(#f1f4f9, #1c273a); }
     .kebab svg { width: 16px; height: 16px; }
-    .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 220px; background: #fff; border: 1px solid #e4e8ef;
-      border-radius: 12px; box-shadow: 0 12px 32px -12px rgba(16, 24, 40, .28); padding: 6px; }
-    .who { display: block; padding: 8px 10px 9px; font-size: 12px; color: #667085; border-bottom: 1px solid #eef1f5; margin-bottom: 4px;
+    .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 220px; background: var(--surface); border: 1px solid light-dark(#e4e8ef, #293345);
+      border-radius: 12px; box-shadow: 0 12px 32px -12px light-dark(rgba(16, 24, 40, .28), rgba(0, 0, 0, 0.5)); padding: 6px; }
+    .who { display: block; padding: 8px 10px 9px; font-size: 12px; color: light-dark(#667085, #8e96a8); border-bottom: 1px solid light-dark(#eef1f5, #232d3b); margin-bottom: 4px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .item { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 0; background: none; border-radius: 8px;
       font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; text-align: left; min-height: 0; }
     .item svg { width: 15px; height: 15px; flex: none; }
-    .item.danger { color: #d92d20; }
-    .item:hover { background: #fef3f2; }
+    .item.danger { color: light-dark(#d92d20, #ea7971); }
+    .item:hover { background: light-dark(#fef3f2, #491c18); }
     .item:disabled { opacity: .6; cursor: default; }
   `,
 })

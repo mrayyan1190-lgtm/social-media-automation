@@ -26,26 +26,26 @@ interface PlatformCard {
   imports: [ProblemBannerComponent, PlatformIconComponent],
   styles: `
     .sa-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
-    .sa-head .label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #a7b1c0; }
-    .sa-head .note { font-size: 12px; color: #a7b1c0; }
-    .sa-head .note b { color: #7b8798; font-weight: 600; }
-    .sa-list { color: #0f172a; }
+    .sa-head .label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(#a7b1c0, #6a7b95); }
+    .sa-head .note { font-size: 12px; color: light-dark(#a7b1c0, #6a7b95); }
+    .sa-head .note b { color: light-dark(#7b8798, #7c8899); font-weight: 600; }
+    .sa-list { color: light-dark(#0f172a, #e0e4ee); }
     .sa-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 150px 132px; align-items: center; gap: 16px; padding: 14px 0; }
-    .sa-row + .sa-row { border-top: 1px solid #f4f6fa; }
-    .sa-hint { margin: 10px 0 0; font-size: 12px; color: #a7b1c0; }
+    .sa-row + .sa-row { border-top: 1px solid light-dark(#f4f6fa, #1b2438); }
+    .sa-hint { margin: 10px 0 0; font-size: 12px; color: light-dark(#a7b1c0, #6a7b95); }
     .sa-row ::ng-deep .platform-mark { width: 26px; height: 26px; border-radius: 7px; font-size: 12px; font-weight: 800; }
     .sa-row ::ng-deep .platform-mark.facebook { border-radius: 50%; }
     .sa-row ::ng-deep .platform-mark svg { width: 15px; height: 15px; }
     .sa-txt { min-width: 0; }
-    .sa-name { font-size: 13.5px; font-weight: 700; color: #25303f; letter-spacing: -0.005em; }
-    .sa-sub { font-size: 12.5px; color: #7b8798; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sa-sub.muted { color: #a7b1c0; }
+    .sa-name { font-size: 13.5px; font-weight: 700; color: light-dark(#25303f, #c9d3e0); letter-spacing: -0.005em; }
+    .sa-sub { font-size: 12.5px; color: light-dark(#7b8798, #7c8899); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sa-sub.muted { color: light-dark(#a7b1c0, #6a7b95); }
     .sa-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid transparent; border-radius: 999px;
       padding: 4px 10px; justify-self: end; white-space: nowrap; }
     .sa-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-    .sa-chip.connected { background: #f0fdf5; border-color: #cdf2dd; color: #15803d; }
-    .sa-chip.off { background: #f8fafc; border-color: #e8edf4; color: #7b8798; }
-    .sa-chip.attn { background: #fff1f2; border-color: #ffd9dd; color: #be123c; }
+    .sa-chip.connected { background: light-dark(#f0fdf5, #18492b); border-color: light-dark(#cdf2dd, #227747); color: light-dark(#15803d, #73e89f); }
+    .sa-chip.off { background: light-dark(#f8fafc, #192634); border-color: light-dark(#e8edf4, #212f44); color: light-dark(#7b8798, #7c8899); }
+    .sa-chip.attn { background: light-dark(#fff1f2, #49181c); border-color: light-dark(#ffd9dd, #49181d); color: light-dark(#be123c, #f16a8b); }
     .sa-btn { justify-self: end; width: 132px; min-height: 0; font: inherit; font-size: 12.5px; font-weight: 600; color: #fff;
       background: linear-gradient(135deg, #3b82f6, #2563eb); border: none; border-radius: 10px; padding: 9px 0; cursor: pointer;
       display: inline-flex; align-items: center; justify-content: center; gap: 7px; box-shadow: 0 8px 18px -12px rgba(37, 99, 235, 0.95);
@@ -54,8 +54,8 @@ interface PlatformCard {
     .sa-btn:hover:not(:disabled) { background: linear-gradient(135deg, #2f74ea, #1d4ed8); }
     .sa-btn:active:not(:disabled) { transform: translateY(1px); }
     .sa-btn:disabled { cursor: default; opacity: 0.6; }
-    .sa-btn.ghost { color: #475569; background: #fff; border: 1px solid #dfe5ef; box-shadow: none; }
-    .sa-btn.ghost:hover:not(:disabled) { color: #2563eb; border-color: #c7d7fa; background: #eef4ff; }
+    .sa-btn.ghost { color: light-dark(#475569, #a6b2c3); background: var(--surface); border: 1px solid light-dark(#dfe5ef, #26344c); box-shadow: none; }
+    .sa-btn.ghost:hover:not(:disabled) { color: light-dark(#2563eb, #6a94f1); border-color: light-dark(#c7d7fa, #182749); background: light-dark(#eef4ff, #182949); }
     @media (max-width: 720px) {
       .sa-row { grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding: 15px 0; }
       .sa-row .sa-chip, .sa-row .sa-btn { grid-column: 2; justify-self: start; }
