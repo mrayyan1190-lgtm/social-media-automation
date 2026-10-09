@@ -5,7 +5,7 @@ namespace SocialMediaAutomation.IntegrationTests.Infrastructure;
 /// <summary>Scripted stand-in for the hosted LLM. Tests set <see cref="Handler"/>; every call is recorded.</summary>
 public sealed class FakeLlmClient : ILlmClient
 {
-    public const string EvaluatorMarker = "strict brand and compliance reviewer";
+    public const string EvaluatorMarker = "factual-quality reviewer";
 
     public Func<LlmConnection, LlmChatRequest, LlmChatResponse> Handler { get; set; } =
         (_, _) => throw new InvalidOperationException("No LLM response scripted for this test.");

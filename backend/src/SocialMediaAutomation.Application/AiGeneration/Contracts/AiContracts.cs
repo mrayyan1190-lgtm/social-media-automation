@@ -12,7 +12,7 @@ public static class AiVersions
     public const string EvaluationSchema = "evaluation-v2";
     public const string GenerationPrompt = "generation-v5";
     public const string RewritePrompt = "rewrite-v3";
-    public const string EvaluationPrompt = "evaluation-v2";
+    public const string EvaluationPrompt = "evaluation-v3";
     public const string ImagePrompt = "image-v2";
     /// <summary>An image prompt written by the LLM during generation, wrapped with the fixed safety rules.</summary>
     public const string GeneratedImagePrompt = "image-llm-v1";

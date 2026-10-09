@@ -26,7 +26,7 @@ import { ScheduleDialogComponent } from './schedule-dialog.component';
     } @else if (post().editorialState !== 'APPROVED') {
       <p class="ap-note">Only approved content can be scheduled or published. Submit this post for review first.</p>
     } @else {
-      <p class="ap-note">Version {{ post().currentVersion.versionNumber }} is approved. The Admin schedules or publishes it.</p>
+      <p class="ap-note">This post is approved. The Admin schedules or publishes it.</p>
     }
     @if (success(); as message) { <p class="ap-banner ok" role="status">{{ message }}</p> }
     <app-problem-banner [problem]="problem()" (reload)="reload()" />
@@ -68,7 +68,7 @@ export class PublicationPanelComponent {
   }
 
   protected openSchedule(): void {
-    this.dialog().open(`Schedule version ${this.post().currentVersion.versionNumber}`, 'Schedule', this.workspace.timeZone());
+    this.dialog().open('Schedule post', 'Schedule', this.workspace.timeZone());
   }
 
   /** Called by the dialog; returns a problem to show there, or null when the job was saved. */
@@ -89,7 +89,7 @@ export class PublicationPanelComponent {
 
   protected async publishNow(): Promise<void> {
     const post = this.post();
-    if (!confirm(`Publish version ${post.currentVersion.versionNumber} now? It will be sent to the selected account within moments.`)) return;
+    if (!confirm(`Publish this post now? It will be sent to the selected account within moments.`)) return;
     await this.run(
       (orgId) => firstValueFrom(this.api.publishNow(orgId, post.id, post.currentVersionId, post.rowVersion)),
       'Publishing now. The status below updates automatically.',

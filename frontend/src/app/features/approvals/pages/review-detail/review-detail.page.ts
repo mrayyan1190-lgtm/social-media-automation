@@ -69,7 +69,7 @@ export class ReviewDetailPage {
   }
 
   protected approve(): Promise<void> {
-    return this.decide((orgId, review) => firstValueFrom(this.api.approve(orgId, review)), 'Approved. Exactly this version can now be scheduled or published.');
+    return this.decide((orgId, review) => firstValueFrom(this.api.approve(orgId, review)), 'Approved. It can now be scheduled or published.');
   }
 
   protected requestChanges(): Promise<void> {

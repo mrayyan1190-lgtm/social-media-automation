@@ -288,7 +288,7 @@ export class ComposerPage {
         throw new Error(final.failureCode === 'AI_PROVIDER_REJECTED' && final.failureMessage ? final.failureMessage : this.aiFailure(final.failureCode));
       }
       const newImage = imagesKey(this.version()?.images ?? []) !== imagesBefore;
-      this.toast.success(`AI edit saved as version ${this.version()?.versionNumber}${newImage ? ' with new images' : ''}. The previous version is kept.`
+      this.toast.success(`AI edit saved${newImage ? ' with new images' : ''}.`
         + (final.warning ? ` ${final.warning}` : ''));
     });
   }
@@ -303,9 +303,9 @@ export class ComposerPage {
   protected async saveDraft(): Promise<void> {
     await this.run('save', async () => {
       const before = this.post()?.currentVersionId;
-      const post = await this.ensureSaved(true);
+      const post = await this.ensureSaved();
       if (post && !this.isNew()) {
-        this.toast.success(post.currentVersionId !== before ? `Saved as version ${post.currentVersion.versionNumber}.` : 'No changes to save.');
+        this.toast.success(post.currentVersionId !== before ? 'Saved.' : 'No changes to save.');
       }
     });
   }
@@ -322,7 +322,7 @@ export class ComposerPage {
         await this.router.navigate(['/approvals', review.id]);
         return;
       }
-      this.toast.success(`Version ${review.versionNumber} submitted for review. You can find it in Planner.`);
+      this.toast.success('Submitted for review. You can find it in Planner.');
       await this.router.navigateByUrl(`/${this.workspace.slug()}/composer`);
     });
   }
@@ -340,15 +340,13 @@ export class ComposerPage {
    * Makes sure the server has exactly what is on screen: creates the post (new) or saves a new version (changed).
    * Returns the saved post.
    */
-  private async ensureSaved(explicit = false): Promise<Post | null> {
+  private async ensureSaved(): Promise<Post | null> {
     const orgId = this.workspace.orgId();
     if (!orgId) return null;
     const current = this.post();
     if (current && !this.dirty()) return current;
     if (!this.platform()) throw new Error('Choose where to publish first.');
     if (!this.text().trim()) throw new Error('Write the post content first.');
-    if (current && current.editorialState === 'APPROVED' && explicit
-      && !confirm('This version is approved. Saving creates a new version that needs review again. Continue?')) return null;
 
     if (!current) {
       const created = await firstValueFrom(this.postsApi.create(orgId, this.platform()!, this.content(null)));

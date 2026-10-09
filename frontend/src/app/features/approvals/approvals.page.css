@@ -34,7 +34,6 @@
 .ap .platform-mark.facebook { border-radius: 50%; }
 .ap .ap-acct .platform-mark { width: 16px; height: 16px; border-radius: 4px; font-size: 8.5px; }
 
-.ap-vpill { font-size: 11px; font-weight: 600; color: #7b8798; background: #f4f6fa; border: 1px solid #eaeff7; border-radius: 6px; padding: 1px 6px; flex: none; }
 
 /* Queue rows */
 .ap-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) 140px 92px; align-items: center; gap: 14px; padding: 14px 18px; transition: background 0.12s; }

@@ -22,7 +22,6 @@
             <div class="ap-txt">
               <a class="ap-title" [routerLink]="['/approvals', item.review.id]" [title]="item.review.excerpt">{{ item.review.excerpt }}</a>
               <div class="ap-meta">
-                <span class="ap-vpill">v{{ item.review.versionNumber }}</span>
                 {{ item.review.submittedByName }} <span class="sep">·</span> {{ time(item.review.decidedAtUtc ?? item.review.submittedAtUtc) }}
               </div>
             </div>
@@ -47,7 +46,6 @@
           <div class="ap-txt">
             <a class="ap-title" [routerLink]="['/approvals', r.id]" [title]="r.excerpt">{{ r.excerpt }}</a>
             <div class="ap-meta">
-              <span class="ap-vpill">v{{ r.versionNumber }}</span>
               @if (tab() !== 'pending') { {{ r.submittedByName }} <span class="sep">·</span> }
               {{ time(r.submittedAtUtc) }}
               @if (r.assignedReviewerName) { <span class="sep">·</span> Reviewer: {{ r.assignedReviewerName }} }

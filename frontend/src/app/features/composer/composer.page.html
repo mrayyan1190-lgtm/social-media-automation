@@ -2,7 +2,7 @@
   <app-problem-banner [problem]="problem()" (reload)="reload()" />
   @if (state() === 'IN_REVIEW') {
     <p class="banner info">
-      Version {{ version()?.versionNumber }} is waiting for review, so editing is locked.
+      This post is waiting for review, so editing is locked.
       @if (workspace.isAdmin() && latestReview(); as r) { <a [routerLink]="['/approvals', r.id]">Open review</a> }
       @else if (workspace.canManageContent()) { <a routerLink="/composer">Write a new post</a> }
     </p>
@@ -118,7 +118,7 @@
                     <span class="fb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
                     <div>
                       <div class="fb-title">Changes requested by {{ r.decidedByName ?? 'the reviewer' }}</div>
-                      <div class="fb-meta">Version {{ r.versionNumber }}@if (r.decidedAtUtc) { · {{ r.decidedAtUtc | date: 'medium' }} }</div>
+                      @if (r.decidedAtUtc) { <div class="fb-meta">{{ r.decidedAtUtc | date: 'medium' }}</div> }
                     </div>
                     <button type="button" class="fb-close" aria-label="Close" (click)="menu.set(null)">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg>
@@ -133,14 +133,14 @@
           @if (state() === 'APPROVED') {
             @if (workspace.isAdmin()) {
               <a class="state-tag approved" routerLink="/approvals" [queryParams]="{ tab: 'approved' }"
-                title="Approved. Any edit creates a new version that needs review again. Click to schedule or publish.">
+                title="Approved. Any edit needs review again. Click to schedule or publish.">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7"/></svg>
-                Approved · v{{ version()?.versionNumber }}
+                Approved
               </a>
             } @else {
-              <span class="state-tag approved" title="Approved. Any edit creates a new version that needs review again. The Admin schedules or publishes it.">
+              <span class="state-tag approved" title="Approved. Any edit needs review again. The Admin schedules or publishes it.">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7"/></svg>
-                Approved · v{{ version()?.versionNumber }}
+                Approved
               </span>
             }
           }
@@ -168,7 +168,7 @@
           <span class="save-state">
             @if (busy() === 'save') { Saving… }
             @else if (dirty()) { Unsaved changes }
-            @else if (version(); as v) { Saved · version {{ v.versionNumber }} }
+            @else if (version()) { Saved }
             @else { Not saved yet }
           </span>
           @if (canEdit()) {
@@ -176,7 +176,7 @@
               <button type="button" class="btn-ghost" (click)="saveDraft()" [disabled]="!!busy() || !dirty()">Save draft</button>
               @if (state() !== 'APPROVED') {
                 <button type="button" class="btn-primary" (click)="submitForReview()" [disabled]="!!busy() || !accountId()"
-                  [title]="accountId() ? 'Send this exact version for review' : 'Choose an account first'">
+                  [title]="accountId() ? 'Send this post for review' : 'Choose an account first'">
                   {{ busy() === 'submit' ? 'Submitting…' : 'Submit' }}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </button>

@@ -68,7 +68,7 @@ const STATES = [
             } @else {
               <tr>
                 <td><a [routerLink]="['/internal/publications', p.id]"><code>{{ p.id.slice(0, 8) }}</code></a></td>
-                <td>{{ p.workspaceName }}</td><td>v{{ p.versionNumber }}</td><td>{{ p.platform }}</td>
+                <td>{{ p.workspaceName }}</td><td>{{ p.postId.slice(0, 8) }}</td><td>{{ p.platform }}</td>
                 <td>{{ p.destination }}@if (p.executionMode === 'SIMULATED') { <span class="badge mode simulated">Demo</span> }</td>
                 <td>{{ when(p.publishAtUtc) }}</td>
                 <td><span [class]="'badge delivery ' + tone(p.state)">{{ words(p.state) }}</span></td>
@@ -187,7 +187,7 @@ export class PublicationsPage implements OnInit {
           <ul class="kv">
             <li><span>Publication ID</span><code>{{ p.id }}</code></li>
             <li><span>Workspace</span><a [routerLink]="['/internal/workspaces', p.organizationId]">{{ p.workspaceName }}</a></li>
-            <li><span>Post</span><span>v{{ p.versionNumber }}</span></li>
+            <li><span>Post</span><span>{{ p.postId.slice(0, 8) }}</span></li>
             <li><span>Destination</span><span>{{ p.destination }}</span></li>
             <li><span>Provider external ID</span><span>{{ detail.externalPostId ?? '—' }}</span></li>
             @if (detail.externalPostUrl) { <li><span>Post link</span><a [href]="detail.externalPostUrl" target="_blank" rel="noopener">Open</a></li> }

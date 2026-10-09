@@ -6,4 +6,5 @@ export const ErrorCodes = {
   ValidationFailed: 'VALIDATION_FAILED',
   ConcurrencyConflict: 'CONCURRENCY_CONFLICT',
   InvalidStateTransition: 'INVALID_STATE_TRANSITION',
+  SubmissionBlocked: 'SUBMISSION_BLOCKED',
 } as const;

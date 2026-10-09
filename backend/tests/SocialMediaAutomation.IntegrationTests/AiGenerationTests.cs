@@ -308,6 +308,33 @@ public class AiGenerationTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task General_benefit_wording_is_flagged_as_a_warning_and_does_not_block_review()
+    {
+        var (creator, tag) = await SetupAsync();
+        var queued = await RequestGenerationAsync(creator, tag);
+        Script(_ => Generation(), _ => JsonSerializer.Serialize(new
+        {
+            evaluations = new[] { "LinkedIn", "Facebook", "Instagram" }.Select(platform => new
+            {
+                platform, brandAlignment = 4, audienceRelevance = 5, clarity = 4, platformFit = 5, ctaRelevance = 4, summary = "Fine.",
+                claims = new[]
+                {
+                    new { text = "Many growing businesses spend hours each week on repetitive tasks", kind = "statistic", supported = false, contradictsFacts = false },
+                    new { text = "The result is a smoother operation and fewer mistakes", kind = "performance_claim", supported = false, contradictsFacts = false },
+                },
+                issues = Array.Empty<object>(),
+            }),
+        }));
+
+        await factory.DrainAiQueueAsync();
+        var linkedIn = (await GetRequestAsync(creator, queued.Id)).Outputs.Single(o => o.Platform == SocialPlatform.LinkedIn);
+        var evaluation = Assert.Single(await (await creator.GetAsync($"{OrgA}/posts/{linkedIn.PostId}/evaluations")).ReadAsync<List<ContentEvaluationDto>>());
+
+        Assert.False(evaluation.HasCriticalIssue);
+        Assert.Equal(2, evaluation.Issues.Count(i => i is { Category: "UNSUPPORTED_CLAIM", Severity: IssueSeverity.WARNING, Source: IssueSource.AI }));
+    }
+
+    [Fact]
     [Trait("Category", "Acceptance")]
     [Trait("Acceptance", "04 critical claim blocks review")]
     public async Task Critical_unsupported_claim_alone_blocks_submission_until_a_human_removes_it()

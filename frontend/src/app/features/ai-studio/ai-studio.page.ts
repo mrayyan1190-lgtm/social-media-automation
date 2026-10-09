@@ -428,7 +428,7 @@ export class AiStudioPage {
       }
       const review = await firstValueFrom(this.reviewsApi.submit(orgId, post.id, null, null, post.rowVersion));
       this.patch(post.id, { post: await firstValueFrom(this.postsApi.get(orgId, post.id)), submitted: true });
-      this.toast.success(`Version ${review.versionNumber} submitted for review.`);
+      this.toast.success('Submitted for review.');
       return review.id;
     } catch (error) {
       this.patch(result.post.id, { error: error instanceof Error ? error.message : toApiProblem(error).detail });

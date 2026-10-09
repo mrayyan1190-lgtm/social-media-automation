@@ -63,7 +63,7 @@ import { AiQueue, InternalApiService, PublishingQueue, ago, tone, when, words } 
               @for (j of q.items; track j.id) {
                 <tr>
                   <td><a [routerLink]="['/internal/publications', j.id]"><code>{{ j.id.slice(0, 8) }}</code></a></td>
-                  <td>{{ j.workspaceName }}</td><td>{{ j.platform }}</td><td>v{{ j.versionNumber }}</td>
+                  <td>{{ j.workspaceName }}</td><td>{{ j.platform }}</td><td>{{ j.postId.slice(0, 8) }}</td>
                   <td>{{ when(j.publishAtUtc) }}</td>
                   <td><span [class]="'badge delivery ' + tone(j.state)">{{ words(j.state) }}</span></td>
                   <td>{{ j.attempts }}/{{ j.maxAttempts }}</td><td>{{ j.worker ?? '—' }}</td>

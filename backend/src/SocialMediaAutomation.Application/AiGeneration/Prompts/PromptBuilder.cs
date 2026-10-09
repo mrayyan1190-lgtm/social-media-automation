@@ -684,6 +684,10 @@ public static class PromptBuilder
                 If actual image evidence is not available in this evaluation call, do not mark an image-derived
                 claim as supported merely because vision mode was used.
 
+                Only list specific, checkable assertions. Do NOT list general observations, opinions or loosely
+                worded benefits (e.g. "many businesses spend hours on repetitive tasks", "fewer mistakes") as claims;
+                comment on them under issues if they are overstated. Use kind "statistic" only when a figure is stated.
+
                 contradictsFacts=true ONLY when the claim clearly conflicts with supplied factual information.
                 Lack of evidence alone is NOT a contradiction.
 

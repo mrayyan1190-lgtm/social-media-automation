@@ -33,6 +33,10 @@ export class PublicationApiService {
     return this.http.get<PublicationJob[]>(`${this.org(orgId)}/publication-jobs`, { params });
   }
 
+  get(orgId: string, jobId: string): Observable<PublicationJob> {
+    return this.http.get<PublicationJob>(`${this.org(orgId)}/publication-jobs/${jobId}`);
+  }
+
   attempts(orgId: string, jobId: string): Observable<PublicationAttempt[]> {
     return this.http.get<PublicationAttempt[]>(`${this.org(orgId)}/publication-jobs/${jobId}/attempts`);
   }

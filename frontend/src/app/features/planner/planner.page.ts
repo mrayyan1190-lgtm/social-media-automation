@@ -1,5 +1,6 @@
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
@@ -11,7 +12,11 @@ import { CUSTOMER_STATUSES, CustomerStatus, customerStatus, statusGroup } from '
 import { SOCIAL_PLATFORMS } from '../../shared/models/platform.model';
 import { PostListItem } from '../content/models/post.model';
 import { PostApiService } from '../content/services/post-api.service';
+import { ScheduleDialogComponent } from '../publications/components/schedule-dialog.component';
+import { LocalSchedule } from '../publications/models/publication.model';
+import { PublicationApiService } from '../publications/services/publication-api.service';
 import { dayKeyInZone, formatInZone } from '../publications/models/time-zones';
+import { ToastService } from '../../core/services/toast.service';
 
 type DateRange = '' | 'today' | 'next7' | 'last7' | 'month';
 
@@ -39,13 +44,18 @@ interface Row extends PostListItem {
  */
 @Component({
   selector: 'app-planner-page',
-  imports: [FormsModule, RouterLink, PlatformIconComponent, ProblemBannerComponent],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, PlatformIconComponent, ProblemBannerComponent, ScheduleDialogComponent],
   templateUrl: './planner.page.html',
   styleUrl: './planner.page.css',
 })
 export class PlannerPage {
   private readonly postsApi = inject(PostApiService);
   private readonly auth = inject(AuthService);
+  private readonly publications = inject(PublicationApiService);
+  private readonly toast = inject(ToastService);
+  private readonly dialog = viewChild.required(ScheduleDialogComponent);
+  /** The scheduled job the open dialog moves. */
+  private rescheduling: string | null = null;
   protected readonly workspace = inject(WorkspaceService);
 
   /** Query parameters from the sidebar shortcuts: ?status=Draft (a list filter) or ?view=list. */
@@ -123,16 +133,15 @@ export class PlannerPage {
     return new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, 1)));
   });
 
-  /** Filtered posts with a publishing time, by day in the workspace time zone. */
+  /** Filtered posts by day in the workspace time zone: on their publishing time, or (drafts, reviews) on their last update. */
   private readonly byDay = computed(() => {
     const zone = this.workspace.timeZone();
     const byDay = new Map<string, Row[]>();
     for (const r of this.filtered()) {
-      if (!r.publishAt) continue;
-      const key = dayKeyInZone(r.publishAt, zone);
+      const key = dayKeyInZone(r.publishAt ?? r.updatedAtUtc, zone);
       byDay.set(key, [...(byDay.get(key) ?? []), r]);
     }
-    for (const posts of byDay.values()) posts.sort((a, b) => a.publishAt!.localeCompare(b.publishAt!));
+    for (const posts of byDay.values()) posts.sort((a, b) => (a.publishAt ?? a.updatedAtUtc).localeCompare(b.publishAt ?? b.updatedAtUtc));
     return byDay;
   });
 
@@ -172,6 +181,47 @@ export class PlannerPage {
     this.platform.set('');
     this.status.set('');
     this.range.set('');
+  }
+
+  /** Moves the post's scheduled job; the server re-checks approval and that dispatch has not started. */
+  protected async reschedule(r: Row): Promise<void> {
+    const orgId = this.workspace.orgId();
+    if (!orgId || !r.latestJobId) return;
+    try {
+      const job = await firstValueFrom(this.publications.get(orgId, r.latestJobId));
+      this.rescheduling = job.id;
+      this.dialog().open('Change schedule', 'Save', this.workspace.timeZone(), job);
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    }
+  }
+
+  protected readonly submitReschedule = async (when: LocalSchedule): Promise<ApiProblem | null> => {
+    const orgId = this.workspace.orgId();
+    if (!orgId || !this.rescheduling) return null;
+    try {
+      // Fetched again so the If-Match ETag is current at the moment of saving.
+      const job = await firstValueFrom(this.publications.get(orgId, this.rescheduling));
+      const saved = await firstValueFrom(this.publications.reschedule(orgId, job, when));
+      this.toast.success(`Rescheduled for ${this.time(saved.publishAtUtc)}.`);
+      await this.load(orgId);
+      return null;
+    } catch (error) {
+      return toApiProblem(error);
+    }
+  };
+
+  protected async cancelSchedule(r: Row): Promise<void> {
+    const orgId = this.workspace.orgId();
+    if (!orgId || !r.latestJobId || !confirm('Cancel this scheduled post? It has not been sent yet.')) return;
+    try {
+      const job = await firstValueFrom(this.publications.get(orgId, r.latestJobId));
+      await firstValueFrom(this.publications.cancel(orgId, job));
+      this.toast.success('Schedule canceled. Nothing was sent.');
+      await this.load(orgId);
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    }
   }
 
   private async load(orgId: string): Promise<void> {

@@ -475,7 +475,7 @@ public sealed class AiGenerationProcessor(
             if (claim.ContradictsFacts)
                 yield return new(IssueSeverity.CRITICAL, "CONTRADICTORY_CLAIM", $"Contradicts the supplied facts: \"{claim.Text}\".", IssueSource.AI, claim.Text);
             else if (!claim.Supported)
-                yield return new(IssueSeverity.CRITICAL, "UNSUPPORTED_CLAIM",
+                yield return new(IsVerifiableClaim(claim) ? IssueSeverity.CRITICAL : IssueSeverity.WARNING, "UNSUPPORTED_CLAIM",
                     $"Unsupported {claim.Kind ?? "claim"}: \"{claim.Text}\". No supplied fact backs it; remove it or back it with evidence.", IssueSource.AI, claim.Text);
         }
         foreach (var finding in evaluation.Issues ?? [])
@@ -487,6 +487,20 @@ public sealed class AiGenerationProcessor(
             yield return new(severity, category[..Math.Min(category.Length, 40)], finding.Message.Trim(), IssueSource.AI, finding.Excerpt);
         }
     }
+
+    private static readonly HashSet<string> HardClaimKinds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "price", "discount", "guarantee", "certification", "award", "ranking", "customer_result", "testimonial", "partnership",
+    };
+
+    /// <summary>
+    /// Blocks submission only for specific, checkable claims (AGENTS §28): the hard kinds, and statistics that state a figure.
+    /// General benefit or capability wording ("many businesses lose hours…", "fewer mistakes") is still flagged, as a
+    /// WARNING the reviewer decides on; otherwise posts written from several images, or rewrites, could never be submitted.
+    /// </summary>
+    private static bool IsVerifiableClaim(ClaimCheck claim) =>
+        claim.Kind is { } kind && (HardClaimKinds.Contains(kind)
+            || (kind.Equals("statistic", StringComparison.OrdinalIgnoreCase) && (claim.Text ?? "").Any(char.IsDigit)));
 
     /// <summary>Model text becomes a version only through the domain; the link, images and destination are kept from the current version.</summary>
     private static PostContent Content(GeneratedVariant variant, PostVersion? current) => new(

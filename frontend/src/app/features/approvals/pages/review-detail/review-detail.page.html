@@ -5,7 +5,7 @@
 
 @if (detail(); as d) {
   @if (!d.isCurrentVersion) {
-    <p class="banner info">The post has a newer version since this was submitted. This review shows exactly what was submitted.</p>
+    <p class="banner info">The post has been edited since this was submitted. This review shows exactly what was submitted.</p>
   }
 
   <div class="composer">
@@ -41,7 +41,7 @@
           <h2>Decision</h2>
           @if (d.canDecide) {
             <div class="decision">
-              <button class="primary block" type="button" (click)="approve()" [disabled]="busy()">Approve Version {{ d.version.versionNumber }}</button>
+              <button class="primary block" type="button" (click)="approve()" [disabled]="busy()">Approve</button>
               <button class="block" type="button" (click)="showChangesForm.set(!showChangesForm())" [disabled]="busy()">Request Changes</button>
             </div>
             @if (showChangesForm()) {
@@ -101,7 +101,6 @@
             } @else { <span class="field-error">none</span> }
           </dd>
           <dt>Creator</dt><dd>{{ d.version.createdByName }}</dd>
-          <dt>Exact version</dt><dd>Version {{ d.version.versionNumber }}</dd>
           <dt>Status</dt><dd><span [class]="'badge delivery ' + tones[d.review.status]">{{ reviewLabels[d.review.status] }}</span></dd>
           <dt>Submitted</dt><dd>{{ d.review.submittedAtUtc | date: 'medium' }} by {{ d.review.submittedByName }}</dd>
           @if (d.review.assignedReviewerName) { <dt>Reviewer</dt><dd>{{ d.review.assignedReviewerName }}</dd> }
@@ -114,7 +113,7 @@
           <ol class="mini-history">
             @for (h of d.history; track h.id) {
               <li [class.current]="h.id === d.review.id">
-                <a [routerLink]="['/approvals', h.id]">Version {{ h.versionNumber }} · {{ reviewLabels[h.status] }}</a>
+                <a [routerLink]="['/approvals', h.id]">{{ reviewLabels[h.status] }}</a>
                 <span class="hint">{{ h.submittedAtUtc | date: 'short' }}{{ h.decidedByName ? ' · ' + h.decidedByName : '' }}</span>
                 @if (h.decisionComment) { <span class="hint">“{{ h.decisionComment }}”</span> }
               </li>

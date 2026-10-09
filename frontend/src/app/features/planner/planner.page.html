@@ -68,21 +68,30 @@
           @for (day of days(); track day.date) {
             <div class="pl-cell" [class.other]="!day.inMonth" [class.today]="day.today">
               <div class="pl-daynum">{{ day.day }}</div>
-              @for (p of day.posts.slice(0, 3); track p.id) {
-                <a [class]="'pl-evt ' + palette(p.status)" [routerLink]="['/composer', p.id]"
-                  [title]="title(p) + ' · ' + p.platform + ' · ' + p.status + ' · ' + time(p.publishAt, { timeStyle: 'short' })">
-                  <app-platform-icon [platform]="p.platform" />
-                  <span class="time">{{ time(p.publishAt, { timeStyle: 'short' }) }}</span>
-                  <span class="ttl">{{ title(p) }}</span>
-                </a>
+              @for (p of day.posts.slice(0, 2); track p.id) {
+                <ng-container [ngTemplateOutlet]="chip" [ngTemplateOutletContext]="{ $implicit: p }" />
               }
-              @if (day.posts.length > 3) {
-                <button type="button" class="pl-more-link" (click)="layout.set('list')">+{{ day.posts.length - 3 }} more</button>
+              @if (day.posts.length > 2) {
+                <span class="pl-more-link" tabindex="0">+{{ day.posts.length - 2 }}</span>
+                <div class="pl-pop" role="list">
+                  @for (p of day.posts; track p.id) {
+                    <ng-container [ngTemplateOutlet]="chip" [ngTemplateOutletContext]="{ $implicit: p }" />
+                  }
+                </div>
               }
             </div>
           }
         </div>
       </div>
+
+      <ng-template #chip let-p>
+        <a [class]="'pl-evt ' + palette(p.status)" [routerLink]="['/composer', p.id]"
+          [title]="title(p) + ' · ' + p.platform + ' · ' + p.status">
+          <app-platform-icon [platform]="p.platform" />
+          @if (p.publishAt) { <span class="time">{{ time(p.publishAt, { timeStyle: 'short' }) }}</span> }
+          <span class="ttl">{{ title(p) }}</span>
+        </a>
+      </ng-template>
 
       <div class="pl-cal-foot">
         <div class="pl-legend">
@@ -92,7 +101,7 @@
           <span class="item"><span class="dot draft"></span>Draft</span>
           <span class="item"><span class="dot review"></span>In review</span>
         </div>
-        <span class="pl-footnote">Scheduled, published and failed posts appear on their date. Drafts and posts in review are in the List view. All times in {{ workspace.timeZone() }}.</span>
+        <span class="pl-footnote">Times in {{ workspace.timeZone() }}</span>
       </div>
     </section>
   } @else {
@@ -118,7 +127,13 @@
                 <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
               </summary>
               <div class="pl-menu">
-                <a [routerLink]="['/composer', r.id]">Open in Composer</a>
+                @if (r.status === 'Scheduled' && r.latestJobId && workspace.canManageContent()) {
+                  <button type="button" (click)="reschedule(r)">Change schedule</button>
+                  <a [routerLink]="['/composer', r.id]" title="Saving an edit cancels this schedule; the post needs approval again.">Edit post</a>
+                  <button type="button" class="danger" (click)="cancelSchedule(r)">Cancel schedule</button>
+                } @else {
+                  <a [routerLink]="['/composer', r.id]">Open in Composer</a>
+                }
                 @if (r.status === 'In Review' && workspace.isAdmin()) { <a routerLink="/approvals">Go to Approvals</a> }
               </div>
             </details>
@@ -136,4 +151,5 @@
       </div>
     </section>
   }
+  <app-schedule-dialog [submit]="submitReschedule" />
 </div>
