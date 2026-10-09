@@ -22,10 +22,22 @@ internal sealed class ProviderAppSource(IConfiguration configuration, IServiceSc
     private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(1);
     private IReadOnlyDictionary<PlatformProvider, (SocialProviderConfiguration Config, string? Secret)> snapshot =
         new Dictionary<PlatformProvider, (SocialProviderConfiguration, string?)>();
+    private GoogleSignInApp? storedGoogle;
     private DateTime loadedAtUtc = DateTime.MinValue;
     private int refreshing;
 
-    public ProviderApp Get(SocialPlatform platform)
+    public GoogleSignInApp? GoogleSignIn
+    {
+        get
+        {
+            RefreshIfStale();
+            return storedGoogle ?? (configuration["Authentication:Google:ClientId"] is { Length: > 0 } id
+                ? new GoogleSignInApp(id, configuration["Authentication:Google:ClientSecret"] ?? "", false)
+                : null);
+        }
+    }
+
+    private void RefreshIfStale()
     {
         if (scopes is not null && DateTime.UtcNow - loadedAtUtc > MaxAge && Interlocked.Exchange(ref refreshing, 1) == 0)
             _ = Task.Run(async () =>
@@ -33,6 +45,11 @@ internal sealed class ProviderAppSource(IConfiguration configuration, IServiceSc
                 try { await RefreshAsync(CancellationToken.None); }
                 finally { Interlocked.Exchange(ref refreshing, 0); }
             });
+    }
+
+    public ProviderApp Get(SocialPlatform platform)
+    {
+        RefreshIfStale();
 
         var provider = platform == SocialPlatform.LinkedIn ? PlatformProvider.LINKEDIN : PlatformProvider.META;
         var fallback = ProviderApp.From(configuration, platform);
@@ -62,6 +79,9 @@ internal sealed class ProviderAppSource(IConfiguration configuration, IServiceSc
             foreach (var config in await platform.ListProvidersAsync(cancellationToken))
                 next[config.Provider] = (config, config.HasSecret ? await secrets.GetAsync(SocialProviderConfiguration.SecretName(config.Provider), cancellationToken) : null);
             snapshot = next;
+            var googleId = await secrets.GetAsync(SocialProviderConfigurationService.GoogleClientIdSecret, cancellationToken);
+            var googleSecret = await secrets.GetAsync(SocialProviderConfigurationService.GoogleClientSecretSecret, cancellationToken);
+            storedGoogle = googleId is { Length: > 0 } && googleSecret is { Length: > 0 } ? new GoogleSignInApp(googleId, googleSecret, true) : null;
             loadedAtUtc = DateTime.UtcNow;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

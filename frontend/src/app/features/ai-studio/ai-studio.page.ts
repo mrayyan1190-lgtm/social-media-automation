@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, ViewEncapsulation, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, ElementRef, ViewEncapsulation, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -8,6 +8,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { ContentLength, EmojiMode, HashtagMode, SOCIAL_PLATFORMS, SocialPlatform } from '../../shared/models/platform.model';
+import { BLOCKED_HINT, ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
 import { AiCapabilities, AiGenerationRequest } from '../content/models/ai.model';
 import { MediaAsset, Post, PostContent, PostVersion, postText } from '../content/models/post.model';
@@ -17,6 +18,10 @@ import { PostApiService } from '../content/services/post-api.service';
 import { BRAND_TONES, BrandProfile, BrandTone } from '../settings/models/brand-profile.model';
 import { BrandProfileApiService } from '../settings/services/brand-profile-api.service';
 import { SocialAccountApiService } from '../social-accounts/services/social-account-api.service';
+import { ScheduleDialogComponent } from '../publications/components/schedule-dialog.component';
+import { LocalSchedule } from '../publications/models/publication.model';
+import { formatInZone } from '../publications/models/time-zones';
+import { PublicationApiService } from '../publications/services/publication-api.service';
 
 const EXAMPLE = 'Create launch posts for our new AI reporting dashboard. Focus on helping small businesses save reporting time and encourage people to book a demo.';
 
@@ -88,7 +93,7 @@ function contentOf(v: PostVersion, change: Partial<PostContent>): PostContent {
  */
 @Component({
   selector: 'app-ai-studio-page',
-  imports: [FormsModule, RouterLink, NgTemplateOutlet, ProblemBannerComponent],
+  imports: [FormsModule, RouterLink, NgTemplateOutlet, ProblemBannerComponent, ScheduleDialogComponent],
   // Close open popovers when clicking anywhere else; Escape closes the preview.
   host: { '(document:click)': 'closeMenu($event)', '(document:keydown.escape)': 'preview.set(null)' },
   templateUrl: './ai-studio.page.html',
@@ -103,6 +108,10 @@ export class AiStudioPage {
   private readonly brandApi = inject(BrandProfileApiService);
   private readonly accountsApi = inject(SocialAccountApiService);
   private readonly reviewsApi = inject(ReviewApiService);
+  private readonly publications = inject(PublicationApiService);
+  private readonly dialog = viewChild.required(ScheduleDialogComponent);
+  /** The approved post the open schedule dialog is for. */
+  private scheduling: Post | null = null;
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly host = inject(ElementRef<HTMLElement>);
@@ -124,6 +133,8 @@ export class AiStudioPage {
   protected readonly platOpen = signal(false);
   /** "All platforms": one post written to fit LinkedIn, Facebook and Instagram alike. */
   protected readonly allPlatforms = signal(false);
+  /** The running generation was "All platforms": it ends in one shared draft, so loading shows one row. */
+  protected readonly unifiedRun = signal(false);
   /** Earlier prompts of this chat, oldest first; each new prompt is answered below them, like a chat. */
   protected readonly history = signal<Turn[]>([]);
   /** No drafts or generation yet: the centred hero layout. */
@@ -249,6 +260,11 @@ export class AiStudioPage {
     const next = parts.includes(label) ? parts.filter((p) => p !== label) : [...parts, label];
     this.extra = next.join(' · ');
     this.activeChips.set(next.filter((p) => this.presets.some((c) => c.label === p)));
+  }
+
+  /** An "All platforms" answer: several platforms asked, one shared draft made. */
+  protected shared(request: AiGenerationRequest | null): boolean {
+    return !!request && request.platforms.length > 1 && request.outputs.length === 1;
   }
 
   protected text(post: Post): string {
@@ -384,6 +400,7 @@ export class AiStudioPage {
       const previous = this.request();
       if (previous) this.history.update((turns) => [...turns, { asked: this.asked(), request: previous, results: this.results() }]);
       this.results.set([]);
+      this.unifiedRun.set(this.allPlatforms());
       this.request.set(queued);
       this.asked.set(text);
       rememberAsked(queued.id, text);
@@ -413,7 +430,7 @@ export class AiStudioPage {
    * Sends the exact current version to review. An AI draft has no account yet, so the first connected account for its
    * platform is saved first as a new version (Composer does the same); the server checks everything again.
    */
-  protected async submit(result: Result): Promise<string | null> {
+  protected async submit(result: Result, quiet = false): Promise<ReviewSummary | null> {
     const orgId = this.workspace.orgId();
     if (!orgId) return null;
     this.patch(result.post.id, { busy: 'submit', error: null });
@@ -427,11 +444,16 @@ export class AiStudioPage {
         post = await firstValueFrom(this.postsApi.saveNewVersion(orgId, post.id, contentOf(post.currentVersion, { socialAccountId: account.id }), post.rowVersion));
       }
       const review = await firstValueFrom(this.reviewsApi.submit(orgId, post.id, null, null, post.rowVersion));
-      this.patch(post.id, { post: await firstValueFrom(this.postsApi.get(orgId, post.id)), submitted: true });
-      this.toast.success('Submitted for review.');
-      return review.id;
+      // The Admin's one-click approve (quiet) does not show the intermediate "In review" state.
+      if (!quiet) {
+        this.patch(post.id, { post: await firstValueFrom(this.postsApi.get(orgId, post.id)), submitted: true });
+        this.toast.success('Submitted for review.');
+      }
+      return review;
     } catch (error) {
-      this.patch(result.post.id, { error: error instanceof Error ? error.message : toApiProblem(error).detail });
+      const problem = error instanceof Error ? null : toApiProblem(error);
+      const message = problem?.code === 'SUBMISSION_BLOCKED' ? `${problem.detail} ${BLOCKED_HINT}` : problem?.detail ?? (error as Error).message;
+      this.patch(result.post.id, { error: message });
       return null;
     } finally {
       this.patch(result.post.id, { busy: null });
@@ -445,16 +467,52 @@ export class AiStudioPage {
   }
 
   /**
-   * Admin: only an approved version can be scheduled, so a draft is first submitted and the Admin is taken to its review;
-   * an approved post goes straight to Approvals → Approved, where Schedule / Publish Now live.
+   * Admin, one action: a draft is submitted and approved by the Admin (the server still records a human approval of this
+   * exact version, or refuses and the review page shows why), then the schedule dialog opens right here. The job is
+   * created through the normal publication pipeline; nothing is published from the browser.
    */
   protected async schedule(result: Result): Promise<void> {
+    const orgId = this.workspace.orgId();
+    if (!orgId) return;
     const state = result.post.editorialState;
-    if (state === 'APPROVED') return void this.router.navigate(['/approvals'], { queryParams: { tab: 'approved' } });
     if (state === 'IN_REVIEW' || result.submitted) return void this.router.navigate(['/approvals']);
-    const reviewId = await this.submit(result);
-    if (reviewId) void this.router.navigate(['/approvals', reviewId]);
+    if (state !== 'APPROVED') {
+      const review = await this.submit(result, true);
+      if (!review) return;
+      this.patch(result.post.id, { busy: 'submit' });
+      try {
+        await firstValueFrom(this.reviewsApi.approve(orgId, review));
+      } catch (error) {
+        this.toast.error(toApiProblem(error).detail);
+        return void this.router.navigate(['/approvals', review.id]);
+      } finally {
+        this.patch(result.post.id, { busy: null });
+      }
+    }
+    try {
+      const post = await firstValueFrom(this.postsApi.get(orgId, result.post.id));
+      this.patch(post.id, { post });
+      this.scheduling = post;
+      this.dialog().open('Schedule post', 'Schedule', this.workspace.timeZone());
+    } catch (error) {
+      this.toast.error(toApiProblem(error).detail);
+    }
   }
+
+  /** Called by the schedule dialog; returns a problem to show there, or null when the job was saved. */
+  protected readonly submitSchedule = async (when: LocalSchedule): Promise<ApiProblem | null> => {
+    const orgId = this.workspace.orgId();
+    const post = this.scheduling;
+    if (!orgId || !post) return null;
+    try {
+      const saved = await firstValueFrom(this.publications.schedule(orgId, post.id, post.currentVersionId, when, post.rowVersion));
+      this.toast.success(`Scheduled for ${formatInZone(saved.publishAtUtc, this.workspace.timeZone())}.`);
+      this.patch(post.id, { post: await firstValueFrom(this.postsApi.get(orgId, post.id)) });
+      return null;
+    } catch (error) {
+      return toApiProblem(error);
+    }
+  };
 
   private fullPrompt(): string {
     return [this.prompt.trim(), this.extra.trim()].filter(Boolean).join('\n\n');

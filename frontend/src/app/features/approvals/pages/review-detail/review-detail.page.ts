@@ -11,14 +11,15 @@ import { postText } from '../../../content/models/post.model';
 import { MediaApiService } from '../../../content/services/media-api.service';
 import { ReviewDetail, ReviewSummary } from '../../models/review.model';
 import { ReviewApiService } from '../../services/review-api.service';
+import { NoticeComponent } from '../../../../shared/components/notice.component';
 
 /**
  * Review of one exact version. Shows the submitted content (never newer edits), account, media, notes, automated
- * findings, comments and history. Buttons are hidden when the API would refuse, but the API decides.
+ * findings and history. Buttons are hidden when the API would refuse, but the API decides.
  */
 @Component({
   selector: 'app-review-detail-page',
-  imports: [RouterLink, DatePipe, PlatformIconComponent, ProblemBannerComponent],
+  imports: [NoticeComponent, RouterLink, DatePipe, PlatformIconComponent, ProblemBannerComponent],
   templateUrl: './review-detail.page.html',
 })
 export class ReviewDetailPage {
@@ -33,13 +34,14 @@ export class ReviewDetailPage {
   readonly reviewId = input.required<string>();
 
   protected readonly detail = signal<ReviewDetail | null>(null);
+  /** Pending reviews of the other platforms of the same post group; the decision here is applied to them too. */
+  protected readonly siblings = signal<ReviewSummary[]>([]);
   protected readonly busy = signal(false);
   protected readonly loading = signal(true);
   protected readonly notice = signal<string | null>(null);
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly showChangesForm = signal(false);
   protected readonly explanation = signal('');
-  protected readonly comment = signal('');
 
   constructor() {
     effect(() => {
@@ -60,7 +62,10 @@ export class ReviewDetailPage {
     if (!orgId) return;
     this.loading.set(true);
     try {
-      this.detail.set(await firstValueFrom(this.api.get(orgId, this.reviewId())));
+      const detail = await firstValueFrom(this.api.get(orgId, this.reviewId()));
+      this.detail.set(detail);
+      this.siblings.set(detail.review.status !== 'PENDING' ? [] : (await firstValueFrom(this.api.list(orgId, { status: 'PENDING' })))
+        .filter((r) => r.groupId === detail.review.groupId && r.id !== detail.review.id));
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
@@ -76,18 +81,6 @@ export class ReviewDetailPage {
     return this.decide((orgId, review) => firstValueFrom(this.api.requestChanges(orgId, review, this.explanation())), 'Changes requested. The creator has been notified.');
   }
 
-  protected async addComment(): Promise<void> {
-    const orgId = this.workspace.orgId();
-    if (!orgId || !this.comment().trim()) return;
-    try {
-      await firstValueFrom(this.api.comment(orgId, this.reviewId(), this.comment()));
-      this.comment.set('');
-      await this.load();
-    } catch (error) {
-      this.problem.set(toApiProblem(error));
-    }
-  }
-
   private async decide(action: (orgId: string, review: ReviewSummary) => Promise<unknown>, message: string): Promise<void> {
     const orgId = this.workspace.orgId();
     const detail = this.detail();
@@ -96,7 +89,15 @@ export class ReviewDetailPage {
     this.problem.set(null);
     this.notice.set(null);
     try {
-      await action(orgId, detail.review);
+      // One decision for every platform of the post group; each platform's exact version is still approved (or sent
+      // back) on its own, and the server checks each one.
+      for (const review of [detail.review, ...this.siblings()]) {
+        try {
+          await action(orgId, review);
+        } catch (error) {
+          throw review === detail.review ? error : new Error(`${review.platform}: ${toApiProblem(error).detail}`);
+        }
+      }
       this.showChangesForm.set(false);
       // After approval, go to Approvals → Approved to schedule or publish. After requesting changes the reviewer stays
       // here: the creator makes the edits (they are notified and the notification opens the post in Composer).

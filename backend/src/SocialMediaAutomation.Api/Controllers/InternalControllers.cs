@@ -27,6 +27,10 @@ public sealed record SaveAiConfigurationRequest(
 /// <summary>The key is write-only: it is stored in the secret store and never returned.</summary>
 public sealed record ReplaceSecretRequest([Required, MaxLength(500)] string Value);
 
+public sealed record ConnectPageTokenRequest([Required] Guid OrganizationId, [Required, MaxLength(2000)] string PageToken, bool ApplyToNewWorkspaces = false);
+
+public sealed record SaveGoogleSignInRequest([Required, MaxLength(200)] string ClientId, [MaxLength(500)] string? ClientSecret);
+
 public sealed record TestAiConnectionRequest([Required] AiProvider? Provider, string? BaseUrl, string? Model, string? ApiKey);
 
 public sealed record SaveAiVisionConfigurationRequest([Required, MaxLength(200)] string Model, bool Enabled, string? RowVersion);
@@ -216,6 +220,19 @@ public sealed class InternalController(
     [HttpPut("social-providers/{provider}/secret")]
     public Task<SocialProviderDto> ReplaceProviderSecret(string provider, ReplaceSecretRequest request, CancellationToken cancellationToken) =>
         providers.ReplaceSecretAsync(Provider(provider), request.Value, cancellationToken);
+
+    [HttpGet("social-providers/google-sign-in")]
+    public Task<GoogleSignInDto> GoogleSignIn(CancellationToken cancellationToken) => providers.GoogleSignInAsync(cancellationToken);
+
+    [HttpPut("social-providers/google-sign-in")]
+    public Task<GoogleSignInDto> SaveGoogleSignIn(SaveGoogleSignInRequest request, CancellationToken cancellationToken) =>
+        providers.SaveGoogleSignInAsync(request.ClientId, request.ClientSecret, cancellationToken);
+
+    /// <summary>Approved exception to OAuth-only connections (ARCHITECTURE.md §23.1): connects a Facebook Page to a workspace from a Page token.</summary>
+    [HttpPost("social-providers/meta/page-token")]
+    public Task<PageTokenConnectionDto> ConnectFacebookPageToken(ConnectPageTokenRequest request, [FromServices] PageTokenConnectionService pageTokens,
+        CancellationToken cancellationToken) =>
+        pageTokens.ConnectFacebookPageAsync(request.OrganizationId, request.PageToken, request.ApplyToNewWorkspaces, cancellationToken);
 
     [HttpPost("social-providers/{provider}/test")]
     public Task<ProviderValidationDto> TestProvider(string provider, CancellationToken cancellationToken) =>

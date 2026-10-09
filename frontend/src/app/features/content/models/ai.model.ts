@@ -30,7 +30,7 @@ export interface GenerationInput {
   withImage?: boolean;
   imageModel?: string | null;
   imageCount?: number;
-  /** "All platforms": one shared post, identical on every platform (still one draft per platform to review). */
+  /** "All platforms": one shared draft; Composer then sends a copy to each platform picked (each reviewed on its own). */
   unified?: boolean;
 }
 

@@ -67,6 +67,9 @@ export interface AiConfigurationInput {
   requestTimeoutSeconds: number | null; enabled: boolean; rowVersion: string | null;
 }
 
+/** "Continue with Google" client; the secret is write-only. */
+export interface GoogleSignIn { source: 'PLATFORM' | 'ENVIRONMENT' | 'NONE'; clientId: string; secretConfigured: boolean; }
+
 export interface SocialProvider {
   provider: 'LINKEDIN' | 'META'; source: 'PLATFORM' | 'ENVIRONMENT' | 'NONE'; clientId: string; redirectUri: string; derivedRedirectUri: string | null; configurationId: string | null;
   apiVersion: string | null; enabled: boolean; secretConfigured: boolean; secretUpdatedAtUtc: string | null; updatedAtUtc: string | null;
@@ -200,6 +203,17 @@ export class InternalApiService {
   }
   testSocialProvider(provider: 'linkedin' | 'meta'): Observable<{ valid: boolean; message: string }> {
     return this.http.post<{ valid: boolean; message: string }>(`${this.base}/social-providers/${provider}/test`, {});
+  }
+
+  /** Approved exception to OAuth-only connections: links a Facebook Page to a workspace from a pasted Page token. */
+  connectFacebookPageToken(organizationId: string, pageToken: string, applyToNewWorkspaces: boolean): Observable<{ socialAccountId: string; pageName: string; expiresAtUtc: string | null; capabilities: string[] }> {
+    return this.http.post<{ socialAccountId: string; pageName: string; expiresAtUtc: string | null; capabilities: string[] }>(
+      `${this.base}/social-providers/meta/page-token`, { organizationId, pageToken, applyToNewWorkspaces });
+  }
+
+  googleSignIn(): Observable<GoogleSignIn> { return this.http.get<GoogleSignIn>(`${this.base}/social-providers/google-sign-in`); }
+  saveGoogleSignIn(input: { clientId: string; clientSecret: string | null }): Observable<GoogleSignIn> {
+    return this.http.put<GoogleSignIn>(`${this.base}/social-providers/google-sign-in`, input);
   }
 
   workers(): Observable<Worker[]> { return this.http.get<Worker[]>(`${this.base}/workers`); }

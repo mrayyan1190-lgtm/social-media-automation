@@ -617,6 +617,7 @@ label.button { flex-direction: row; cursor: pointer; }
 .internal .form-grid label, .internal .field-label { font-size: 11px; font-weight: 600; color: var(--a-muted); gap: 5px; }
 .internal .form-grid label input, .internal .form-grid label select { width: 100%; }
 .internal .form-grid label.checkbox { flex-direction: row; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; color: var(--a-ink); }
+.internal .form-grid label.checkbox input { width: auto; margin: 0; }
 .internal .secret-field input { width: 100%; }
 .internal .secret-set { gap: 8px; font-size: 11px; color: var(--a-muted); }
 .internal .secret-set button { margin-left: auto; }
@@ -681,7 +682,11 @@ label.button { flex-direction: row; cursor: pointer; }
 .internal .statline { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; padding: 5px 0; border-bottom: 1px dashed var(--a-line-soft); }
 .internal .statline:last-child { border-bottom: none; }
 .internal .statline > span:first-child { color: var(--a-muted); }
-.internal .soc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.internal .soc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
+/* Equal-height cards in each row, footers aligned at the bottom. */
+.internal .soc-grid > * { display: flex; min-width: 0; }
+.internal .soc-grid > * > .card { flex: 1; }
+.internal .soc-grid .card > .actions:last-child { margin-top: auto; }
 
 @media (max-width: 1200px) { .internal .ai-grid { grid-template-columns: 1fr; } }
 @media (max-width: 900px) {
@@ -843,13 +848,35 @@ dialog.modal form { display: flex; flex-direction: column; gap: 0.9rem; padding:
 .preview-text.placeholder { color: #a3acb9; }
 .preview-link { margin: 0; font-size: 0.85rem; color: var(--primary); word-break: break-all; }
 .preview img { width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+/* Review page images: a compact grid inside the unchanged Post Content card. */
+.rv-media { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-width: 460px; border-radius: 10px; overflow: hidden; }
+.rv-media[data-count="1"] { grid-template-columns: 1fr; max-width: 360px; }
+.rv-media[data-count="3"] > a:last-child { grid-column: 1 / -1; }
+.rv-media a { display: block; }
+.preview .rv-media img { display: block; width: 100%; height: 150px; object-fit: cover; border: none; border-radius: 0; cursor: zoom-in; }
+.preview .rv-media[data-count="1"] img { height: 240px; }
 .issues.compact { margin-bottom: 0.7rem; }
 .issues.compact .issue { font-size: 0.84rem; }
 .composer-side label { margin-top: 0.6rem; }
 .composer-side button.block { margin-top: 0.75rem; height: 40px; }
-.mini-history { list-style: none; margin: 0.8rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; }
-.mini-history li { display: flex; flex-direction: column; gap: 0.05rem; padding: 0.35rem 0.5rem; border-radius: 6px; background: #f8f9fb; }
-.mini-history li.current { background: var(--primary-soft); }
+/* Review history: a compact timeline, one coloured dot per decision. */
+.mini-history { list-style: none; margin: 0.9rem 0 0; padding: 0; display: flex; flex-direction: column; }
+.mini-history li { --dot: #94a3b8; position: relative; display: flex; gap: 12px; padding: 0 0 14px; }
+.mini-history li:last-child { padding-bottom: 0; }
+.mini-history li:not(:last-child)::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: 0; width: 2px; background: #e8ecf2; }
+.mini-history li.st-pending { --dot: #f59e0b; }
+.mini-history li.st-changes_requested { --dot: #ef4444; }
+.mini-history li.st-approved { --dot: #16a34a; }
+.mh-dot { flex: none; width: 12px; height: 12px; margin-top: 4px; border-radius: 50%; background: #fff; border: 3px solid var(--dot); }
+.mini-history li.current .mh-dot { background: var(--dot); box-shadow: 0 0 0 4px color-mix(in srgb, var(--dot) 18%, transparent); }
+.mh-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.mh-top { display: flex; align-items: center; gap: 8px; }
+.mh-top a { font-size: 0.88rem; font-weight: 600; color: var(--text); text-decoration: none; }
+.mh-top a:hover { color: var(--primary); }
+.mh-tag { font-size: 0.68rem; font-weight: 600; letter-spacing: .02em; padding: 1px 7px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); }
+.mh-meta { font-size: 0.78rem; color: var(--muted); }
+.mh-comment { margin: 6px 0 0; padding: 7px 10px; font-size: 0.82rem; line-height: 1.45; color: var(--text); background: #f8f9fb;
+  border-left: 3px solid var(--dot); border-radius: 0 8px 8px 0; overflow-wrap: anywhere; }
 .versions-card summary { cursor: pointer; }
 .decision { display: flex; flex-direction: column; gap: 0.5rem; }
 .decision button.block { margin-top: 0; }

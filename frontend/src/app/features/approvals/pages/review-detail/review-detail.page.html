@@ -1,7 +1,7 @@
 @if (loading() && !detail()) { <p class="muted">Loading review…</p> }
 
 <app-problem-banner [problem]="problem()" (reload)="load()" />
-@if (notice()) { <p class="banner success" role="status">{{ notice() }}</p> }
+<app-notice [message]="notice()" />
 
 @if (detail(); as d) {
   @if (!d.isCurrentVersion) {
@@ -17,10 +17,18 @@
         <div class="preview">
           <p class="pre preview-text">{{ text(d) }}</p>
           @if (d.version.destinationUrl) { <p class="preview-link">{{ d.version.destinationUrl }}</p> }
-          @for (m of d.version.images; track m.mediaAssetId; let i = $index) {
-            <img [src]="imageUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" />
-            <p class="hint tight">Image {{ i + 1 }} of {{ d.version.images.length }} · Alt text: {{ m.altText || '(none)' }}</p>
-          } @empty {
+          <!-- 1 image alone, 2 side by side, 3 as two above one below, 4 as 2×2. Click opens the full image. -->
+          @if (d.version.images.length) {
+            <div class="rv-media" [attr.data-count]="d.version.images.length">
+              @for (m of d.version.images; track m.mediaAssetId; let i = $index) {
+                <a [href]="imageUrl(m.mediaAssetId)" target="_blank" rel="noopener" [title]="m.altText || 'Image ' + (i + 1)">
+                  <img [src]="imageUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image ' + (i + 1)" />
+                </a>
+              }
+            </div>
+            <p class="hint tight">Alt text: @for (m of d.version.images; track m.mediaAssetId; let i = $index) {
+              @if (d.version.images.length > 1) { <b>{{ i + 1 }}.</b> } {{ m.altText || '(none)' }}{{ $last ? '' : ' · ' }} }</p>
+          } @else {
             <p class="hint tight">No image.</p>
           }
         </div>
@@ -42,6 +50,7 @@
           @if (d.canDecide) {
             <div class="decision">
               <button class="primary block" type="button" (click)="approve()" [disabled]="busy()">Approve</button>
+              @if (siblings().length) { <p class="hint tight">Applies to every platform of this post: {{ d.review.platform }}@for (s of siblings(); track s.id) {, {{ s.platform }}}.</p> }
               <button class="block" type="button" (click)="showChangesForm.set(!showChangesForm())" [disabled]="busy()">Request Changes</button>
             </div>
             @if (showChangesForm()) {
@@ -68,31 +77,10 @@
         </section>
       }
 
-      @if (d.evaluation?.issues?.length) {
-        <section class="card">
-          <h2>Automated checks <span class="hint">suggestions only</span></h2>
-          <ul class="issues compact">
-            @for (issue of d.evaluation!.issues; track $index) {
-              <li [class]="'issue ' + issue.severity.toLowerCase()">{{ issue.message }}</li>
-            }
-          </ul>
-        </section>
-      }
-
-      <section class="card">
-        <h2>Comments</h2>
-        <ul class="facts">
-          @for (c of d.comments; track c.id) { <li><p class="fact-text">{{ c.body }}</p><p class="hint">{{ c.authorName }} · {{ c.createdAtUtc | date: 'short' }}</p></li> }
-          @empty { <li class="hint">No comments yet.</li> }
-        </ul>
-        <label>Add a comment <textarea rows="2" [value]="comment()" (input)="comment.set($any($event.target).value)"></textarea></label>
-        <div class="actions"><button type="button" (click)="addComment()" [disabled]="!comment().trim()">Comment</button></div>
-      </section>
-
       <section class="card">
         <h2>Details</h2>
         <dl class="facts-grid">
-          <dt>Platform</dt><dd><app-platform-icon [platform]="d.review.platform" [label]="true" /></dd>
+          <dt>Platform</dt><dd><app-platform-icon [platform]="d.review.platform" [label]="true" />@for (s of siblings(); track s.id) { <app-platform-icon [platform]="s.platform" [label]="true" /> }</dd>
           <dt>Account</dt>
           <dd>
             @if (d.destination; as dest) {
@@ -112,10 +100,16 @@
           <h2>Review history</h2>
           <ol class="mini-history">
             @for (h of d.history; track h.id) {
-              <li [class.current]="h.id === d.review.id">
-                <a [routerLink]="['/approvals', h.id]">{{ reviewLabels[h.status] }}</a>
-                <span class="hint">{{ h.submittedAtUtc | date: 'short' }}{{ h.decidedByName ? ' · ' + h.decidedByName : '' }}</span>
-                @if (h.decisionComment) { <span class="hint">“{{ h.decisionComment }}”</span> }
+              <li [class]="'st-' + h.status.toLowerCase()" [class.current]="h.id === d.review.id">
+                <span class="mh-dot" aria-hidden="true"></span>
+                <div class="mh-body">
+                  <div class="mh-top">
+                    <a [routerLink]="['/approvals', h.id]">{{ reviewLabels[h.status] }}</a>
+                    @if (h.id === d.review.id) { <span class="mh-tag">Viewing</span> }
+                  </div>
+                  <span class="mh-meta">{{ h.submittedAtUtc | date: 'MMM d, h:mm a' }}{{ h.decidedByName ? ' · ' + h.decidedByName : '' }}</span>
+                  @if (h.decisionComment) { <p class="mh-comment">{{ h.decisionComment }}</p> }
+                </div>
               </li>
             }
           </ol>

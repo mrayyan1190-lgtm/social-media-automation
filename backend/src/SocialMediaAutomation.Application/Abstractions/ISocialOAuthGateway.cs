@@ -38,6 +38,12 @@ public interface ISocialOAuthGateway
     Task<OAuthGrant> ExchangeCodeAsync(SocialPlatform platform, string code, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<DiscoveredAccount>> DiscoverAccountsAsync(SocialPlatform platform, OAuthGrant grant, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Checks a pasted Facebook Page access token with Meta: valid, a PAGE token, issued to our Meta app. Returns it as a
+    /// grant whose ExternalUserId/DisplayName are the Page's id and name.
+    /// </summary>
+    Task<OAuthGrant> InspectFacebookPageTokenAsync(string pageToken, CancellationToken cancellationToken);
 }
 
 public interface IOAuthRepository

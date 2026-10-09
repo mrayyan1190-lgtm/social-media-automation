@@ -33,7 +33,9 @@ public sealed record PostDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc,
     byte[] RowVersion,
-    PostVersionDto CurrentVersion);
+    PostVersionDto CurrentVersion,
+    /// <summary>Shared by the posts written together for several platforms; a post on its own uses its own id.</summary>
+    Guid GroupId);
 
 /// <summary>
 /// One row of the post list (Planner, Home). MediaAssetId is the first image (thumbnail). The latest publication job is carried separately from the

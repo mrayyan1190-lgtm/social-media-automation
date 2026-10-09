@@ -27,4 +27,9 @@ public sealed class FakeOAuthGateway : ISocialOAuthGateway
         Task.FromResult<IReadOnlyList<DiscoveredAccount>>(grant.ExternalUserId.StartsWith("none", StringComparison.Ordinal)
             ? []
             : [new DiscoveredAccount($"acct-{grant.ExternalUserId}", $"{platform} page {grant.ExternalUserId}", ["publish_text"])]);
+
+    public Task<OAuthGrant> InspectFacebookPageTokenAsync(string pageToken, CancellationToken cancellationToken) =>
+        pageToken == "fail"
+            ? throw new OAuthProviderException("this is not a Page access token.")
+            : Task.FromResult(new OAuthGrant(pageToken, null, DateTime.UtcNow.AddDays(60), ["pages_manage_posts"], $"page-{pageToken}", $"Page {pageToken}"));
 }

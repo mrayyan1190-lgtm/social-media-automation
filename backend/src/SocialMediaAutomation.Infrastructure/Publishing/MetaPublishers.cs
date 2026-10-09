@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using SocialMediaAutomation.Application.Abstractions;
+using SocialMediaAutomation.Application.Platform;
 using SocialMediaAutomation.Application.Publications.Services;
 using SocialMediaAutomation.Domain.Entities;
 using SocialMediaAutomation.Domain.Enums;
@@ -49,7 +50,10 @@ public sealed class FacebookPublisher(HttpClient http, IConfiguration configurat
     public override async Task<PublishReceipt> PublishAsync(PublishContext context, CancellationToken cancellationToken)
     {
         var page = context.ExternalAccountId!;
-        var pageToken = (await SendAsync(new HttpRequestMessage(HttpMethod.Get, $"{Graph}/{page}?fields=access_token"), context.AccessToken!,
+        // A destination connected with a pasted Page token already holds the Page token; OAuth ones hold a user token.
+        var pageToken = context.Capabilities.Contains(PageTokenConnectionService.PageTokenCapability)
+            ? context.AccessToken!
+            : (await SendAsync(new HttpRequestMessage(HttpMethod.Get, $"{Graph}/{page}?fields=access_token"), context.AccessToken!,
                 mayCreatePost: false, cancellationToken)).Body?["access_token"]?.GetValue<string>()
             ?? throw NotCapable("PERMISSION_MISSING", "Facebook did not issue a Page token; the connection cannot post to this Page.");
 

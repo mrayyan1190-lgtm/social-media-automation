@@ -9,6 +9,7 @@ import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { supportedTimeZones } from '../../publications/models/time-zones';
 import { SocialConnectionsComponent } from '../../social-accounts/components/social-connections.component';
+import { NoticeComponent } from '../../../shared/components/notice.component';
 
 /** Offered content languages; a saved tag outside this list is still shown and kept. */
 const LANGUAGES = [
@@ -24,7 +25,7 @@ const LANGUAGES = [
  */
 @Component({
   selector: 'app-workspace-settings-page',
-  imports: [ReactiveFormsModule, ProblemBannerComponent, SocialConnectionsComponent],
+  imports: [NoticeComponent, ReactiveFormsModule, ProblemBannerComponent, SocialConnectionsComponent],
   templateUrl: './workspace-settings.page.html',
   styleUrl: './workspace-settings.page.css',
 

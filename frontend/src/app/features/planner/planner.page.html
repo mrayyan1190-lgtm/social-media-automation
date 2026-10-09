@@ -105,7 +105,7 @@
       </div>
     </section>
   } @else {
-    <section class="pl-card">
+    <section class="pl-card pl-card-list">
       <div class="pl-list-head">
         <h2>{{ listTitle() }}</h2>
         <span class="muted">{{ filtered().length }} {{ filtered().length === 1 ? 'post' : 'posts' }}</span>
@@ -133,6 +133,9 @@
                   <button type="button" class="danger" (click)="cancelSchedule(r)">Cancel schedule</button>
                 } @else {
                   <a [routerLink]="['/composer', r.id]">Open in Composer</a>
+                }
+                @if ((r.editorialState === 'DRAFT' || r.editorialState === 'CHANGES_REQUESTED') && workspace.canManageContent()) {
+                  <button type="button" class="danger" (click)="deleteDraft(r)">Delete draft</button>
                 }
                 @if (r.status === 'In Review' && workspace.isAdmin()) { <a routerLink="/approvals">Go to Approvals</a> }
               </div>

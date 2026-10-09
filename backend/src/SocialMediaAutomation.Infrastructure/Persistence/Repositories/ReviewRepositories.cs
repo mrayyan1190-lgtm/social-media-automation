@@ -77,7 +77,7 @@ internal sealed class ReviewRepository(CoreDbContext db) : IReviewRepository
                    (v.Hook ?? v.Body).Length > 140 ? (v.Hook ?? v.Body).Substring(0, 140) : (v.Hook ?? v.Body),
                    r.Status, r.SubmittedByUserId, s.DisplayName, r.AssignedReviewerUserId, a == null ? null : a.DisplayName,
                    r.SubmissionNote, r.SubmittedAtUtc, r.DecidedByUserId, d == null ? null : d.DisplayName,
-                   r.DecidedAtUtc, r.DecisionComment, r.ApprovedPayloadHash, r.RowVersion))
+                   r.DecidedAtUtc, r.DecisionComment, r.ApprovedPayloadHash, r.RowVersion, p.GroupId ?? p.Id))
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<ReviewCommentDto>> ListCommentsAsync(Guid organizationId, Guid reviewRequestId, CancellationToken cancellationToken) =>

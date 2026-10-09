@@ -17,7 +17,7 @@
 
     <!-- ============ GENERATED POSTS PANEL (loading + result) ============ -->
     <!-- Result rows of one answer (the latest one and every earlier turn) -->
-    <ng-template #rowsTpl let-list>
+    <ng-template #rowsTpl let-list let-shared="shared">
             <div class="rows">
               <div class="rows-head"><span>Post</span><span>Actions</span></div>
               @for (r of list; track r.post.id) {
@@ -25,7 +25,7 @@
                 <div class="row">
                   <span class="row-thumb">
                     @if (v.images[0]; as m) { <img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" /> }
-                    <span class="row-plat" [title]="r.post.platform"><ng-container *ngTemplateOutlet="chipOf; context: { $implicit: r.post.platform }" /></span>
+                    <span class="row-plat" [title]="shared ? 'All platforms' : r.post.platform"><ng-container *ngTemplateOutlet="shared ? allChip : chipOf; context: { $implicit: r.post.platform }" /></span>
                   </span>
                   <div class="row-main">
                     <p class="row-text">{{ body(v) }}</p>
@@ -47,7 +47,7 @@
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                     </a>
                     @if (workspace.isAdmin()) {
-                      <button type="button" class="act" [disabled]="!!r.busy" title="Schedule (after approval)" aria-label="Schedule" (click)="schedule(r)">
+                      <button type="button" class="act" [disabled]="!!r.busy" title="Schedule" aria-label="Schedule" (click)="schedule(r)">
                         @if (r.busy) { <span class="spin"></span> }
                         @else { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5.5"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="17.5" cy="17.5" r="4.5"/><polyline points="17.5 15.5 17.5 17.5 19 18.5"/></svg> }
                       </button>
@@ -74,7 +74,7 @@
               <p class="gen-msg error" role="alert">{{ failureText(t.request) }}</p>
             } @else {
               @if (t.request.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
-              <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: t.results }" />
+              <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: t.results, shared: shared(t.request) }" />
             }
           </div>
         }
@@ -86,9 +86,9 @@
             <div class="worked" role="status"><span class="spin"></span>{{ stageText() }}</div>
             <div class="rows">
               <div class="rows-head"><span>Post</span><span>Actions</span></div>
-              @for (p of request()?.platforms ?? []; track p) {
+              @for (p of (request()?.platforms ?? []).slice(0, unifiedRun() ? 1 : undefined); track p) {
                 <div class="row">
-                  <span class="row-thumb skel-thumb"><ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" /></span>
+                  <span class="row-thumb skel-thumb"><ng-container *ngTemplateOutlet="unifiedRun() ? allChip : chipOf; context: { $implicit: p }" /></span>
                   <div class="skel-body"><div class="skel"></div><div class="skel"></div></div>
                 </div>
               }
@@ -106,7 +106,7 @@
             </div>
             @if (request()?.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
             <!-- result -->
-            <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: results() }" />
+            <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: results(), shared: shared(request()) }" />
           }
         </div>
       </section>
@@ -211,14 +211,14 @@
 
     @if (advOpen()) {
       <div class="adv">
+        <button type="button" class="adv-close" aria-label="Close options" title="Close" (click)="advOpen.set(false)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
         <div class="adv-top">
           @if (brandLoaded() && !brand()) {
             <span class="brand-miss">@if (workspace.isAdmin()) { Complete your <a routerLink="/brand">Brand profile</a> first } @else { The Admin needs to complete the Brand profile first }</span>
           }
           <button type="button" class="save" (click)="savePrompt()">{{ promptSaved() ? 'Saved ✓' : 'Save prompt' }}</button>
-          <button type="button" class="adv-close" aria-label="Close options" title="Close" (click)="advOpen.set(false)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-          </button>
         </div>
         <div class="chips">
           @for (c of presets; track c.label) {
@@ -291,4 +291,5 @@
       </div>
     </div>
   }
+  <app-schedule-dialog [submit]="submitSchedule" />
 </div>

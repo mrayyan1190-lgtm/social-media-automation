@@ -37,6 +37,24 @@ textarea.post::placeholder { color: var(--faint); }
 .thumb { position: relative; width: 150px; height: 112px; border-radius: 12px; overflow: hidden;
   border: 1px solid var(--border); background: #f2f4f7; flex: none; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.zoomable { cursor: zoom-in; }
+
+/* Full-screen image viewer */
+.lightbox { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 56px 72px;
+  background: rgba(15, 23, 42, .82); animation: lb-in .15s ease; }
+@keyframes lb-in { from { opacity: 0; } }
+.lb-card { margin: 0; display: flex; flex-direction: column; max-width: 100%; max-height: 100%; background: #fff; border-radius: 14px;
+  overflow: hidden; box-shadow: 0 24px 60px rgba(0, 0, 0, .35); }
+.lb-card img { display: block; max-width: calc(100vw - 144px); max-height: calc(100vh - 150px); width: auto; height: auto; object-fit: contain; }
+.lb-card figcaption { padding: 10px 14px; font-size: 13px; color: #475467; border-top: 1px solid #eef1f5; }
+.lb-card figcaption b { color: #101828; margin-right: 6px; }
+.lb-btn { position: fixed; display: grid; place-items: center; width: 42px; height: 42px; min-height: 0; padding: 0; border: none; border-radius: 999px;
+  background: rgba(255, 255, 255, .14); color: #fff; cursor: pointer; transition: background .15s; }
+.lb-btn:hover { background: rgba(255, 255, 255, .28); }
+.lb-close { top: 16px; right: 16px; }
+.lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+.lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
+@media (max-width: 640px) { .lightbox { padding: 56px 12px; } .lb-card img { max-width: calc(100vw - 24px); } }
 .thumb button { position: absolute; width: 24px; height: 24px; border-radius: 999px; border: none; cursor: pointer;
   background: rgba(15, 23, 42, .72); color: #fff; display: flex; align-items: center; justify-content: center;
   /* Override the global button padding/min sizes, which stretched this into an oval and hid the icon. */
@@ -81,6 +99,8 @@ textarea.post::placeholder { color: var(--faint); }
 /* editor footer */
 .editor-foot { display: flex; align-items: center; padding: 12px 20px; }
 .save-state { font-size: 12.5px; color: var(--faint); }
+.acct-miss { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12.5px; color: #b42318; }
+.acct-miss a, .acct-miss button.link { font-size: 12.5px; font-weight: 600; color: var(--blue, #1d4ed8); }
 .foot-right { margin-left: auto; display: flex; gap: 10px; }
 .btn-ghost { height: 40px; padding: 0 18px; border-radius: 10px; border: none; background: transparent; font-size: 13.5px; font-weight: 500;
   color: var(--muted); cursor: pointer; }

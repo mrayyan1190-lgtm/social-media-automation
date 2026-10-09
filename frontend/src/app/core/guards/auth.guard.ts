@@ -31,7 +31,7 @@ export const authGuard: CanActivateFn = async (route, state) => {
  * Onboarding pages: only the step the API says is next can be opened, so a refresh or a typed URL always lands on the
  * right step, and a finished user goes to the dashboard. The step is read fresh because it changes as steps complete.
  */
-export function onboardingGuard(step: OnboardingStep): CanActivateFn {
+export function onboardingGuard(step: OnboardingStep, alsoWhenComplete = false): CanActivateFn {
   return async () => {
     const auth = inject(AuthService);
     const router = inject(Router);
@@ -39,7 +39,8 @@ export function onboardingGuard(step: OnboardingStep): CanActivateFn {
       const me = await auth.loadMe();
       if (me) {
         if (isOperatorOnly(me)) return router.createUrlTree(['/internal']);
-        return me.onboarding.nextStep === step ? true : router.createUrlTree([ONBOARDING_ROUTES[me.onboarding.nextStep]]);
+        const next = me.onboarding.nextStep;
+        return next === step || (alsoWhenComplete && next === 'COMPLETE') ? true : router.createUrlTree([ONBOARDING_ROUTES[next]]);
       }
     } catch {
       // API unreachable: fall through to the login page.

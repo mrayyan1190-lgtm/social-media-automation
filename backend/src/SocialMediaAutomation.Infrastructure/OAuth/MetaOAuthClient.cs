@@ -45,6 +45,26 @@ internal sealed class MetaOAuthClient(ProviderApp app, HttpClient http, bool ins
             me["name"]?.GetValue<string>() ?? $"{Provider} user");
     }
 
+    /// <summary>debug_token (with the app token) proves the token is a valid Page token of this app; /me names the Page.</summary>
+    public async Task<OAuthGrant> InspectPageTokenAsync(string pageToken, CancellationToken cancellationToken)
+    {
+        var debug = (await OAuthHttp.SendAsync(http, OAuthHttp.Get($"{Graph}/debug_token?input_token={Uri.EscapeDataString(pageToken)}",
+            $"{app.ClientId}|{app.ClientSecret}"), "Facebook token check", cancellationToken))["data"];
+        if (debug?["is_valid"]?.GetValue<bool>() != true)
+            throw new OAuthProviderException("the token is not valid (expired or revoked).");
+        if (debug["app_id"]?.GetValue<string>() != app.ClientId)
+            throw new OAuthProviderException("the token was issued to a different Meta app than the one configured.");
+        if (!string.Equals(debug["type"]?.GetValue<string>(), "PAGE", StringComparison.OrdinalIgnoreCase))
+            throw new OAuthProviderException("this is not a Page access token.");
+        var scopes = (debug["scopes"]?.AsArray() ?? []).Select(s => s!.GetValue<string>()).ToList();
+        DateTime? expires = debug["expires_at"]?.GetValue<long>() is long at and > 0 ? DateTimeOffset.FromUnixTimeSeconds(at).UtcDateTime : null;
+
+        var page = await OAuthHttp.SendAsync(http, OAuthHttp.Get($"{Graph}/me?fields=id,name", pageToken), "Facebook Page lookup", cancellationToken);
+        return new OAuthGrant(pageToken, null, expires, scopes,
+            page["id"]?.GetValue<string>() ?? throw new OAuthProviderException("Facebook returned no Page id."),
+            page["name"]?.GetValue<string>() ?? "Facebook Page");
+    }
+
     public async Task<IReadOnlyList<DiscoveredAccount>> DiscoverAccountsAsync(OAuthGrant grant, CancellationToken cancellationToken)
     {
         var fields = instagram ? "id,name,instagram_business_account{id,username}" : "id,name,tasks";

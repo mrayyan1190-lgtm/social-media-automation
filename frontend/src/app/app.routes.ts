@@ -21,7 +21,7 @@ export const routes: Routes = [
       { path: 'workspace', redirectTo: '/signup' },
       { path: 'profile', canActivate: [onboardingGuard('PROFILE')], loadComponent: () => import('./features/onboarding/profile-step.page').then((m) => m.ProfileStepPage) },
       { path: 'brand', canActivate: [onboardingGuard('BRAND_PROFILE')], loadComponent: () => import('./features/onboarding/brand-step.page').then((m) => m.BrandStepPage) },
-      { path: 'social-connections', canActivate: [onboardingGuard('SOCIAL_CONNECTIONS')], loadComponent: () => import('./features/onboarding/social-step.page').then((m) => m.SocialStepPage) },
+      { path: 'social-connections', canActivate: [onboardingGuard('SOCIAL_CONNECTIONS', true)], loadComponent: () => import('./features/onboarding/social-step.page').then((m) => m.SocialStepPage) },
     ],
   },
 

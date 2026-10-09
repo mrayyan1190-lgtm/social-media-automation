@@ -1,7 +1,7 @@
 <div class="ws">
   <app-problem-banner [problem]="problem()" (reload)="load()" />
   <!-- The server's result, e.g. that the login has no publishable Pages, so a silent "connected" never hides an empty result. -->
-  @if (oauthStatus === 'connected') { <p class="banner info" role="status">{{ oauthMessage ?? 'Account connected.' }}</p> }
+  <app-notice [message]="oauthStatus === 'connected' ? (oauthMessage ?? 'Account connected.') : null" />
 
   <form class="ws-card" [formGroup]="form" (ngSubmit)="save()">
     <!-- Workspace -->

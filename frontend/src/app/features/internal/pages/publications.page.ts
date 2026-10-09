@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { InternalApiService, Publication, PublicationDetail, ReconciliationCheck, WorkspaceListItem, tone, when, words } from '../internal-api.service';
+import { NoticeComponent } from '../../../shared/components/notice.component';
 
 const STATES = [
   { value: 'PUBLISHED', label: 'Published' },
@@ -134,11 +135,11 @@ export class PublicationsPage implements OnInit {
 /** One publication with its timeline. In reconciliation mode: evidence check and manual resolution (always audited). */
 @Component({
   selector: 'app-internal-publication-detail-page',
-  imports: [FormsModule, RouterLink, ProblemBannerComponent],
+  imports: [NoticeComponent, FormsModule, RouterLink, ProblemBannerComponent],
   template: `
     <a class="back" [routerLink]="reconciliation() ? '/internal/reconciliation' : '/internal/publications'">← {{ reconciliation() ? 'Reconciliation' : 'Publications' }}</a>
     <app-problem-banner [problem]="problem()" />
-    @if (notice(); as n) { <p class="banner success" role="status">{{ n }}</p> }
+    <app-notice [message]="notice()" />
     @if (d(); as detail) {
       @let p = detail.publication;
       <div class="page-header">

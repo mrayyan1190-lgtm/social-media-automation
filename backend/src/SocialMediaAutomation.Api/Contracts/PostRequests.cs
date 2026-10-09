@@ -28,5 +28,6 @@ public sealed record CreatePostRequest(
     string? DestinationUrl,
     string[]? Hashtags,
     PostImage[]? Images,
-    Guid? SocialAccountId = null)
+    Guid? SocialAccountId = null,
+    Guid? GroupWithPostId = null)
     : SavePostContentRequest(Hook, Body, CallToAction, DestinationUrl, Hashtags, Images, SocialAccountId);

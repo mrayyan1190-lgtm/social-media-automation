@@ -21,6 +21,13 @@ const STATUS_TEXT: Record<string, { label: string; tone: string }> = {
   CHANGES_REQUESTED: { label: 'Changes Requested', tone: 'ap-attn' },
 };
 
+/** Items of one post group in one row (in first-seen order); a post on its own is a group of one. */
+function grouped<T>(items: T[], key: (t: T) => string): T[][] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) groups.set(key(item), [...(groups.get(key(item)) ?? []), item]);
+  return [...groups.values()];
+}
+
 /**
  * Human review. Each review covers one exact version; Approve / Request Changes happen on the review page. Approved
  * posts are scheduled or published from the Approved tab (the Composer only edits and submits).
@@ -59,7 +66,12 @@ export class ApprovalsPage {
       return true;
     });
   });
-  protected readonly shown = computed(() => this.select(this.tab()));
+  /** One row per post group: a post made for several platforms is listed once, with each platform's icon. */
+  protected readonly shown = computed(() => grouped(this.select(this.tab()), (r) => `${r.groupId}|${r.status}`)
+    .map((rs) => rs.filter((r, i) => rs.findIndex((o) => o.postId === r.postId) === i)));
+  /** One Approved card per post group, scheduled or published on all its platforms together. */
+  protected readonly readyGroups = computed(() => grouped(this.ready(), (x) => x.post.groupId)
+    .map((items) => ({ items, posts: items.map((x) => x.post) })));
   protected readonly emptyText = computed(() => ({
     pending: 'Nothing is waiting for your review.',
     mine: 'You have not submitted anything for review yet.',
@@ -78,7 +90,7 @@ export class ApprovalsPage {
   }
 
   protected count(tab: Tab): number {
-    return this.select(tab).length;
+    return grouped(this.select(tab), (r) => `${r.groupId}|${r.status}`).length;
   }
 
   protected time(utc: string): string {
@@ -102,9 +114,18 @@ export class ApprovalsPage {
     }
   }
 
-  /** Loads the posts behind the newest approved reviews; edited-after-approval posts drop out (they need review again). */
+  /**
+   * Loads the posts behind the newest approved reviews that still wait to be scheduled or published. One list call
+   * drops edited-after-approval posts (they need review again) and posts that already have a live publication job, so
+   * only the few remaining posts are fetched in full.
+   */
   private async loadReady(orgId: string): Promise<void> {
-    const approved = this.latest().filter((r) => r.status === 'APPROVED').slice(0, 25);
+    const waiting = new Map((await firstValueFrom(this.postsApi.listAll(orgId)))
+      .filter((p) => p.editorialState === 'APPROVED' && (!p.latestJobId || p.latestDeliveryState === 'CANCELED' || p.latestDeliveryState === 'FAILED'))
+      .map((p) => [p.id, p]));
+    const approved = this.latest()
+      .filter((r) => r.status === 'APPROVED' && waiting.get(r.postId)?.currentVersionNumber === r.versionNumber)
+      .slice(0, 25);
     const posts = await Promise.all(approved.map((r) => firstValueFrom(this.postsApi.get(orgId, r.postId)).catch(() => null)));
     this.ready.set(approved
       .map((review, i) => ({ review, post: posts[i] }))

@@ -21,7 +21,7 @@ public sealed class PostsController(PostService posts) : ControllerBase
     public async Task<ActionResult<PostDto>> Create(Guid orgId, CreatePostRequest request, CancellationToken cancellationToken)
     {
         var post = WithETag(await posts.CreateAsync(
-            new CreatePostCommand(orgId, request.Platform!.Value, request.ToContent()), cancellationToken));
+            new CreatePostCommand(orgId, request.Platform!.Value, request.ToContent(), request.GroupWithPostId), cancellationToken));
         return CreatedAtAction(nameof(Get), new { orgId, postId = post.Id }, post);
     }
 
@@ -38,6 +38,14 @@ public sealed class PostsController(PostService posts) : ControllerBase
     public async Task<PostDto> Revise(Guid orgId, Guid postId, SavePostContentRequest request, CancellationToken cancellationToken) =>
         WithETag(await posts.ReviseAsync(
             new RevisePostCommand(orgId, postId, request.ToContent(), RowVersionHeaders.ReadIfMatch(Request)), cancellationToken));
+
+    /// <summary>"Delete draft": archives a DRAFT or CHANGES_REQUESTED post. Requires If-Match with the post's ETag.</summary>
+    [HttpPost("posts/{postId:guid}/archive")]
+    public async Task<IActionResult> Archive(Guid orgId, Guid postId, CancellationToken cancellationToken)
+    {
+        await posts.ArchiveAsync(orgId, postId, RowVersionHeaders.ReadIfMatch(Request), cancellationToken);
+        return NoContent();
+    }
 
     private PostDto WithETag(PostDto post)
     {

@@ -36,7 +36,7 @@
 
 
 /* Queue rows */
-.ap-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) 140px 92px; align-items: center; gap: 14px; padding: 14px 18px; transition: background 0.12s; }
+.ap-row { display: grid; grid-template-columns: minmax(22px, auto) minmax(0, 1fr) 140px 92px; align-items: center; gap: 14px; padding: 14px 18px; transition: background 0.12s; }
 .ap-row + .ap-row { border-top: 1px solid #f4f6fa; }
 .ap-row:hover { background: #fafbfe; }
 .ap-txt { min-width: 0; }
@@ -63,7 +63,7 @@ a.ap-title:hover { color: #2563eb; }
 
 /* Approved card */
 .ap-acard { padding: 16px 18px; }
-.ap-acard-head { display: grid; grid-template-columns: 22px minmax(0, 1fr) 104px; align-items: center; gap: 14px; }
+.ap-acard-head { display: grid; grid-template-columns: minmax(22px, auto) minmax(0, 1fr) 104px; align-items: center; gap: 14px; }
 .ap-acard-head .ap-title { font-size: 14px; font-weight: 700; color: #1e293b; }
 .ap-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f1f3f9; }
 .ap-note { margin: 10px 0 0; font-size: 12.5px; color: #7b8798; }
@@ -92,7 +92,8 @@ a.ap-title:hover { color: #2563eb; }
   .ap-tabs button { flex: 1 1 45%; }
 }
 @media (max-width: 760px) {
-  .ap-row { grid-template-columns: 22px minmax(0, 1fr) 92px; }
+  .ap-row { grid-template-columns: minmax(22px, auto) minmax(0, 1fr) 92px; }
   .ap-row .ap-chip { display: none; }
-  .ap-acard-head { grid-template-columns: 22px minmax(0, 1fr); align-items: start; }
+  .ap-acard-head { grid-template-columns: minmax(22px, auto) minmax(0, 1fr); align-items: start; }
 }
+.ap-plats { display: inline-flex; gap: 4px; align-items: center; }

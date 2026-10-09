@@ -3,12 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
-import { HEALTH_LABELS, InternalApiService, SocialProvider, tone, when } from '../internal-api.service';
+import { GoogleSignIn, HEALTH_LABELS, InternalApiService, SocialProvider, WorkspaceListItem, tone, when } from '../internal-api.service';
+import { NoticeComponent } from '../../../shared/components/notice.component';
 
 /** One provider app. The client secret is write-only: once saved it shows "Configured ✓" and can only be replaced. */
 @Component({
   selector: 'app-provider-card',
-  imports: [FormsModule, ProblemBannerComponent],
+  imports: [NoticeComponent, FormsModule, ProblemBannerComponent],
   template: `
     @let p = provider();
     <form class="card form-grid" (ngSubmit)="save()">
@@ -16,10 +17,9 @@ import { HEALTH_LABELS, InternalApiService, SocialProvider, tone, when } from '.
         <h2>{{ meta() ? 'Meta' : 'LinkedIn' }}</h2>
         <span [class]="'badge delivery ' + tone(p.configurationStatus)">{{ labels[p.configurationStatus] }}</span>
       </div>
-      @if (meta()) { <p class="hint">One Meta app serves Facebook Pages and Instagram business accounts.</p> }
       @if (p.source === 'ENVIRONMENT') { <p class="banner info">Using the deployment's environment configuration. Saving here takes precedence.</p> }
       <app-problem-banner [problem]="problem()" />
-      @if (notice(); as n) { <p class="banner success" role="status">{{ n }}</p> }
+      <app-notice [message]="notice()" />
 
       <label>{{ meta() ? 'Meta App ID' : 'Client ID' }} * <input name="clientId" [(ngModel)]="clientId" required autocomplete="off" /></label>
       <div class="secret-field">
@@ -32,28 +32,22 @@ import { HEALTH_LABELS, InternalApiService, SocialProvider, tone, when } from '.
           </div>
         } @else {
           <input name="secret" type="password" autocomplete="new-password" [(ngModel)]="secret" spellcheck="false" placeholder="Paste the secret" />
-          <span class="hint">Stored encrypted in the secret store. It is never shown again.</span>
           @if (p.secretConfigured && p.source === 'PLATFORM') { <button type="button" class="link" (click)="replacing.set(false); secret = ''">Keep the current secret</button> }
         }
       </div>
-      <label>Redirect URI <input name="redirectUri" type="url" [(ngModel)]="redirectUri" [placeholder]="'https://your-api/api/v1/oauth/' + (meta() ? 'facebook' : 'linkedin') + '/callback'" />
-        @if (meta() && p.derivedRedirectUri) { <span class="hint">Instagram callback: {{ p.derivedRedirectUri }}</span> }
-      </label>
+      <label>Redirect URI <input name="redirectUri" type="url" [(ngModel)]="redirectUri" [placeholder]="'https://your-api/api/v1/oauth/' + (meta() ? 'facebook' : 'linkedin') + '/callback'" /></label>
       @if (meta()) {
-        <label>Meta Configuration ID <input name="configurationId" [(ngModel)]="configurationId" autocomplete="off" placeholder="Facebook Login for Business configuration" />
-          <span class="hint">When set, the configuration's permissions are requested instead of the default scopes.</span>
-        </label>
+        <label>Meta Configuration ID <input name="configurationId" [(ngModel)]="configurationId" autocomplete="off" placeholder="Optional" /></label>
       }
       <label class="checkbox"><input name="enabled" type="checkbox" [(ngModel)]="enabled" /> Enabled</label>
 
       <ul class="kv">
-        <li><span>Configuration Status</span><span>{{ labels[p.configurationStatus] }}</span></li>
         <li><span>Last Successful Request</span><span>{{ when(p.lastSuccessAtUtc) }}</span></li>
         <li><span>Failures Last 24h</span><strong [class.text-danger]="p.failuresLast24Hours > 0">{{ p.failuresLast24Hours }}</strong></li>
         @if (p.lastFailure) { <li><span>Last Failure</span><span class="hint">{{ p.lastFailure }}</span></li> }
       </ul>
 
-      @if (validation(); as v) { <p [class]="'banner ' + (v.valid ? 'success' : 'error')">{{ v.message }}</p> }
+      @if (validation(); as v) { <app-notice [message]="v.message" [tone]="v.valid ? 'success' : 'error'" /> }
       <div class="actions">
         <button type="button" (click)="validate()" [disabled]="busy()">{{ busy() === 'validate' ? 'Validating…' : 'Validate Configuration' }}</button>
         <button type="submit" class="primary" [disabled]="busy() || !clientId.trim()">{{ busy() === 'save' ? 'Saving…' : 'Save' }}</button>
@@ -133,17 +127,160 @@ export class ProviderCardComponent implements OnInit {
   }
 }
 
+/** "Continue with Google" on the login page. Stored encrypted in the database; takes effect on the next sign-in. */
+@Component({
+  selector: 'app-google-sign-in-card',
+  imports: [NoticeComponent, FormsModule, ProblemBannerComponent],
+  template: `
+    <form class="card form-grid" (ngSubmit)="save()">
+      <div class="card-head">
+        <h2>Google sign-in</h2>
+        <span [class]="'badge delivery ' + (state()?.source === 'NONE' ? 'neutral' : 'success')">{{ state()?.source === 'NONE' ? 'Not configured' : 'Configured' }}</span>
+      </div>
+      @if (state()?.source === 'ENVIRONMENT') { <p class="banner info">Using the deployment's environment configuration. Saving here takes precedence.</p> }
+      <app-problem-banner [problem]="problem()" />
+      <app-notice [message]="notice()" />
+      <label>Client ID * <input name="clientId" [(ngModel)]="clientId" required autocomplete="off" /></label>
+      <label>Client Secret {{ state()?.source === 'PLATFORM' ? '' : '*' }}
+        <input name="secret" type="password" autocomplete="new-password" [(ngModel)]="secret" spellcheck="false"
+          [placeholder]="state()?.source === 'PLATFORM' ? 'Configured ✓ (leave blank to keep)' : 'Paste the secret'" />
+      </label>
+      <label>Redirect URI <input [value]="callback" readonly /></label>
+      <div class="actions">
+        <button type="submit" class="primary" [disabled]="busy() || !clientId.trim()">{{ busy() ? 'Saving…' : 'Save' }}</button>
+      </div>
+    </form>
+  `,
+})
+export class GoogleSignInCardComponent implements OnInit {
+  private readonly api = inject(InternalApiService);
+  protected readonly state = signal<GoogleSignIn | null>(null);
+  protected readonly busy = signal(false);
+  protected readonly problem = signal<ApiProblem | null>(null);
+  protected readonly notice = signal<string | null>(null);
+  protected readonly callback = `${location.origin}/api/v1/auth/google/callback`;
+  protected clientId = '';
+  protected secret = '';
+
+  async ngOnInit(): Promise<void> {
+    try {
+      const s = await firstValueFrom(this.api.googleSignIn());
+      this.state.set(s);
+      this.clientId = s.clientId;
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    }
+  }
+
+  protected async save(): Promise<void> {
+    this.busy.set(true);
+    this.problem.set(null);
+    this.notice.set(null);
+    try {
+      this.state.set(await firstValueFrom(this.api.saveGoogleSignIn({ clientId: this.clientId.trim(), clientSecret: this.secret.trim() || null })));
+      this.secret = '';
+      this.notice.set('Saved. The next Google sign-in uses it.');
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+}
+
+/**
+ * Connects a Facebook Page to a workspace from a pasted Page access token (approved exception to OAuth-only connections).
+ * The server checks the token with Meta and stores it encrypted; it is never shown again.
+ */
+@Component({
+  selector: 'app-page-token-card',
+  imports: [NoticeComponent, FormsModule, ProblemBannerComponent],
+  template: `
+    <form class="card form-grid" (ngSubmit)="connect()">
+      <div class="card-head"><h2>Facebook Page token</h2></div>
+      <app-problem-banner [problem]="problem()" />
+      <app-notice [message]="notice()" />
+      <label>Workspace *
+        <select name="org" [(ngModel)]="organizationId" required>
+          <option value="" disabled>Choose a workspace</option>
+          <option value="ALL">All active workspaces ({{ active().length }})</option>
+          @for (w of workspaces(); track w.id) { <option [value]="w.id">{{ w.name }}{{ w.primaryAdminEmail ? " — " + w.primaryAdminEmail : "" }}</option> }
+        </select>
+      </label>
+      <label>Page access token *
+        <input name="token" type="password" autocomplete="new-password" spellcheck="false" [(ngModel)]="token" placeholder="EAA…" />
+      </label>
+      @if (organizationId === 'ALL') { <p class="hint">Also applies to workspaces created later.</p> }
+      <div class="actions">
+        <button type="submit" class="primary" [disabled]="busy() || !organizationId || !token.trim()">{{ busy() ? 'Connecting…' : 'Connect Page' }}</button>
+      </div>
+    </form>
+  `,
+})
+export class PageTokenCardComponent implements OnInit {
+  private readonly api = inject(InternalApiService);
+  protected readonly workspaces = signal<WorkspaceListItem[]>([]);
+  protected readonly busy = signal(false);
+  protected readonly problem = signal<ApiProblem | null>(null);
+  protected readonly notice = signal<string | null>(null);
+  protected organizationId = '';
+  protected token = '';
+  protected readonly active = () => this.workspaces().filter((w) => w.status === 'Active');
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.workspaces.set(await firstValueFrom(this.api.workspaces({})));
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    }
+  }
+
+  protected async connect(): Promise<void> {
+    this.busy.set(true);
+    this.problem.set(null);
+    this.notice.set(null);
+    // "All" connects each active workspace in turn (each gets its own destination); one failure does not stop the rest.
+    const targets = this.organizationId === 'ALL' ? this.active() : this.workspaces().filter((w) => w.id === this.organizationId);
+    const failed: string[] = [];
+    let last: { pageName: string; expiresAtUtc: string | null; capabilities: string[] } | null = null;
+    try {
+      for (const w of targets) {
+        try {
+          last = await firstValueFrom(this.api.connectFacebookPageToken(w.id, this.token.trim(), this.organizationId === 'ALL'));
+        } catch (error) {
+          if (targets.length === 1) throw error;
+          failed.push(`${w.name}: ${toApiProblem(error).detail}`);
+        }
+      }
+      if (last) {
+        this.token = '';
+        const expiry = last.expiresAtUtc ? ` Token expires ${when(last.expiresAtUtc)}.` : '';
+        this.notice.set(`Connected "${last.pageName}" as a LIVE Facebook destination in ${targets.length - failed.length} workspace(s)`
+          + (this.organizationId === 'ALL' ? ' and in every new workspace.' : '.') + expiry
+          + (last.capabilities.includes('publish_text') ? '' : ' The token lacks pages_manage_posts, so it cannot publish.'));
+      }
+      if (failed.length) this.problem.set({ status: 0, code: 'PARTIAL_FAILURE', detail: `Not connected — ${failed.join(' · ')}` });
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+}
+
 /** Platform integrations (the operator's own provider apps), not customer social accounts. */
 @Component({
   selector: 'app-internal-social-providers-page',
-  imports: [ProviderCardComponent, ProblemBannerComponent],
+  imports: [ProviderCardComponent, GoogleSignInCardComponent, PageTokenCardComponent, ProblemBannerComponent],
   template: `
-    <div class="page-header"><div><h1>Social Providers</h1><p class="muted">Platform app credentials that customers' LinkedIn, Facebook and Instagram connections use.</p></div></div>
+    <div class="page-header"><h1>Social Providers</h1></div>
     <app-problem-banner [problem]="problem()" />
     <div class="soc-grid">
       @for (p of providers(); track p.provider) {
         <app-provider-card [provider]="p" (changed)="replace($event)" />
       } @empty { <p class="muted">Loading…</p> }
+      <app-page-token-card />
+      <app-google-sign-in-card />
     </div>
   `,
 })

@@ -6,6 +6,7 @@ public static class AuditActions
     public const string WorkspaceCreated = "WORKSPACE_CREATED";
     public const string BrandProfileSaved = "BRAND_PROFILE_SAVED";
     public const string PostVersionCreated = "POST_VERSION_CREATED";
+    public const string PostArchived = "POST_ARCHIVED";
     public const string ReviewSubmitted = "REVIEW_SUBMITTED";
     public const string ChangesRequested = "CHANGES_REQUESTED";
     public const string ContentApproved = "CONTENT_APPROVED";

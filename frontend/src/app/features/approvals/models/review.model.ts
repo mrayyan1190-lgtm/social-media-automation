@@ -25,6 +25,8 @@ export interface ReviewSummary {
   decidedAtUtc: string | null;
   decisionComment: string | null;
   approvedPayloadHash: string | null;
+  /** The post's group: the posts of one multi-platform post are listed, approved and scheduled together. */
+  groupId: string;
   rowVersion: string;
 }
 
@@ -51,3 +53,6 @@ export interface ReviewDetail {
   canDecide: boolean;
   cannotDecideReason: string | null;
 }
+
+/** Shown with a SUBMISSION_BLOCKED error: how to clear unsupported claims without weakening the check. */
+export const BLOCKED_HINT = 'Open the post in Composer and use Improve → Remove unsupported claims, or add the missing fact to your prompt or brand details.';

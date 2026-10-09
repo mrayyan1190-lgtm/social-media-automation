@@ -37,9 +37,16 @@ public sealed class PostService(
         var access = await authorizer.AuthorizeAsync(command.OrganizationId, Permission.ManageContent, cancellationToken);
         var media = await LoadMediaAsync(access, command.Content.Images, cancellationToken);
         var destination = await LoadDestinationAsync(access, command.Content.SocialAccountId, cancellationToken);
+        // Composer "Publish to" several platforms: the copy joins the source post's group (same workspace only).
+        Guid? groupId = null;
+        if (command.GroupWithPostId is { } sourceId)
+        {
+            var source = await LoadPostAsync(access, sourceId, cancellationToken);
+            groupId = source.GroupId ?? source.Id;
+        }
         var (post, version) = Post.Create(
             Guid.NewGuid(), Guid.NewGuid(), access.OrganizationId, command.Platform, command.Content, media, destination,
-            PostVersionSource.Manual, access.UserId, Now);
+            PostVersionSource.Manual, access.UserId, Now, groupId);
         posts.Add(post);
         posts.Add(version);
         activity.VersionCreated(post, version, access.UserId, revokedApprovalId: null);
@@ -89,6 +96,17 @@ public sealed class PostService(
         return await ToDtoAsync(access, post, cancellationToken);
     }
 
+    /// <summary>"Delete draft": archives the post (see <see cref="Post.Archive"/>).</summary>
+    public async Task ArchiveAsync(Guid organizationId, Guid postId, byte[]? expectedRowVersion, CancellationToken cancellationToken)
+    {
+        var access = await authorizer.AuthorizeAsync(organizationId, Permission.ManageContent, cancellationToken);
+        var post = await LoadPostAsync(access, postId, cancellationToken);
+        ConcurrencyGuard.EnsureCurrent(post.RowVersion, expectedRowVersion);
+        post.Archive(Now);
+        activity.Audit(post.OrganizationId, access.UserId, AuditActions.PostArchived, ActivityRecorder.PostResource, post.Id);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
     private DateTime Now => timeProvider.GetUtcNow().UtcDateTime;
 
     private async Task<Post> LoadPostAsync(OrganizationAccess access, Guid postId, CancellationToken cancellationToken)
@@ -123,6 +141,6 @@ public sealed class PostService(
     {
         var current = (await posts.ListVersionsAsync(access.OrganizationId, post.Id, cancellationToken)).First(v => v.Id == post.CurrentVersionId);
         return new PostDto(post.Id, post.OrganizationId, post.Platform, post.EditorialState, current.Id, post.ActiveApprovalId,
-            post.CreatedAtUtc, post.UpdatedAtUtc, post.RowVersion, current);
+            post.CreatedAtUtc, post.UpdatedAtUtc, post.RowVersion, current, post.GroupId ?? post.Id);
     }
 }

@@ -160,6 +160,17 @@ public class PostTests
         AssertInvalid(() => MediaAsset.CreateUpload(Guid.NewGuid(), Guid.NewGuid(), "a.gif", "image/gif", 100, 500, 500, new string('a', 64), "k", User, DateTime.UtcNow));
     }
 
+    [Fact]
+    public void Delete_draft_archives_it_and_cannot_be_repeated()
+    {
+        var (post, _) = CreatePost();
+
+        post.Archive(DateTime.UtcNow);
+
+        Assert.Equal(EditorialState.ARCHIVED, post.EditorialState);
+        Assert.Equal(ErrorCodes.InvalidStateTransition, Assert.Throws<BusinessException>(() => post.Archive(DateTime.UtcNow)).Code);
+    }
+
     private static void AssertInvalid(Action action) =>
         Assert.Equal(ErrorCodes.ValidationFailed, Assert.Throws<BusinessException>(action).Code);
 }

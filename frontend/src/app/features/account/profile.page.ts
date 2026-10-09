@@ -5,15 +5,16 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
+import { NoticeComponent } from '../../shared/components/notice.component';
 
 /** The signed-in user: name (editable), email, time zone and workspaces. */
 @Component({
   selector: 'app-profile-page',
-  imports: [FormsModule, RouterLink, ProblemBannerComponent],
+  imports: [NoticeComponent, FormsModule, RouterLink, ProblemBannerComponent],
   template: `
     <div class="page-header"><div><h1>Profile</h1></div></div>
     <app-problem-banner [problem]="problem()" />
-    @if (saved()) { <p class="banner success" role="status">Profile saved.</p> }
+    <app-notice [message]="saved() ? 'Profile saved.' : null" />
     @if (auth.me(); as me) {
       <form class="card form-grid narrow" (ngSubmit)="save()">
         <label>Full Name <input name="fullName" required maxlength="200" [(ngModel)]="fullName" /></label>

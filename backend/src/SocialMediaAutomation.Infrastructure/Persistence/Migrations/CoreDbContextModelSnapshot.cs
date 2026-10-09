@@ -1105,6 +1105,9 @@ namespace SocialMediaAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("EditorialState");
 
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 

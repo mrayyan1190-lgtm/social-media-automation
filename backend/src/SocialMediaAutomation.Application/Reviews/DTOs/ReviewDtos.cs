@@ -25,7 +25,9 @@ public sealed record ReviewSummaryDto(
     DateTime? DecidedAtUtc,
     string? DecisionComment,
     string? ApprovedPayloadHash,
-    byte[] RowVersion);
+    byte[] RowVersion,
+    /// <summary>The post's group (its own id when it is not part of one), so lists show one item for all platforms.</summary>
+    Guid GroupId);
 
 public sealed record ReviewCommentDto(Guid Id, Guid ReviewRequestId, Guid AuthorUserId, string AuthorName, string Body, DateTime CreatedAtUtc);
 

@@ -68,6 +68,10 @@ server {
     location / {
         try_files \$uri \$uri/ /index.html;
     }
+    # index.html names the hashed bundles: always revalidate it so a deploy reaches open browsers on the next load.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
 }
 EOF
 ln -sf /etc/nginx/sites-available/sma /etc/nginx/sites-enabled/sma

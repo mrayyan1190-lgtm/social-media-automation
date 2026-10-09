@@ -24,6 +24,12 @@ public sealed class Post
     /// <summary>The approval that authorizes the current version. Cleared whenever a new version is created (PRD §21).</summary>
     public Guid? ActiveApprovalId { get; private set; }
 
+    /// <summary>
+    /// Posts written together for several platforms share this id (null: a post of its own). It only groups them in
+    /// review and scheduling screens; each post keeps its own versions, approval and publication jobs.
+    /// </summary>
+    public Guid? GroupId { get; private set; }
+
     public Guid CreatedByUserId { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime UpdatedAtUtc { get; private set; }
@@ -32,12 +38,13 @@ public sealed class Post
     /// <summary>Creates the post and its Version 1 together; the caller persists both in one transaction.</summary>
     public static (Post Post, PostVersion Version) Create(
         Guid id, Guid versionId, Guid organizationId, SocialPlatform platform, PostContent content, IReadOnlyList<MediaAsset> media,
-        SocialAccount? destination, PostVersionSource source, Guid userId, DateTime utcNow)
+        SocialAccount? destination, PostVersionSource source, Guid userId, DateTime utcNow, Guid? groupId = null)
     {
         var post = new Post
         {
             Id = id,
             OrganizationId = organizationId,
+            GroupId = groupId,
             Platform = Guard.Defined(platform, "Platform"),
             EditorialState = EditorialState.DRAFT,
             CreatedByUserId = userId,
@@ -71,6 +78,18 @@ public sealed class Post
         EditorialState = EditorialState.DRAFT;
         UpdatedAtUtc = utcNow;
         return next;
+    }
+
+    /// <summary>
+    /// DRAFT / CHANGES_REQUESTED → ARCHIVED ("Delete draft"). A soft delete: versions, reviews and audit stay, the post
+    /// just leaves every list. In review or approved content is not deletable, so no review or publication intent is orphaned.
+    /// </summary>
+    public void Archive(DateTime utcNow)
+    {
+        if (EditorialState is not (EditorialState.DRAFT or EditorialState.CHANGES_REQUESTED))
+            throw new BusinessException(ErrorCodes.InvalidStateTransition, $"Only drafts can be deleted; this post is {EditorialState}.");
+        EditorialState = EditorialState.ARCHIVED;
+        UpdatedAtUtc = utcNow;
     }
 
     /// <summary>DRAFT → IN_REVIEW for the exact current version captured by the review request.</summary>

@@ -4,6 +4,7 @@ using SocialMediaAutomation.Application.Common;
 using SocialMediaAutomation.Application.Common.Authorization;
 using SocialMediaAutomation.Application.Organizations.Commands;
 using SocialMediaAutomation.Application.Organizations.DTOs;
+using SocialMediaAutomation.Application.Platform;
 using SocialMediaAutomation.Domain.Constants;
 using SocialMediaAutomation.Domain.Entities;
 using SocialMediaAutomation.Domain.Enums;
@@ -15,6 +16,7 @@ public sealed class OrganizationService(
     OrganizationAuthorizer authorizer,
     IOrganizationRepository organizations,
     ActivityRecorder activity,
+    PageTokenConnectionService pageTokens,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
 {
@@ -32,6 +34,7 @@ public sealed class OrganizationService(
         organizations.Add(organization);
         organizations.Add(OrganizationMember.Create(Guid.NewGuid(), organization.Id, userId, OrganizationRole.Admin, now));
         activity.Audit(organization.Id, userId, AuditActions.WorkspaceCreated, ActivityRecorder.OrganizationResource, organization.Id);
+        await pageTokens.AttachDefaultPageAsync(organization.Id, userId, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return OrganizationDto.From(organization, OrganizationRole.Admin);

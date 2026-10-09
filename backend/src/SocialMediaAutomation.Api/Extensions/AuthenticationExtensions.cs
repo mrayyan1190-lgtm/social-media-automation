@@ -52,12 +52,11 @@ internal static class AuthenticationExtensions
                 };
             });
 
-        // "Continue with Google" exists only when the deployment has a Google OAuth client (Authentication:Google).
-        if (configuration["Authentication:Google:ClientId"] is { Length: > 0 } googleClientId)
-            authentication.AddGoogle(options =>
+        // "Continue with Google": the OAuth client comes from platform settings (/internal/social-providers) or the
+        // deployment configuration (Authentication:Google), read when the options are built. AuthController refuses to
+        // start sign-in without one; the placeholder only satisfies the handler's validation on unrelated requests.
+        authentication.AddGoogle(options =>
             {
-                options.ClientId = googleClientId;
-                options.ClientSecret = configuration["Authentication:Google:ClientSecret"] ?? "";
                 options.CallbackPath = "/api/v1/auth/google/callback";
                 options.ClaimActions.MapJsonKey("email_verified", "email_verified");
                 // Lax, not None: browsers drop SameSite=None cookies on plain-http localhost, which would break the callback.
@@ -70,6 +69,11 @@ internal static class AuthenticationExtensions
                     return Task.CompletedTask;
                 };
             });
+        services.AddOptions<GoogleOptions>(GoogleDefaults.AuthenticationScheme).Configure<IProviderAppCache>((options, apps) =>
+        {
+            options.ClientId = apps.GoogleSignIn?.ClientId ?? "not-configured";
+            options.ClientSecret = apps.GoogleSignIn?.ClientSecret ?? "not-configured";
+        });
 
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())

@@ -273,6 +273,8 @@ public static class PlatformAuditActions
     public const string SocialProviderUpdated = "SOCIAL_PROVIDER_UPDATED";
     public const string SocialProviderSecretReplaced = "SOCIAL_PROVIDER_SECRET_REPLACED";
     public const string SocialProviderValidated = "SOCIAL_PROVIDER_VALIDATED";
+    public const string GoogleSignInUpdated = "GOOGLE_SIGN_IN_UPDATED";
+    public const string FacebookPageTokenConnected = "FACEBOOK_PAGE_TOKEN_CONNECTED";
     public const string WorkspaceSuspended = "WORKSPACE_SUSPENDED";
     public const string WorkspaceReactivated = "WORKSPACE_REACTIVATED";
     public const string UserDisabled = "USER_DISABLED";

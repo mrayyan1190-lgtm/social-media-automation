@@ -1,4 +1,5 @@
 using SocialMediaAutomation.Application.Abstractions;
+using SocialMediaAutomation.Application.Platform;
 using SocialMediaAutomation.Application.Audit.Services;
 using SocialMediaAutomation.Application.Authentication.DTOs;
 using SocialMediaAutomation.Application.Common.Authorization;
@@ -22,6 +23,7 @@ public sealed class AccountService(
     ISocialAccountRepository socialAccounts,
     IPasswordHasher passwordHasher,
     ActivityRecorder activity,
+    PageTokenConnectionService pageTokens,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
 {
@@ -74,6 +76,7 @@ public sealed class AccountService(
         organizations.Add(organization);
         organizations.Add(OrganizationMember.Create(Guid.NewGuid(), organization.Id, user.Id, OrganizationRole.Admin, now));
         activity.Audit(organization.Id, user.Id, AuditActions.WorkspaceCreated, ActivityRecorder.OrganizationResource, organization.Id);
+        await pageTokens.AttachDefaultPageAsync(organization.Id, user.Id, cancellationToken);
 
         // A concurrent sign-up with the same email hits the unique NormalizedEmail index and surfaces as a conflict.
         await unitOfWork.SaveChangesAsync(cancellationToken);

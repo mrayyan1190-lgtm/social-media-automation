@@ -21,6 +21,9 @@ public sealed record SaveSocialProviderCommand(PlatformProvider Provider, string
 
 public sealed record ProviderValidationDto(bool Valid, string Message);
 
+/// <summary>"Continue with Google". Source: PLATFORM (saved here), ENVIRONMENT (deployment configuration) or NONE. The secret is never returned.</summary>
+public sealed record GoogleSignInDto(string Source, string ClientId, bool SecretConfigured);
+
 /// <summary>
 /// The operator's provider apps (LinkedIn; Meta for Facebook and Instagram). Platform settings override the deployment
 /// configuration; secrets go to the secret store and are never displayed again.
@@ -141,6 +144,38 @@ public sealed class SocialProviderConfigurationService(
             config.SecretUpdatedAtUtc, config.UpdatedAtUtc, config.RowVersion.Length > 0 ? Convert.ToBase64String(config.RowVersion) : null, status,
             activity.LastSuccessAtUtc, activity.LastFailureAtUtc, activity.LastFailure, activity.FailuresLast24Hours);
     }
+
+    // Google sign-in is not a social publishing provider, so it lives in the secret store only (no provider row).
+    public const string GoogleClientIdSecret = "platform/google-sign-in/client-id";
+    public const string GoogleClientSecretSecret = "platform/google-sign-in/client-secret";
+
+    public async Task<GoogleSignInDto> GoogleSignInAsync(CancellationToken cancellationToken)
+    {
+        await systemAdmins.RequireAsync(cancellationToken);
+        return GoogleDto();
+    }
+
+    /// <summary>Saves the Google OAuth client; a blank secret keeps the stored one. Takes effect on the next sign-in, no restart.</summary>
+    public async Task<GoogleSignInDto> SaveGoogleSignInAsync(string clientId, string? clientSecret, CancellationToken cancellationToken)
+    {
+        await systemAdmins.RequireAsync(cancellationToken);
+        var id = Guard.Required(clientId, "Google Client ID", 200);
+        var replaceSecret = !string.IsNullOrWhiteSpace(clientSecret);
+        if (!replaceSecret && cache.GoogleSignIn is not { FromPlatform: true })
+            throw Guard.Invalid("Google Client Secret", "is required");
+        await secrets.SetAsync(GoogleClientIdSecret, id, cancellationToken);
+        if (replaceSecret)
+            await secrets.SetAsync(GoogleClientSecretSecret, Guard.Required(clientSecret, "Google Client Secret", 500), cancellationToken);
+        audit.Record(PlatformAuditActions.GoogleSignInUpdated, "SocialProvider", "GOOGLE", "Google sign-in",
+            metadata: new Dictionary<string, string?> { ["rotated"] = replaceSecret.ToString() });
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await cache.RefreshAsync(cancellationToken);
+        return GoogleDto();
+    }
+
+    private GoogleSignInDto GoogleDto() => cache.GoogleSignIn is { } app
+        ? new(app.FromPlatform ? "PLATFORM" : "ENVIRONMENT", app.ClientId, app.ClientSecret.Length > 0)
+        : new("NONE", "", false);
 
     /// <summary>Meta serves Facebook and Instagram with one app; Instagram's OAuth callback is the Facebook one with its own platform segment.</summary>
     public static string? InstagramRedirect(string facebookRedirect) =>

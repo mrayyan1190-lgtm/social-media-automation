@@ -8,7 +8,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { TopbarActionService } from '../../core/services/topbar-action.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
-import { ReviewSummary } from '../approvals/models/review.model';
+import { BLOCKED_HINT, ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
 import { SOCIAL_PLATFORMS, SocialPlatform } from '../../shared/models/platform.model';
 import { AiCapabilities, RewriteAction } from '../content/models/ai.model';
@@ -43,6 +43,8 @@ const IMPROVE_ACTIONS: { label: string; icon: string; action: RewriteAction; ins
   { label: 'More professional', icon: 'M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z', action: 'MoreProfessional', instruction: null },
   { label: 'Less promotional', icon: 'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M8 8l8 8', action: 'LessPromotional', instruction: null },
   { label: 'Fix grammar', icon: 'M5 13l4 4L19 7', action: 'Custom', instruction: 'Fix grammar, spelling and punctuation only. Keep the wording, tone and meaning.' },
+  { label: 'Remove unsupported claims', icon: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14', action: 'Custom',
+    instruction: 'Delete every statistic, customer result, testimonial, quote, guarantee, price, discount, award, ranking or partnership claim that the supplied facts do not state. Do not replace them with other claims or figures; keep the rest of the post, its tone and its CTA.' },
   { label: 'Add hashtags', icon: 'M9 4 7 20M17 4l-2 16M4 9h17M3 15h17', action: 'Custom', instruction: 'Keep the text as it is and add 3 to 5 relevant hashtags.' },
 ];
 
@@ -57,7 +59,7 @@ const IMPROVE_ACTIONS: { label: string; icon: string; action: RewriteAction; ins
   templateUrl: './composer.page.html',
   styleUrl: './composer.page.css',
   // Close an open Improve / Image menu when clicking anywhere else; a pasted image is uploaded like a dropped one.
-  host: { '(document:click)': 'closeMenus($event)', '(document:paste)': 'onPaste($event)' },
+  host: { '(document:click)': 'closeMenus($event)', '(document:paste)': 'onPaste($event)', '(document:keydown)': 'onViewerKey($event)' },
 })
 export class ComposerPage {
   private readonly router = inject(Router);
@@ -90,11 +92,18 @@ export class ComposerPage {
 
   // Editor state. Link and alt text have no field here but are kept unchanged on every save.
   protected readonly platform = signal<SocialPlatform | null>(null);
+  /**
+   * Where Submit / Approve sends the post (one or several platforms). The post's own platform is fixed; every other
+   * chosen platform gets its own copy of what is on screen, with its own review and approval.
+   */
+  protected readonly targets = signal<SocialPlatform[]>([]);
   protected readonly accountId = signal<string>('');
   protected readonly text = signal('');
   protected readonly link = signal('');
   /** Attached images in publishing order (the first is the cover). */
   protected readonly images = signal<AttachedImage[]>([]);
+  /** Index of the image open in the full-screen viewer, or null. */
+  protected readonly viewing = signal<number | null>(null);
   protected readonly maxImages = MAX_POST_IMAGES;
   protected readonly aiInstruction = signal('');
   /** What the platform offers (/internal/ai); only working modes and model choices are shown. */
@@ -117,7 +126,10 @@ export class ComposerPage {
     return o.text !== this.text() || o.link !== this.link().trim() || o.images !== imagesKey(this.content(null).images)
       || o.accountId !== this.accountId();
   });
-  protected readonly limit = computed(() => (this.platform() ? PLATFORM_TEXT_LIMITS[this.platform()!] : null));
+  /** The strictest limit of the chosen platforms, so the same text fits all of them. */
+  protected readonly limit = computed(() => (this.targets().length ? Math.min(...this.targets().map((p) => PLATFORM_TEXT_LIMITS[p])) : null));
+  /** Chosen platforms without a connected account (Submit / Approve waits for them). */
+  protected readonly missingTargets = computed(() => this.targets().filter((p) => (p === this.platform() ? !this.accountId() : !this.connected(p))));
   protected readonly length = computed(() => this.text().length + (this.link().trim() ? this.link().trim().length + 2 : 0));
   protected readonly platformAccounts = computed(() => this.accounts().filter((a) => a.platform === this.platform()));
   protected readonly latestReview = computed(() => this.reviews().at(0) ?? null);
@@ -132,9 +144,9 @@ export class ComposerPage {
     });
     // Submit for Review lives in the navbar while this page is open.
     effect(() => this.topbar.action.set(this.canEdit() && this.state() !== 'APPROVED' ? {
-      label: this.busy() === 'submit' ? 'Submitting…' : 'Submit for Review',
-      disabled: !!this.busy() || !this.accountId(),
-      title: this.accountId() ? '' : 'Choose an account first',
+      label: this.busy() === 'submit' ? (this.workspace.isAdmin() ? 'Approving…' : 'Submitting…') : this.workspace.isAdmin() ? 'Approve' : 'Submit for Review',
+      disabled: !!this.busy() || !this.targets().length || this.missingTargets().length > 0,
+      title: this.missingTargets().length ? 'Choose an account first' : '',
       run: () => void this.submitForReview(),
     } : null));
     effect(() => {
@@ -154,11 +166,49 @@ export class ComposerPage {
     return this.accounts().some((a) => a.platform === platform && a.isEligibleDestination);
   }
 
+  /** Connected platforms other than this post's (offered when this post's platform has no account). */
+  protected readonly otherConnected = computed(() => SOCIAL_PLATFORMS.filter((p) => p !== this.platform() && this.connected(p)));
+
+  /**
+   * A post's platform is fixed, so "Post to X instead" creates a new draft for X with what is on screen and its connected
+   * account, then opens it. The original draft is left untouched (it can be deleted from Drafts).
+   */
+  protected async copyTo(platform: SocialPlatform): Promise<void> {
+    const orgId = this.workspace.orgId();
+    const account = this.accounts().find((a) => a.platform === platform && a.isEligibleDestination);
+    if (!orgId || !account) return;
+    await this.run('save', async () => {
+      const created = await firstValueFrom(this.postsApi.create(orgId, platform, { ...this.content(null), socialAccountId: account.id }));
+      this.toast.success(`Created a ${platform} draft.`);
+      await this.router.navigateByUrl(`/${this.workspace.slug()}/composer/${created.id}`);
+    });
+  }
+
+  /** Full-screen viewer: Escape closes, arrow keys step through the post's images. */
+  protected onViewerKey(event: KeyboardEvent): void {
+    const i = this.viewing();
+    if (i === null) return;
+    const count = this.images().length;
+    if (event.key === 'Escape') this.viewing.set(null);
+    else if (event.key === 'ArrowRight') this.viewing.set((i + 1) % count);
+    else if (event.key === 'ArrowLeft') this.viewing.set((i - 1 + count) % count);
+  }
+
   /** The platform is fixed once the post exists; a new post picks one and its first connected account. */
   protected choosePlatform(platform: SocialPlatform): void {
     if (!this.isNew() || !this.canEdit()) return;
     this.platform.set(platform);
     this.accountId.set(this.accounts().find((a) => a.platform === platform && a.isEligibleDestination)?.id ?? '');
+  }
+
+  /** Publish to: one or several platforms; at least one stays chosen. A new post is saved under the first of them. */
+  protected toggleTarget(platform: SocialPlatform): void {
+    if (!this.canEdit()) return;
+    const all = this.targets();
+    if (all.includes(platform) && all.length === 1) return;
+    const next = SOCIAL_PLATFORMS.filter((p) => (p === platform ? !all.includes(p) : all.includes(p)));
+    this.targets.set(next);
+    if (this.isNew()) this.choosePlatform(next[0]);
   }
 
   // ---- Media ----------------------------------------------------------------------------------------
@@ -304,25 +354,54 @@ export class ComposerPage {
     await this.run('save', async () => {
       const before = this.post()?.currentVersionId;
       const post = await this.ensureSaved();
-      if (post && !this.isNew()) {
-        this.toast.success(post.currentVersionId !== before ? 'Saved.' : 'No changes to save.');
-      }
+      // ensureSaved is silent, so the AI edit / Submit flows that also call it show only their own message.
+      if (post) this.toast.success(!before ? 'Draft saved.' : post.currentVersionId !== before ? 'Saved.' : 'No changes to save.');
     });
   }
 
   protected async submitForReview(): Promise<void> {
     const orgId = this.workspace.orgId();
+    const targets = this.targets();
     await this.run('submit', async () => {
+      if (this.missingTargets().length) throw new Error(`No ${this.missingTargets().join(' / ')} account connected.`);
       const post = await this.ensureSaved();
       if (!orgId || !post) return;
-      // No reviewer is picked: any Admin decides. An Admin goes straight to the review; a Creator gets a blank composer
-      // for the next post, since the submitted one is locked until the Admin decides.
-      const review = await firstValueFrom(this.reviewsApi.submit(orgId, post.id, null, null, post.rowVersion));
+      // Every other chosen platform gets its own post with the same content and that platform's first connected account.
+      const posts = targets.includes(post.platform) ? [post] : [];
+      for (const platform of targets.filter((p) => p !== post.platform)) {
+        const account = this.accounts().find((a) => a.platform === platform && a.isEligibleDestination)!;
+        posts.push(await firstValueFrom(this.postsApi.create(orgId, platform, { ...this.content(post.currentVersion), socialAccountId: account.id }, post.id)));
+      }
+      // No reviewer is picked: any Admin decides. A Creator gets a blank composer for the next post, since the submitted
+      // one is locked until the Admin decides.
+      for (const target of posts) {
+        let review: ReviewSummary;
+        try {
+          review = await firstValueFrom(this.reviewsApi.submit(orgId, target.id, null, null, target.rowVersion));
+        } catch (error) {
+          const problem = toApiProblem(error);
+          if (problem.code !== 'SUBMISSION_BLOCKED') throw error;
+          this.problem.set({ ...problem, detail: `${target.platform}: ${problem.detail} ${BLOCKED_HINT}` });
+          return;
+        }
+        if (this.workspace.isAdmin()) {
+          // An Admin approves their own post in the same click; the server still records a human approval of this exact
+          // version and refuses it (distinct-reviewer policy, blocking claims), in which case the review page shows why.
+          try {
+            await firstValueFrom(this.reviewsApi.approve(orgId, review));
+          } catch (error) {
+            this.toast.error(toApiProblem(error).detail);
+            await this.router.navigate(['/approvals', review.id]);
+            return;
+          }
+        }
+      }
       if (this.workspace.isAdmin()) {
-        await this.router.navigate(['/approvals', review.id]);
+        this.toast.success('Approved. Schedule or publish it from here.');
+        await this.router.navigate(['/approvals'], { queryParams: { tab: 'approved' } });
         return;
       }
-      this.toast.success('Submitted for review. You can find it in Planner.');
+      this.toast.success(`Submitted for review${posts.length > 1 ? ` for ${posts.map((p) => p.platform).join(', ')}` : ''}. You can find it in Planner.`);
       await this.router.navigateByUrl(`/${this.workspace.slug()}/composer`);
     });
   }
@@ -353,7 +432,6 @@ export class ComposerPage {
       this.apply(created);
       // Same page instance keeps running (e.g. an AI edit that needed the draft saved first); only the URL changes.
       this.location.replaceState(`/${this.workspace.slug()}/composer/${created.id}`);
-      this.toast.success('Draft saved.');
       return created;
     }
     const saved = await firstValueFrom(this.postsApi.saveNewVersion(orgId, current.id, this.content(current.currentVersion), current.rowVersion));
@@ -386,7 +464,10 @@ export class ComposerPage {
     this.accounts.set(accounts);
     if (this.isNew() && !this.platform()) {
       const first = SOCIAL_PLATFORMS.find((p) => this.connected(p));
-      if (first) this.choosePlatform(first);
+      if (first) {
+        this.choosePlatform(first);
+        this.targets.set([first]);
+      }
     }
     this.preselectAccount();
   }
@@ -409,6 +490,9 @@ export class ComposerPage {
 
   private apply(post: Post): void {
     const v = post.currentVersion;
+    // The chosen platforms survive saving the same post again (or creating it); another post starts with its own platform.
+    const previous = this.post();
+    if (previous ? previous.id !== post.id : !this.targets().includes(post.platform)) this.targets.set([post.platform]);
     this.post.set(post);
     this.platform.set(post.platform);
     this.accountId.set(v.socialAccountId ?? '');

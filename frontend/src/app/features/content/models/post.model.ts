@@ -66,6 +66,8 @@ export interface Post {
   updatedAtUtc: string;
   rowVersion: string;
   currentVersion: PostVersion;
+  /** Shared by the posts written together for several platforms (its own id otherwise); reviewed and scheduled as one item. */
+  groupId: string;
 }
 
 /** Client-side mirror of the API's platform rules, for early feedback only. */

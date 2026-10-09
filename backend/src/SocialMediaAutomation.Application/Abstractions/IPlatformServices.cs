@@ -49,7 +49,12 @@ public interface IPlatformRepository
 public interface IProviderAppCache
 {
     Task RefreshAsync(CancellationToken cancellationToken);
+
+    /// <summary>"Continue with Google" credentials: platform settings first, else deployment configuration; null when neither has them.</summary>
+    GoogleSignInApp? GoogleSignIn { get; }
 }
+
+public sealed record GoogleSignInApp(string ClientId, string ClientSecret, bool FromPlatform);
 
 /// <summary>Checks provider app credentials against the provider, where the provider offers a way to do so.</summary>
 public interface IProviderAppValidator

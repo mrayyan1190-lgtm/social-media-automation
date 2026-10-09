@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '../internal-api.service';
+import { NoticeComponent } from '../../../shared/components/notice.component';
 
 /**
  * The system LLM used by every workspace. The API key is write-only: after saving, the page only shows that a key is
@@ -11,11 +12,11 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
  */
 @Component({
   selector: 'app-internal-ai-page',
-  imports: [FormsModule, ProblemBannerComponent],
+  imports: [NoticeComponent, FormsModule, ProblemBannerComponent],
   template: `
     <div class="page-header"><div><h1>AI / LLM</h1><p class="muted">The hosted model all workspaces use for generation, rewrites and evaluation.</p></div></div>
     <app-problem-banner [problem]="problem()" />
-    @if (notice(); as n) { <p class="banner success" role="status">{{ n }}</p> }
+    <app-notice [message]="notice()" />
 
     @if (c(); as cfg) {
       @if (cfg.source === 'ENVIRONMENT') {
@@ -70,7 +71,7 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
             <div class="statline"><span>Last Failure</span><span [class.problem-text]="!!cfg.status.lastFailure">{{ cfg.status.lastFailure ? cfg.status.lastFailure + ' · ' + when(cfg.status.lastFailureAtUtc) : '—' }}</span></div>
           </div>
           @if (test(); as t) {
-            <p [class]="'banner ' + (t.succeeded && t.modelAvailable ? 'success' : 'error')">{{ t.message }}</p>
+            <app-notice [message]="t.message" [tone]="t.succeeded && t.modelAvailable ? 'success' : 'error'" />
           }
           <div class="actions">
             <button type="button" (click)="testConnection()" [disabled]="busy()">{{ busy() === 'test' ? 'Testing…' : 'Test Connection' }}</button>
@@ -157,7 +158,7 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
             <div class="statline"><span>Failed Today</span><strong [class.text-danger]="img.status.failedToday > 0">{{ img.status.failedToday }}</strong></div>
             <div class="statline"><span>Last Failure</span><span [class.problem-text]="!!img.status.lastFailure">{{ img.status.lastFailure ? img.status.lastFailure + ' · ' + when(img.status.lastFailureAtUtc) : '—' }}</span></div>
           </div>
-          @if (imgTest(); as t) { <p [class]="'banner ' + (t.succeeded && t.modelAvailable ? 'success' : 'error')">{{ t.message }}</p> }
+          @if (imgTest(); as t) { <app-notice [message]="t.message" [tone]="t.succeeded && t.modelAvailable ? 'success' : 'error'" /> }
           <div class="actions">
             <button type="button" (click)="testImage()" [disabled]="busy()">{{ busy() === 'img-test' ? 'Testing…' : 'Test Connection' }}</button>
             <button type="submit" class="primary" [disabled]="busy() || !imgModel.trim()">{{ busy() === 'img-save' ? 'Saving…' : 'Save Image Settings' }}</button>
@@ -194,7 +195,7 @@ import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '
             <div class="statline"><span>Token</span><span>{{ vis.tokenSource === 'VISION_KEY' ? 'Separate vision key' : vis.tokenSource === 'LLM_KEY' ? 'AI / LLM key' : 'None' }}</span></div>
             <div class="statline"><span>Images per Request</span><strong>up to 4</strong></div>
           </div>
-          @if (visTest(); as t) { <p [class]="'banner ' + (t.succeeded ? 'success' : 'error')">{{ t.message }}</p> }
+          @if (visTest(); as t) { <app-notice [message]="t.message" [tone]="t.succeeded ? 'success' : 'error'" /> }
           <div class="actions">
             <button type="button" (click)="testVision()" [disabled]="busy() || vis.tokenSource === 'NONE'" title="Save a new token first; the test uses the saved token">{{ busy() === 'vis-test' ? 'Testing…' : 'Test Connection' }}</button>
             <button type="submit" class="primary" [disabled]="busy()">{{ busy() === 'vis-save' ? 'Saving…' : 'Save Vision Settings' }}</button>

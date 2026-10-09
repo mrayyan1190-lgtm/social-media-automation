@@ -141,11 +141,12 @@ public sealed class AiGenerationProcessor(
         var raw = await CallAsync(request, AiCallPurpose.Generation, AiVersions.GenerationPrompt, connection,
             PromptBuilder.Generation(snapshot) with { ImageUrls = imageUrls }, cancellationToken);
         var variants = ParseLogged(request, () => OutputParser.ParseContent(raw, request.Platforms), raw);
-        // "All platforms": the model is asked for identical variants; enforce it so every draft carries the same post.
+        // "All platforms": one shared post, saved once (under the first requested platform). Composer sends a copy to each
+        // platform the user then picks, so every platform still gets its own post, review and approval.
         if (snapshot.Unified == true)
         {
-            var shared = variants.Values.First();
-            variants = variants.Keys.ToDictionary(p => p, _ => shared);
+            var first = request.Platforms.First(variants.ContainsKey);
+            variants = new Dictionary<SocialPlatform, GeneratedVariant> { [first] = variants[first] };
         }
         if (snapshot.Vision is not null)
             await ReportAsync(request, AiRequestStage.WRITING, cancellationToken);
@@ -156,6 +157,8 @@ public sealed class AiGenerationProcessor(
             ? await PlannedImagesAsync(request, snapshot, plan, imagePrompt, ImageCountOf(raw), variants.Values.First(), cancellationToken)
             : (snapshot.Vision is { Attach: true } ? uploaded : [], null);
         // Every generation writes new drafts; nothing already under review or approved is touched.
+        // Drafts of one generation for several platforms form one group (reviewed and scheduled as one item).
+        Guid? groupId = variants.Count > 1 ? Guid.NewGuid() : null;
         foreach (var (platform, variant) in variants)
         {
             // The same images go on every draft, each one only where its platform accepts it.
@@ -167,7 +170,7 @@ public sealed class AiGenerationProcessor(
             var destination = await DefaultDestinationAsync(request.OrganizationId, platform, cancellationToken);
             var (post, version) = Post.Create(Guid.NewGuid(), Guid.NewGuid(), request.OrganizationId, platform,
                 Content(variant, null) with { Images = ImagesOf(media), SocialAccountId = destination?.Id }, media, destination,
-                PostVersionSource.AiGeneration, request.RequestedByUserId, Now);
+                PostVersionSource.AiGeneration, request.RequestedByUserId, Now, groupId);
             posts.Add(post);
             posts.Add(version);
             activity.VersionCreated(post, version, request.RequestedByUserId, revokedApprovalId: null);

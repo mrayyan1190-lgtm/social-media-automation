@@ -5,7 +5,7 @@
     }
     <button type="button" [class.active]="tab() === 'mine'" (click)="tab.set('mine')">Submitted by me @if (count('mine')) { <span class="cnt">{{ count('mine') }}</span> }</button>
     <button type="button" [class.active]="tab() === 'changes'" (click)="tab.set('changes')">Changes requested @if (count('changes')) { <span class="cnt">{{ count('changes') }}</span> }</button>
-    <button type="button" [class.active]="tab() === 'approved'" (click)="tab.set('approved')">Approved @if (ready().length) { <span class="cnt">{{ ready().length }}</span> }</button>
+    <button type="button" [class.active]="tab() === 'approved'" (click)="tab.set('approved')">Approved @if (readyGroups().length) { <span class="cnt">{{ readyGroups().length }}</span> }</button>
   </nav>
 
   <app-problem-banner [problem]="problem()" />
@@ -15,10 +15,11 @@
   } @else if (tab() === 'approved') {
     <!-- Approved and still the post's current version: schedule or publish it here. -->
     <div class="ap-stack">
-      @for (item of ready(); track item.review.id) {
+      @for (g of readyGroups(); track g.items[0].review.id) {
+        @let item = g.items[0];
         <section class="ap-card ap-acard">
           <div class="ap-acard-head">
-            <app-platform-icon [platform]="item.review.platform" />
+            <span class="ap-plats">@for (x of g.items; track x.post.id) { <app-platform-icon [platform]="x.post.platform" /> }</span>
             <div class="ap-txt">
               <a class="ap-title" [routerLink]="['/approvals', item.review.id]" [title]="item.review.excerpt">{{ item.review.excerpt }}</a>
               <div class="ap-meta">
@@ -27,7 +28,7 @@
             </div>
             <span class="ap-chip ap-approved"><span class="dot"></span>Approved</span>
           </div>
-          <app-publication-panel [post]="item.post" />
+          <app-publication-panel [posts]="g.posts" />
         </section>
       } @empty {
         <div class="ap-card">
@@ -40,9 +41,10 @@
     </div>
   } @else {
     <div class="ap-card">
-      @for (r of shown(); track r.id) {
+      @for (rs of shown(); track rs[0].id) {
+        @let r = rs[0];
         <div class="ap-row">
-          <app-platform-icon [platform]="r.platform" />
+          <span class="ap-plats">@for (x of rs; track x.id) { <app-platform-icon [platform]="x.platform" /> }</span>
           <div class="ap-txt">
             <a class="ap-title" [routerLink]="['/approvals', r.id]" [title]="r.excerpt">{{ r.excerpt }}</a>
             <div class="ap-meta">

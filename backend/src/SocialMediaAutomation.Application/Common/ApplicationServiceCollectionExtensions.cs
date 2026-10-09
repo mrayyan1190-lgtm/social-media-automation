@@ -51,6 +51,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<SignInRecorder>();
         services.AddScoped<PlatformAiConfigurationService>();
         services.AddScoped<SocialProviderConfigurationService>();
+        services.AddScoped<PageTokenConnectionService>();
         services.AddScoped<InternalAdminService>();
         services.AddScoped<InternalOperationsService>();
         services.AddScoped<SystemHealthService>();

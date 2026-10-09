@@ -24,6 +24,9 @@
 /* Card */
 .pl-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(16, 31, 73, .07); }
 
+/* The row "more" menu must escape the card, so the list card cannot clip. */
+.pl-card-list { overflow: visible; }
+
 /* Calendar */
 .pl-cal-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
 .pl-cal-title { font-size: 17px; font-weight: 700; color: var(--navy-ink); }
@@ -125,9 +128,9 @@
 .pl-more summary svg { width: 15px; height: 15px; }
 .pl-menu { position: absolute; right: 0; top: 32px; z-index: 5; min-width: 170px; padding: 6px; border-radius: 10px; background: #fff;
   border: 1px solid #e9edf5; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); display: flex; flex-direction: column; }
-.pl-menu a, .pl-menu button { padding: 8px 10px; border-radius: 6px; color: #0f172a; text-decoration: none; font-size: 13px;
+.pl-menu a, .pl-menu button { display: flex; justify-content: flex-start; width: 100%; min-height: 0; padding: 8px 10px; border-radius: 6px; color: #0f172a; text-decoration: none; font-size: 13px;
   background: none; border: 0; text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
-.pl-menu button.danger { color: #b42318; }
+.pl-menu button.danger { color: #b42318; border: 0; }
 .pl-menu a:hover, .pl-menu button:hover { background: #f3f6fb; }
 .pl-empty { padding: 34px 20px; text-align: center; font-size: 13px; color: var(--faint); }
 

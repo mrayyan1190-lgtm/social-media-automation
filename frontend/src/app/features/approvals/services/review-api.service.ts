@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { ifMatch } from '../../../core/http/api-problem';
-import { ReviewComment, ReviewDetail, ReviewStatus, ReviewSummary } from '../models/review.model';
+import { ReviewDetail, ReviewStatus, ReviewSummary } from '../models/review.model';
 
 /** Explicit review commands; every decision carries the review's row version so a stale screen cannot decide. */
 @Injectable({ providedIn: 'root' })
@@ -32,10 +32,6 @@ export class ReviewApiService {
 
   requestChanges(orgId: string, review: ReviewSummary, explanation: string): Observable<ReviewSummary> {
     return this.http.post<ReviewSummary>(`${this.org(orgId)}/review-requests/${review.id}/request-changes`, { explanation }, { headers: ifMatch(review.rowVersion) });
-  }
-
-  comment(orgId: string, reviewId: string, body: string): Observable<ReviewComment> {
-    return this.http.post<ReviewComment>(`${this.org(orgId)}/review-requests/${reviewId}/comments`, { body });
   }
 
   private org(orgId: string): string {

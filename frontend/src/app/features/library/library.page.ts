@@ -7,6 +7,7 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
 import { MediaLibraryItem } from '../content/models/post.model';
 import { MediaApiService } from '../content/services/media-api.service';
 import { formatInZone } from '../publications/models/time-zones';
+import { NoticeComponent } from '../../shared/components/notice.component';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
@@ -16,7 +17,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
  */
 @Component({
   selector: 'app-library-page',
-  imports: [IconComponent, ProblemBannerComponent],
+  imports: [NoticeComponent, IconComponent, ProblemBannerComponent],
   template: `
     <div class="page-header">
       <div>
@@ -30,7 +31,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
         </label>
       }
     </div>
-    @if (uploadError(); as e) { <p class="banner error" role="alert">{{ e }}</p> }
+    <app-notice [message]="uploadError()" tone="error" />
     <app-problem-banner [problem]="problem()" />
 
     @if (loading() && !items().length) {

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using SocialMediaAutomation.Api.Extensions;
 using SocialMediaAutomation.Api.Contracts;
 using SocialMediaAutomation.Api.Middleware;
@@ -54,10 +55,14 @@ public sealed class AuthController(AccountService accounts, SignInRecorder signI
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitingExtensions.Login)]
     [HttpGet("google")]
-    public async Task<IActionResult> Google([FromServices] IAuthenticationSchemeProvider schemes) =>
-        await schemes.GetSchemeAsync(GoogleDefaults.AuthenticationScheme) is null
-            ? Redirect(GoogleSignIn.LoginPage(HttpContext, "google_not_configured"))
-            : Challenge(GoogleDefaults.AuthenticationScheme);
+    public IActionResult Google([FromServices] IProviderAppCache apps, [FromServices] IOptionsMonitorCache<GoogleOptions> googleOptions)
+    {
+        if (apps.GoogleSignIn is null)
+            return Redirect(GoogleSignIn.LoginPage(HttpContext, "google_not_configured"));
+        // The client may have been changed in platform settings since the handler options were built; rebuild them.
+        googleOptions.TryRemove(GoogleDefaults.AuthenticationScheme);
+        return Challenge(GoogleDefaults.AuthenticationScheme);
+    }
 
     [HttpPost("logout")]
     public async Task<IActionResult> Logout(CancellationToken cancellationToken)

@@ -3,7 +3,7 @@ import { Component, ViewEncapsulation, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { AuthService } from '../../core/auth/auth.service';
+import { AuthService, ONBOARDING_ROUTES } from '../../core/auth/auth.service';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { httpUrlValidator } from '../../shared/validators/http-url.validator';
 import { BRAND_TONES, BrandTone } from '../settings/models/brand-profile.model';
@@ -47,7 +47,10 @@ export class BrandStepPage {
       const v = this.form.getRawValue();
       // First save of the workspace's single profile: no row version yet.
       await firstValueFrom(this.brandProfiles.save(orgId, { ...v, website: v.website.trim() || null, prohibitedTerms: [] }, null));
-      await this.router.navigateByUrl(await this.auth.nextOnboardingRoute());
+      // Always show the social step after the brand step, even when a destination (e.g. the workspace's default Facebook
+      // Page) already counts as connected: the user sees it and may add LinkedIn or Instagram before continuing.
+      const next = await this.auth.nextOnboardingRoute();
+      await this.router.navigateByUrl(next === ONBOARDING_ROUTES.COMPLETE ? ONBOARDING_ROUTES.SOCIAL_CONNECTIONS : next);
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {

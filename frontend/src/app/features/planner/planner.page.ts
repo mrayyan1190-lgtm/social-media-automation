@@ -224,6 +224,18 @@ export class PlannerPage {
     }
   }
 
+  protected async deleteDraft(r: Row): Promise<void> {
+    const orgId = this.workspace.orgId();
+    if (!orgId || !confirm('Delete this draft? It will be removed from all lists.')) return;
+    try {
+      await firstValueFrom(this.postsApi.archive(orgId, await firstValueFrom(this.postsApi.get(orgId, r.id))));
+      this.toast.success('Draft deleted.');
+      await this.load(orgId);
+    } catch (error) {
+      this.problem.set(toApiProblem(error));
+    }
+  }
+
   private async load(orgId: string): Promise<void> {
     this.loading.set(true);
     this.problem.set(null);

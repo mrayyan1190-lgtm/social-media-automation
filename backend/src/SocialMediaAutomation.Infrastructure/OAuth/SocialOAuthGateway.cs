@@ -38,6 +38,9 @@ internal sealed class SocialOAuthGateway(ProviderAppSource apps, IHttpClientFact
     public Task<IReadOnlyList<DiscoveredAccount>> DiscoverAccountsAsync(SocialPlatform platform, OAuthGrant grant, CancellationToken cancellationToken) =>
         Client(platform).DiscoverAccountsAsync(grant, cancellationToken);
 
+    public Task<OAuthGrant> InspectFacebookPageTokenAsync(string pageToken, CancellationToken cancellationToken) =>
+        ((MetaOAuthClient)Client(SocialPlatform.Facebook)).InspectPageTokenAsync(pageToken, cancellationToken);
+
     private IProviderOAuthClient Client(SocialPlatform platform)
     {
         var app = apps.Get(platform);

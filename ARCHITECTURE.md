@@ -1018,6 +1018,24 @@ Organization
 
 Avoid overengineering these models for MVP.
 
+## 23.1 Approved exception: Facebook Page token entry
+
+Approved by the product owner (2026-10-09). Besides the OAuth flow, a **system administrator** may connect a Facebook
+Page to a workspace from **Internal → Social Providers → Facebook Page token** by pasting a Page access token.
+
+- The server verifies the token with Meta (`debug_token` using the configured Meta app): valid, type `PAGE`, issued to
+  the configured app. `/me` gives the Page id and name.
+- It is stored like an OAuth grant: an `OAuthConnection` (ExternalUserId = Page id) holding the protected token and its
+  expiry, never returned or logged; a LIVE `SocialAccount` for the Page with the extra capability `page_token`, which tells
+  the Facebook publisher the stored token already is the Page token.
+- Workspace audit (`SOCIAL_CONNECTION_CONNECTED`, method `PAGE_TOKEN`) and platform audit (`FACEBOOK_PAGE_TOKEN_CONNECTED`).
+- The destination uses the normal review, approval and publication-job pipeline. When the token expires, jobs become
+  ACTION_REQUIRED until a new token is pasted or the Page is reconnected through OAuth.
+- The token passes through the internal admin's browser once (write-only field), like the provider app secrets.
+- "All active workspaces" also stores the checked grant as the default (`platform/facebook-page-token/default`, encrypted).
+  Every workspace created afterwards (sign-up or Create workspace) is connected to that Page in the same transaction,
+  without a Meta call, until the token expires (audit method `DEFAULT_PAGE_TOKEN`).
+
 ---
 
 # 24. Social Execution Modes

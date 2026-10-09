@@ -16,8 +16,14 @@ export class PostApiService {
   }
 
   /** Creates the post with Version 1. */
-  create(orgId: string, platform: SocialPlatform, content: PostContent): Observable<Post> {
-    return this.http.post<Post>(`${this.org(orgId)}/posts`, { platform, ...content });
+  /** groupWithPostId: this post is a platform copy of that post, so the two are reviewed and scheduled together. */
+  create(orgId: string, platform: SocialPlatform, content: PostContent, groupWithPostId: string | null = null): Observable<Post> {
+    return this.http.post<Post>(`${this.org(orgId)}/posts`, { platform, ...content, groupWithPostId });
+  }
+
+  /** "Delete draft": archives a DRAFT / CHANGES_REQUESTED post; its history is kept. */
+  archive(orgId: string, post: Post): Observable<void> {
+    return this.http.post<void>(`${this.org(orgId)}/posts/${post.id}/archive`, {}, { headers: ifMatch(post.rowVersion) });
   }
 
   get(orgId: string, postId: string): Observable<Post> {
