@@ -1,0 +1,157 @@
+<div class="tw-page admin-home relative antialiased">
+<svg xmlns="http://www.w3.org/2000/svg" class="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+  <symbol id="ic-sparkle" viewBox="0 0 24 24"><path d="m12 2 2.25 7.75L22 12l-7.75 2.25L12 22l-2.25-7.75L2 12l7.75-2.25L12 2Z"/></symbol>
+  <symbol id="ic-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+  <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.7"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  <symbol id="ic-file" viewBox="0 0 24 24"><path d="M5 2h9l5 5v14H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"/><path d="M14 2v6h5M8 13h8M8 17h6"/></symbol>
+  <symbol id="ic-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></symbol>
+  <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 20c.5 2 3.5 2 4 0"/></symbol>
+  <symbol id="ic-close" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 .2l2-2a5 5 0 0 0-7-7L10 6m4 5a5 5 0 0 0-7-.2l-2 2a5 5 0 0 0 7 7l2-2"/></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="ic-trend" viewBox="0 0 24 24"><path d="M3 17 9 11l4 4 8-9M15 6h6v6"/></symbol>
+</svg>
+<div class="bg-page"></div>
+<main class="relative mx-auto max-w-[1480px] px-4 pb-12 pt-5 sm:px-6 sm:pt-7 lg:px-8 xl:px-10">
+  <app-problem-banner [problem]="problem()" />
+  <!-- This is the page title, not a navigation bar. -->
+  <header class="enter mb-5 flex flex-wrap items-center justify-between gap-4 sm:mb-6">
+    <div>
+      <p class="text-[10px] font-extrabold uppercase tracking-[.22em] text-[#7488A9]">CREATIVE WORKSPACE <span class="mx-2 text-[#B8AECF]">/</span> HOME</p>
+      <h1 class="font-display mt-1 text-[clamp(24px,2.35vw,33px)] font-extrabold leading-[1.17] tracking-[-.065em] text-[#182F4E]">{{ greeting() }}<span class="text-[#A294C8]">.</span> Your studio is ready.</h1>
+    </div>
+    <div class="flex flex-wrap items-center gap-2.5">
+      <span class="hidden items-center gap-2 rounded-full border border-white/90 bg-white/65 px-3.5 py-2.5 text-[11px] font-bold text-[#7186A4] shadow-sm sm:inline-flex"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.7]"><use href="#ic-calendar"/></svg> {{ today() }}</span>
+      <button type="button" id="jumpToActivity" (click)="scrollToActivity(activitySection)" class="focus-ui hidden items-center gap-1.5 rounded-full border border-white/90 bg-white/80 px-3.5 py-2.5 text-[11px] font-extrabold text-[#4D6593] shadow-sm transition hover:bg-white hover:text-[#4D4EA0] sm:inline-flex">Activity <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#ic-arrow"/></svg></button>
+      <button type="button" (click)="openCreate()" class="focus-ui inline-flex h-10 items-center gap-2 rounded-full bg-[#273E7B] px-4 text-[12px] font-bold text-white shadow-[0_9px_22px_rgba(34,53,88,.17)] transition hover:-translate-y-0.5 hover:bg-[#384DA0]"><svg class="h-3.5 w-3.5 fill-current"><use href="#ic-sparkle"/></svg>Create with AI</button>
+    </div>
+  </header>
+
+  <!-- Main visual row: AI studio and beautiful round chart. -->
+  <section class="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5" aria-label="Your content overview">
+    <article class="home-hero enter enter-delay relative isolate min-h-[284px] overflow-hidden rounded-[27px] p-6 sm:p-7 lg:col-span-7 lg:min-h-[284px] xl:p-8">
+      <div class="pointer-events-none absolute -right-24 -top-32 h-[350px] w-[350px] rounded-full border-[54px] border-white/30"></div>
+      <div class="pointer-events-none absolute -bottom-44 right-[27%] h-[300px] w-[300px] rounded-full bg-white/20 blur-[20px]"></div>
+      <div class="hero-copy relative z-10 max-w-[57%] min-w-[210px] sm:max-w-[52%] lg:max-w-[56%]">
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-white/90 bg-white/65 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.13em] text-[#6477A0]"><svg class="h-3 w-3 fill-current"><use href="#ic-sparkle"/></svg> AI IMAGE STUDIO</span>
+        <h2 class="font-display mt-4 max-w-[390px] text-[clamp(25px,2.3vw,35px)] font-extrabold leading-[1.17] tracking-[-.075em] text-[#1E3656]">Your idea.<br/><span class="text-[#645DA9]">Something amazing.</span></h2>
+        <p class="mt-2.5 max-w-[305px] text-[12px] font-medium leading-[1.65] text-[#647D99] sm:text-[13px]">Create beautiful image posts, then send the final version for review.</p>
+        <button type="button" (click)="openCreate()" class="focus-ui hover-up mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-[#243D78] px-5 text-[12px] font-extrabold text-white shadow-[0_10px_26px_rgba(40,64,108,.19)]"><svg class="h-3.5 w-3.5 fill-current"><use href="#ic-sparkle"/></svg>Make a post with AI <svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-arrow"/></svg></button>
+      </div>
+      <div class="hero-visual pointer-events-none absolute inset-y-0 right-0 w-[51%] overflow-hidden sm:w-[48%]" aria-hidden="true">
+        <div class="hero-orbit absolute right-[-42px] top-[-30px] h-[340px] w-[340px] rounded-full sm:right-[-20px]"></div>
+        <div class="floating-illustration absolute right-[14%] top-[24px] w-[188px] rotate-[7deg] rounded-[18px] border border-white bg-white p-2.5 shadow-[0_25px_50px_rgba(72,75,120,.22)] sm:right-[17%] sm:top-[19px] sm:w-[215px] xl:w-[235px]" style="--angle:7deg">
+          <div class="flex items-center justify-between gap-1.5 pb-2"><div class="flex items-center gap-1.5"><div class="grid h-6 w-6 place-items-center rounded-lg bg-[#E6F2FD] text-[#5582A9]"><svg class="h-3.5 w-3.5 fill-current"><use href="#ic-sparkle"/></svg></div><span class="text-[9px] font-extrabold text-[#325071]">Post preview</span></div><span class="rounded-full bg-[#EEF2FA] px-2 py-0.5 text-[7px] font-bold text-[#8F9FB5]">Draft v2</span></div>
+          <div class="post-art art-a relative flex h-[143px] flex-col justify-end overflow-hidden rounded-[12px] p-4 sm:h-[155px]"><div class="grid-pattern absolute inset-0 opacity-40"></div><span class="relative z-10 text-[6px] font-extrabold tracking-[.18em] text-[#476995]">YOUR CREATIVE SPACE</span><p class="font-display relative z-10 mt-1 text-[20px] font-extrabold leading-[1.02] tracking-[-.075em] text-[#284464]">MAKE ROOM<br/><span class="text-[#6475AD]">FOR IDEAS.</span></p></div>
+          <div class="flex items-center justify-between pt-2"><span class="text-[8px] font-bold text-[#94A4B9]">Image + caption</span><span class="rounded-full bg-[#EAF4F8] px-2 py-1 text-[7px] font-bold text-[#638DAA]">LinkedIn</span></div>
+        </div>
+        <div class="floating-small absolute right-[1%] top-[78px] rounded-xl border border-white bg-white/95 px-3.5 py-2.5 shadow-[0_12px_27px_rgba(80,93,123,.15)] sm:right-[3%]"><div class="flex items-center gap-2"><div class="grid h-6 w-6 place-items-center rounded-full bg-[#DCF4EB] text-[#3F9B79]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2.6"><use href="#ic-check"/></svg></div><div><p class="text-[9px] font-extrabold text-[#2A4968]">Approved</p><p class="text-[7px] font-semibold text-[#A0AEC0]">Exact version</p></div></div></div>
+        <div class="floating-later absolute bottom-[25px] left-[2%] rounded-[13px] border border-white bg-white/95 p-2.5 shadow-[0_10px_25px_rgba(87,93,120,.14)]"><div class="flex items-center gap-2"><svg class="h-4 w-4 fill-none stroke-[#7B91B6] stroke-2"><use href="#ic-calendar"/></svg><div class="flex items-center gap-1"><span class="rounded bg-[#E8EFF8] px-1.5 py-1 text-[8px] font-bold text-[#829ABB]">12</span><span class="rounded bg-[#D8DDF5] px-1.5 py-1 text-[8px] font-bold text-[#5F79A6]">13</span><span class="rounded bg-[#EADBF0] px-1.5 py-1 text-[8px] font-bold text-[#9374A9]">14</span></div></div></div>
+      </div>
+    </article>
+
+    <article class="glass-panel flow-panel color-accent-line enter enter-delay2 flex min-h-[284px] flex-col rounded-[27px] p-5 sm:p-6 lg:col-span-5">
+      <div class="flex items-center justify-between gap-3"><div><h2 class="font-display text-[17px] font-extrabold tracking-[-.045em] text-[#213959]">Publishing overview</h2><p class="mt-0.5 text-[11px] font-medium text-[#91A0B7]">Your publishing workflow</p></div><span class="grid h-9 w-9 place-items-center rounded-xl bg-[#DFD6FA] text-[#6D61C3]"><svg class="h-4.5 w-4.5 fill-none stroke-current stroke-2"><use href="#ic-trend"/></svg></span></div>
+      <div class="mt-3 flex flex-1 items-center justify-around gap-2 sm:gap-4">
+        <div class="chart-ring relative h-[164px] w-[164px] shrink-0 sm:h-[176px] sm:w-[176px]"><svg viewBox="0 0 180 180" class="h-full w-full overflow-visible" role="img" [attr.aria-label]="overview().drafts + ' of ' + overview().total + ' posts are drafts; ' + overview().review + ' in review, ' + overview().scheduled + ' scheduled, ' + overview().published + ' published'"><defs><linearGradient id="donutGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4581CF"/><stop offset="52%" stop-color="#796CD4"/><stop offset="100%" stop-color="#D997B6"/></linearGradient></defs><circle cx="90" cy="90" r="61" fill="none" stroke="#EAEAF4" stroke-width="19"/><circle id="donutRing" cx="90" cy="90" r="61" fill="none" stroke="url(#donutGradient)" stroke-width="19" stroke-linecap="round" [attr.stroke-dasharray]="ring" [style.stroke-dashoffset]="overview().offset" class="donut-progress"/></svg><div class="absolute inset-0 flex flex-col items-center justify-center"><strong id="totalPosts" class="font-display text-[40px] font-extrabold leading-none tracking-[-.075em] text-[#203858]">{{ overview().total }}</strong><span class="mt-1 text-[11px] font-bold text-[#899AB0]">total posts</span></div></div>
+        <div class="chart-legend w-full max-w-[180px] space-y-2.5 text-[11px] sm:max-w-[190px]">
+          <a [routerLink]="ws('/planner')" [queryParams]="{ status: 'Draft' }" class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 font-bold text-[#637792]"><i class="h-2.5 w-2.5 rounded-[4px] bg-[#8073D0]"></i> Drafts</span><strong id="draftsCount" class="font-display text-[16px] font-extrabold text-[#223A58]">{{ overview().drafts }}</strong></a>
+          <a [routerLink]="ws('/approvals')" class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 font-bold text-[#637792]"><i class="h-2.5 w-2.5 rounded-[4px] bg-[#E8AC90]"></i> In review</span><strong class="font-display text-[16px] font-extrabold text-[#223A58]">{{ overview().review }}</strong></a>
+          <a [routerLink]="ws('/planner')" [queryParams]="{ status: 'Scheduled' }" class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 font-bold text-[#637792]"><i class="h-2.5 w-2.5 rounded-[4px] bg-[#65AFD7]"></i> Scheduled</span><strong class="font-display text-[16px] font-extrabold text-[#223A58]">{{ overview().scheduled }}</strong></a>
+          <a [routerLink]="ws('/planner')" [queryParams]="{ status: 'Published' }" class="flex items-center justify-between gap-2"><span class="flex items-center gap-2 font-bold text-[#637792]"><i class="h-2.5 w-2.5 rounded-[4px] bg-[#66BD9C]"></i> Published</span><strong class="font-display text-[16px] font-extrabold text-[#223A58]">{{ overview().published }}</strong></a>
+          <div class="border-t border-[#E9EDF4] pt-2 text-[10px] font-semibold text-[#9BA9BB]">Publishing success: {{ overview().success }}</div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="mt-5 grid grid-cols-1 gap-4 lg:mt-6 lg:grid-cols-12 lg:gap-5">
+    <article id="postsSection" class="glass-panel content-panel color-accent-line min-w-0 rounded-[25px] p-4 sm:p-5 lg:col-span-8">
+      <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-display text-[17px] font-extrabold tracking-[-.04em] text-[#213B5B]">Your content</h3><p class="mt-0.5 text-[11px] text-[#8CA0B9]">Ready for edits, approval and scheduling</p></div><a [routerLink]="ws('/composer')" class="focus-ui flex items-center gap-1.5 rounded-full border border-[#E4E8F4] bg-white px-3 py-2 text-[11px] font-extrabold text-[#647DA4] hover:bg-[#F5F7FC]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#ic-plus"/></svg> New draft</a></div>
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><div class="flex items-center gap-0.5 rounded-[12px] bg-[#DDE6F7] p-1" role="tablist">
+        @for (tab of [{ id: 'all', label: 'All' }, { id: 'draft', label: 'Drafts' }, { id: 'scheduled', label: 'Scheduled' }]; track tab.id) {
+          <button class="tab-btn focus-ui rounded-[9px] px-3 py-1.5 text-[11px] font-bold" role="tab" [attr.data-filter]="tab.id" [attr.aria-selected]="filter() === tab.id" (click)="filter.set($any(tab.id))" type="button">{{ tab.label }}</button>
+        }
+      </div><label class="flex h-9 w-[170px] items-center gap-2 rounded-full border border-[#E7EBF3] bg-white px-3 sm:w-[195px]"><svg class="h-3.5 w-3.5 shrink-0 fill-none stroke-[#92A4BB] stroke-2"><use href="#ic-search"/></svg><span class="sr-only">Search posts</span><input id="postSearch" type="search" placeholder="Find a post..." [ngModel]="search()" (ngModelChange)="search.set($event)" class="w-full min-w-0 border-0 bg-transparent text-[11px] outline-none placeholder:text-[#A1AFC0]"></label></div>
+      <div id="postCards" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2" aria-live="polite">
+        @for (p of cards(); track p.id) {
+          <article class="hover-up card-glow satin-card group flex min-h-[134px] min-w-0 gap-3 rounded-[16px] border border-[#E8EDF6] bg-white/90 p-2.5 sm:min-h-[145px] sm:gap-3.5 sm:p-3">
+            <div class="post-mini-art post-art relative flex w-[104px] shrink-0 flex-col justify-end overflow-hidden rounded-[12px] p-2.5 sm:w-[112px]" [class]="'art-' + p.art">
+              @if (p.mediaId) {
+                <img [src]="preview(p.mediaId)" alt="" class="absolute inset-0 z-10 h-full w-full object-cover" loading="lazy" />
+              } @else {
+                <div class="grid-pattern absolute inset-0 opacity-45"></div><span class="font-display relative z-10 text-[12px] font-extrabold leading-[1.05] tracking-[-.05em] text-[#365575]">{{ p.words[0] }}<br/><span class="text-[#7A83AE]">{{ p.words[1] }}</span></span>
+              }
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col justify-between gap-1 py-1"><div><div class="flex items-center justify-between gap-1"><span class="inline-flex items-center gap-1 rounded-full bg-[#EAF1FC] px-2 py-1 text-[9px] font-extrabold text-[#5985B8]">{{ p.mark }} <span class="font-medium">{{ p.platform }}</span></span><span class="rounded-full bg-[#F0EEFA] px-2 py-1 text-[9px] font-bold text-[#8B89BC]">{{ p.status }}</span></div><h4 class="mt-2 line-clamp-2 text-[12px] font-extrabold leading-[1.5] text-[#2B4567] sm:text-[13px]">{{ p.title }}</h4></div><div class="flex items-center justify-between gap-1"><span class="truncate text-[10px] text-[#A4B1C2]">{{ p.time }}</span><a [routerLink]="ws('/composer/' + p.id)" [attr.aria-label]="'Open ' + p.title" class="focus-ui grid h-7 w-7 shrink-0 place-items-center rounded-[9px] bg-[#F2F6FC] text-[#7F97B6] transition hover:bg-[#E8EFF8]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-eye"/></svg></a></div></div>
+          </article>
+        }
+      </div>
+      @if (!cards().length) {
+        <div id="noPosts" class="rounded-xl border border-dashed border-[#D9E1EF] bg-white/60 py-12 text-center"><p class="font-display text-[13px] font-bold text-[#4F6888]">Nothing here yet</p><p class="mt-1 text-[11px] text-[#92A2B8]">Try another search or create your next post.</p></div>
+      }
+    </article>
+
+    <div class="flex flex-col gap-4 lg:col-span-4 lg:gap-5">
+      <article class="glass-panel channels-panel color-accent-line rounded-[25px] p-4 sm:p-5">
+        <div class="flex items-start justify-between gap-2"><div><h3 class="font-display text-[17px] font-extrabold tracking-[-.04em] text-[#213B5B]">Your channels</h3><p class="mt-0.5 text-[11px] text-[#8CA0B9]"><span id="connectedCount">{{ connectedCount() }}</span> of 3 accounts connected</p></div><a id="manageChannels" [routerLink]="ws('/settings/workspace')" class="focus-ui rounded-full bg-[#E7E1FC] px-3 py-2 text-[10px] font-extrabold text-[#645BB2] hover:bg-[#DCD7F8]">Manage ↗</a></div>
+        <div class="mt-3.5 h-1.5 overflow-hidden rounded-full bg-[#E9EDF5]"><div class="h-full w-1/3 rounded-full bg-[linear-gradient(90deg,#86B9DE,#AA9ED8,#D3B1CF)]" id="channelProgress" [style.width.%]="(connectedCount() / 3) * 100"></div></div>
+        <div class="mt-4 space-y-2.5" id="channelRows">
+          @for (c of channels(); track c.platform) {
+            <div class="flex items-center gap-3 rounded-[15px] border bg-white/75 px-3 py-2.5" [class]="c.platform === 'Facebook' ? 'border-[#E6EDF3]' : 'border-[#E8EEF5]'">
+              @switch (c.platform) {
+                @case ('LinkedIn') { <span class="grid h-9 w-9 place-items-center rounded-[11px] bg-[#D7EAFB] text-[17px] font-extrabold text-[#2F71BC]">in</span> }
+                @case ('Facebook') { <span class="grid h-9 w-9 place-items-center rounded-[11px] bg-[#DBE6FF] text-[20px] font-extrabold text-[#4B64BF]">f</span> }
+                @case ('Instagram') { <span class="grid h-9 w-9 place-items-center rounded-[11px] bg-[#F6E0F1] text-[20px] font-bold text-[#A45B9F]">◎</span> }
+              }
+              <div class="min-w-0 flex-1"><p class="text-[12px] font-bold text-[#2A4362]">{{ c.platform }}</p><p class="mt-0.5 text-[10px] text-[#9BA9BA]">{{ c.published }} {{ c.published === 1 ? 'post' : 'posts' }} · 30 days</p></div>
+              <span [attr.data-channel]="c.platform" class="channel-status flex items-center gap-1 text-[9px] font-bold" [style.color]="c.connected ? '#459A7A' : '#9BAABE'"><i class="h-1.5 w-1.5 rounded-full" [class]="c.connected ? 'bg-[#6BC7A1]' : 'bg-[#BEC6D1]'"></i>{{ c.label }}</span>
+            </div>
+          }
+        </div>
+      </article>
+      <a [routerLink]="ws('/approvals')" class="flex flex-1 items-center gap-3 rounded-[23px] border border-[#DBEEDB] bg-[linear-gradient(106deg,#E6F7ED_0%,#F0F9F4_66%,#F7FAF9_100%)] p-4 shadow-[0_10px_24px_rgba(60,113,86,.045)] sm:p-5"><span class="grid h-12 w-12 shrink-0 place-items-center rounded-[15px] bg-white text-[#5AA981] shadow-sm"><svg class="h-5 w-5 fill-none stroke-current stroke-[2.4]"><use href="#ic-check"/></svg></span><div>
+        @if (pendingApprovals()) {
+          <p class="font-display text-[14px] font-extrabold text-[#2E6950]">Approvals waiting</p><p class="mt-0.5 text-[11px] text-[#62917A]">{{ pendingApprovals() }} {{ pendingApprovals() === 1 ? 'post is' : 'posts are' }} awaiting your approval.</p>
+        } @else {
+          <p class="font-display text-[14px] font-extrabold text-[#2E6950]">You're all caught up!</p><p class="mt-0.5 text-[11px] text-[#62917A]">No posts awaiting your approval.</p>
+        }
+      </div><span class="ml-auto rounded-full bg-white/85 px-2.5 py-1.5 text-[11px] font-extrabold text-[#51A17D]">{{ pendingApprovals() }}</span></a>
+    </div>
+  </section>
+
+  <section #activitySection id="activitySection" class="mt-4 grid grid-cols-1 gap-4 lg:mt-5 lg:grid-cols-12 lg:gap-5" aria-label="Activity and insights">
+    <article class="glass-panel momentum-panel color-accent-line rounded-[25px] p-4 sm:p-5 lg:col-span-7">
+      <div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-display text-[17px] font-extrabold tracking-[-.04em] text-[#213B5B]">Creative momentum</h3><p class="mt-0.5 text-[11px] text-[#8CA0B9]">Drafts created this week</p></div><span class="rounded-full bg-[#DDD6FB] px-3 py-1.5 text-[10px] font-extrabold text-[#6C60B8]">{{ week().range }}</span></div>
+      <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6"><div class="min-w-[105px]"><p id="weeklyTotal" class="font-display text-[38px] font-extrabold leading-none tracking-[-.06em] text-[#1D3D61]">{{ week().total }}</p><p class="mt-1.5 text-[11px] font-semibold text-[#8496AC]">posts drafted</p><div class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#EEF1FA] px-2.5 py-1.5 text-[10px] font-bold text-[#7F8FAC]"><span class="h-1.5 w-1.5 rounded-full bg-[#A9A4D9]"></span>{{ week().published }} published</div></div>
+        <div class="mini-bars relative h-[151px] min-w-0 flex-1 rounded-[13px] border border-[#DCE3FA] bg-white/85 px-3 pb-3 pt-4"><div id="weeklyBars" class="absolute inset-x-4 inset-y-3 flex items-end justify-between gap-2">
+          @for (bar of week().bars; track bar.label) {
+            <div class="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"><div class="flex flex-1 items-end"><div [attr.title]="bar.label + ': ' + bar.value + ' drafts'" class="relative w-[clamp(12px,3.1vw,30px)] rounded-t-[9px] shadow-sm transition-all duration-500" [class]="bar.value ? 'chart-bar-active' : 'chart-bar-empty'" [style.height.px]="bar.height">@if (bar.value) {<span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[11px] font-extrabold text-[#6D79A7]">{{ bar.value }}</span>}</div></div><span class="text-[9px] font-bold" [class]="bar.value ? 'text-[#747FA6]' : 'text-[#ABB5C4]'">{{ bar.label }}</span></div>
+          }
+        </div></div>
+      </div>
+    </article>
+    <article class="glass-panel activity-panel color-accent-line rounded-[25px] p-4 sm:p-5 lg:col-span-5"><div class="flex items-start justify-between gap-2"><div><h3 class="font-display text-[17px] font-extrabold tracking-[-.04em] text-[#213B5B]">Recent activity</h3><p class="mt-0.5 text-[11px] text-[#8CA0B9]">The latest from your workspace</p></div><span id="activityBadge" class="rounded-full bg-[#F6E9F1] px-2.5 py-1.5 text-[10px] font-extrabold text-[#AE83A6]">{{ activity().length }} {{ activity().length === 1 ? 'update' : 'updates' }}</span></div>
+      <div id="activityRows" class="relative mt-3 space-y-1"><div class="pointer-events-none absolute bottom-7 left-[18px] top-5 w-px bg-[#E5E4F3]"></div>
+        @for (a of activity(); track a.id; let i = $index) {
+          <div class="relative flex items-center gap-3 rounded-xl px-1 py-2"><span class="z-10 grid h-9 w-9 shrink-0 place-items-center rounded-[12px] font-display text-[12px] font-bold" [style.background-color]="avatars[i % 3][0]" [style.color]="avatars[i % 3][1]">{{ a.actor.charAt(0).toUpperCase() }}</span><div class="min-w-0 flex-1"><p class="text-[11px] leading-[1.5] text-[#6B7D96]"><b class="text-[#304B6A]">{{ a.actor }}</b> {{ a.text }}</p></div><span class="shrink-0 text-[10px] font-medium text-[#A2B1C2]">{{ ago(a.at) }}</span></div>
+        }
+      </div>
+    </article>
+  </section>
+</main>
+
+@if (createOpen()) {
+<div id="createModal" class="modal-shade theme-scrim fixed inset-0 z-[100] grid place-items-center overflow-y-auto p-4" (click)="$event.target === $event.currentTarget ? createOpen.set(false) : null">
+ <div role="dialog" aria-modal="true" aria-labelledby="createTitle" class="modal-content w-full max-w-[730px] overflow-hidden rounded-[26px] bg-[#FCFDFF] shadow-[0_30px_95px_rgba(27,42,80,.3)]">
+  <div class="flex items-center justify-between bg-[linear-gradient(108deg,#DAEBF9_0%,#E6E5F6_54%,#F1DEDA_100%)] px-6 py-5"><div><p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#7C8BAC]">AI IMAGE POST STUDIO</p><h2 id="createTitle" class="font-display mt-1 text-[22px] font-extrabold tracking-[-.05em]">Let's make a post</h2></div><button (click)="createOpen.set(false)" type="button" aria-label="Close" class="focus-ui grid h-9 w-9 place-items-center rounded-full bg-white/80 text-[#607C99]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-close"/></svg></button></div>
+  <div class="grid gap-4 p-5 sm:grid-cols-2 sm:gap-5 sm:p-6"><form id="createForm" #createForm (submit)="$event.preventDefault(); generate(createForm)" class="space-y-4"><div><label for="topicInput" class="mb-1.5 block text-[12px] font-bold text-[#47627D]">Your post idea</label><textarea #ideaInput required id="topicInput" name="idea" [(ngModel)]="idea" rows="5" maxlength="400" placeholder="e.g. Introduce a smarter way to automate business tasks" class="focus-ui w-full resize-none rounded-[14px] border border-[#DCE4F0] bg-[#F6F9FD] p-3.5 text-[12px] leading-[1.55] outline-none"></textarea></div><div><label for="platformSelect" class="mb-1.5 block text-[12px] font-bold text-[#47627D]">Platform</label><select id="platformSelect" name="platform" [(ngModel)]="platform" class="focus-ui h-11 w-full rounded-xl border border-[#DCE4F0] bg-white px-3 text-[12px]">@for (p of platforms; track p) {<option [value]="p">{{ p }}</option>}</select></div><div><label for="toneSelect" class="mb-1.5 block text-[12px] font-bold text-[#47627D]">Tone</label><select id="toneSelect" name="tone" [(ngModel)]="tone" class="focus-ui h-11 w-full rounded-xl border border-[#DCE4F0] bg-white px-3 text-[12px]">@for (t of tones; track t) {<option [value]="t">{{ t }}</option>}</select></div><button type="submit" class="focus-ui flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#193553] text-[12px] font-extrabold text-white transition hover:bg-[#2C5175]"><svg class="h-3.5 w-3.5 fill-current"><use href="#ic-sparkle"/></svg>Generate with AI</button></form>
+   <div class="rounded-[17px] border border-[#E9EBF5] bg-[#F5F7FC] p-3.5"><div class="mb-2 flex items-center justify-between"><span class="text-[11px] font-extrabold text-[#516B89]">Post preview</span><span id="previewStatus" class="rounded-full bg-white px-2 py-1 text-[9px] font-bold text-[#94A1B6]">AI Studio</span></div><div class="post-art art-a relative flex h-[175px] flex-col justify-end overflow-hidden rounded-xl p-5"><div class="grid-pattern absolute inset-0 opacity-50"></div><p class="font-display relative z-10 text-[24px] font-extrabold leading-[1.05] tracking-[-.06em] text-[#2B4668]">YOUR IDEA.<br/><span class="text-[#7C89B1]">MADE VISUAL.</span></p></div><p id="previewText" class="mt-3 min-h-[56px] text-[11px] leading-[1.5] text-[#657B96]">AI Studio writes the caption and creates the image from your idea, then saves it as a draft for review.</p></div>
+  </div>
+ </div>
+</div>
+}
+</div>

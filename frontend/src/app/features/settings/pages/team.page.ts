@@ -1,11 +1,9 @@
-import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { Member, OrganizationApiService } from '../../../core/services/organization-api.service';
-import { ToastService } from '../../../core/services/toast.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 
 const MIN_PASSWORD = 8;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -17,15 +15,14 @@ const NO_ERRORS = { name: false, email: false, password: false, confirm: false }
  */
 @Component({
   selector: 'app-team-page',
-  imports: [FormsModule, ProblemBannerComponent],
+  imports: [FormsModule],
   templateUrl: './team.page.html',
   styleUrl: './team.page.css',
-
+  host: { '(document:keydown.escape)': 'confirming.set(null)' },
 })
 export class TeamPage {
   private readonly api = inject(OrganizationApiService);
   protected readonly workspace = inject(WorkspaceService);
-  private readonly toast = inject(ToastService);
   private readonly dialogRef = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   protected readonly minPassword = MIN_PASSWORD;
   protected readonly members = signal<Member[]>([]);
@@ -35,6 +32,10 @@ export class TeamPage {
   /** Server-side reason the creator could not be created (e.g. the email is taken). */
   protected readonly formProblem = signal<string | null>(null);
   protected readonly errors = signal(NO_ERRORS);
+  /** The member waiting for the Deactivate confirmation. */
+  protected readonly confirming = signal<Member | null>(null);
+  protected readonly toastText = signal<string | null>(null);
+  private toastTimer?: ReturnType<typeof setTimeout>;
   protected readonly activeCount = computed(() => this.members().filter((m) => m.status === 'Active').length);
   protected fullName = '';
   protected email = '';
@@ -45,6 +46,13 @@ export class TeamPage {
     effect(() => {
       if (this.workspace.orgId()) void this.load();
     });
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.toastTimer));
+  }
+
+  private toast(message: string): void {
+    clearTimeout(this.toastTimer);
+    this.toastText.set(message);
+    this.toastTimer = setTimeout(() => this.toastText.set(null), 3200);
   }
 
   async load(): Promise<void> {
@@ -102,7 +110,7 @@ export class TeamPage {
     try {
       const created = await firstValueFrom(this.api.createCreator(orgId, { fullName, email, password: this.password }));
       this.dialogRef().nativeElement.close();
-      this.toast.success(`${created.displayName} added as Creator. They sign in with ${created.email}.`);
+      this.toast(`${created.displayName} added as Creator. They sign in with ${created.email}.`);
       await this.load();
     } catch (error) {
       this.formProblem.set(toApiProblem(error).detail);
@@ -112,18 +120,18 @@ export class TeamPage {
   }
 
   protected async deactivate(member: Member): Promise<void> {
-    if (!confirm(`Deactivate ${member.displayName || member.email}? They lose access to this workspace. Their content stays.`)) return;
     const orgId = this.workspace.orgId();
     if (!orgId) return;
     this.busy.set(member.memberId);
     this.problem.set(null);
     try {
       const updated = await firstValueFrom(this.api.deactivate(orgId, member));
-      this.toast.success(`${updated.displayName || updated.email} deactivated`);
+      this.toast(`${updated.displayName || updated.email} deactivated`);
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
       this.busy.set(null);
+      this.confirming.set(null);
       await this.load();
     }
   }

@@ -61,30 +61,31 @@ const TABS: Record<string, { path: string; label: string }[]> = {
   selector: 'app-internal-layout',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   template: `
-    <div class="internal">
-      <aside class="internal-nav">
+    <div class="internal" [class.nav-open]="navOpen()" [attr.data-page]="segment() || 'overview'">
+      <div class="nav-dim" (click)="navOpen.set(false)"></div>
+      <aside class="internal-nav" aria-label="System admin navigation">
         <div class="brand">
-          <span class="mk"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></svg></span>
-          <span><span class="t1">SocialMedia Engine</span><span class="t2">System Administration</span></span>
+          <span class="mk"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 16l9 5 9-5"/></svg></span>
+          <span class="min-w-0"><span class="t1">SocialMedia Engine</span><span class="t2">System Administration</span></span>
         </div>
-        <nav class="side-scroll" aria-label="Internal">
+        <nav class="side-scroll" aria-label="Main navigation">
           @for (group of nav; track group.heading) {
             <span class="nav-heading">{{ group.heading }}</span>
             @for (item of group.items; track item.key) {
-              <a class="nav-item" [routerLink]="'/internal/' + item.path" [class.active]="section()?.key === item.key">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="icons[item.key]"/></svg>
+              <a class="nav-item" [routerLink]="'/internal/' + item.path" [class.active]="section()?.key === item.key" [attr.aria-current]="section()?.key === item.key ? 'page' : null" (click)="navOpen.set(false)">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="icons[item.key]"/></svg></span>
                 {{ item.label }}
               </a>
             }
           }
         </nav>
         <div class="identity">
-          <a class="nav-item" routerLink="/internal/profile" routerLinkActive="active">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path [attr.d]="icons['profile']"/></svg>
+          <a class="foot-btn" routerLink="/internal/profile" routerLinkActive="active" (click)="navOpen.set(false)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path [attr.d]="icons['profile']"/></svg>
             Admin Profile
           </a>
-          <button type="button" class="nav-item" (click)="signOut()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="icons['signout']"/></svg>
+          <button type="button" class="foot-btn" (click)="signOut()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="icons['signout']"/></svg>
             Sign Out
           </button>
           <span class="who">{{ auth.me()?.email }}</span>
@@ -92,25 +93,46 @@ const TABS: Record<string, { path: string; label: string }[]> = {
       </aside>
 
       <div class="internal-shell">
-        <header class="internal-top">
-          <span class="top-title">{{ title() }}</span>
-          <div class="top-right">
-            @if (meta(); as m) {
-              <span class="env" [class.prod]="m.environment === 'PRODUCTION'">{{ m.environment }}</span>
-              <span class="updated"><i></i>Updated {{ ago(m.generatedAtUtc) }}</span>
-            }
-            <button type="button" class="btn-ghost sm" (click)="refresh()">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
-              Refresh
-            </button>
-            <span class="admin-chip"><span class="av">{{ (auth.me()?.email ?? '?').charAt(0) }}</span><span class="em">{{ auth.me()?.email }}</span></span>
-          </div>
-        </header>
+        @if (segment() === '') {
+          <!-- Overview: the design's top bar. -->
+          <header class="internal-top">
+            <div class="flex min-w-0 items-center gap-3">
+              <button type="button" class="menu-btn" aria-label="Open navigation" (click)="navOpen.set(true)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+              <h1 class="top-title">{{ title() }}</h1>
+            </div>
+            <div class="top-right">
+              @if (meta(); as m) {
+                <span class="env" [class.prod]="m.environment === 'PRODUCTION'">{{ m.environment }}</span>
+                <span class="updated"><i></i>Updated {{ ago(m.generatedAtUtc) }}</span>
+              }
+              <button type="button" class="top-btn" (click)="refresh()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/></svg>
+                <span class="btn-text">Refresh</span>
+              </button>
+              <a class="admin-chip" routerLink="/internal/profile" title="Admin profile"><span class="av">{{ (auth.me()?.email ?? '?').charAt(0) }}</span><span class="em">{{ auth.me()?.email }}</span></a>
+            </div>
+          </header>
+        }
 
         <main class="internal-page">
+          @if (segment() !== '') {
+            <!-- Every other page: the design's icon + title header (the top bar is Overview only). -->
+            <div class="inner-page-header">
+              <button type="button" class="menu-btn" aria-label="Open navigation" (click)="navOpen.set(true)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+              <span class="inner-page-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path [attr.d]="icons[pageIcon()]"/></svg></span>
+              <h1>{{ title() }}</h1>
+              <div class="inner-actions">
+                @if (meta(); as m) { <span class="updated"><i></i>Updated {{ ago(m.generatedAtUtc) }}</span> }
+                <button type="button" class="top-btn" (click)="refresh()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/></svg>
+                  <span class="btn-text">Refresh</span>
+                </button>
+              </div>
+            </div>
+          }
           @if (tabs(); as t) {
-            <nav class="tabs section-tabs">
-              @for (tab of t; track tab.path) { <a [routerLink]="'/internal/' + tab.path" routerLinkActive="active">{{ tab.label }}</a> }
+            <nav class="tabs section-tabs" role="tablist">
+              @for (tab of t; track tab.path) { <a role="tab" [routerLink]="'/internal/' + tab.path" routerLinkActive="active">{{ tab.label }}</a> }
             </nav>
           }
           <!-- Refresh re-creates the page, so it loads its data again. -->
@@ -138,9 +160,13 @@ export class InternalLayoutComponent implements OnInit {
   private readonly url = toSignal(this.router.events.pipe(filter((e) => e instanceof NavigationEnd), map(() => this.router.url)),
     { initialValue: this.router.url });
   /** First path segment after /internal ('' for the overview). */
-  private readonly segment = computed(() => this.url().split('?')[0].replace(/^\/internal\/?/, '').split('/')[0]);
+  protected readonly segment = computed(() => this.url().split('?')[0].replace(/^\/internal\/?/, '').split('/')[0]);
   protected readonly section = computed(() => NAV.flatMap((g) => g.items).find((i) => i.routes.includes(this.segment())) ?? null);
   protected readonly tabs = computed(() => TABS[this.section()?.key ?? ''] ?? null);
+  /** Phones: the sidebar as a drawer. */
+  protected readonly navOpen = signal(false);
+  /** The inner header's icon: the section's own, else the closest match for pages without a sidebar entry. */
+  protected readonly pageIcon = computed(() => this.section()?.key ?? (this.segment() === 'profile' ? 'profile' : 'operations'));
   protected readonly title = computed(() => (this.segment() === 'profile' ? 'Admin Profile' : this.section()?.label ?? PAGE_TITLES[this.segment()] ?? ''));
 
   ngOnInit(): void {

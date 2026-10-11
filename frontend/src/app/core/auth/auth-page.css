@@ -1,0 +1,51 @@
+/* Shared by the login and sign-up pages: custom artwork and motion from the design source; Tailwind CSS owns the page layout and design tokens. */
+:host{display:block;color-scheme:light;}
+.auth-canvas{background:linear-gradient(114deg,#e6f3ff 0%,#eceefb 45%,#f7e8e6 100%);}
+.auth-canvas:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 38% 34% at 4% 22%,rgba(247,252,255,.68),transparent 86%),radial-gradient(ellipse 29% 33% at 96% 78%,rgba(250,241,239,.52),transparent 80%);}
+.auth-grid{background-image:radial-gradient(rgba(104,137,174,.15) .85px,transparent 1px);background-size:19px 19px;}
+.post-art{background:linear-gradient(130deg,#D4E9F8 0%,#E6EBF7 51%,#E8D9E1 100%);}
+.post-grid{background-image:linear-gradient(rgba(255,255,255,.38) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.38) 1px,transparent 1px);background-size:24px 24px;}
+.orb{background:radial-gradient(circle at 34% 26%,#fff 0%,#e7f2fa 23%,#b7d6ec 49%,#a4bad9 73%,#b5b2d5 100%);box-shadow:inset -20px -22px 35px rgba(79,113,161,.12),0 20px 52px rgba(90,123,157,.13);}
+.card-enter{animation:card-enter .85s cubic-bezier(.2,.8,.2,1) both;}
+.card-enter-delay{animation:card-enter .9s .16s cubic-bezier(.2,.8,.2,1) both;}
+.card-enter-last{animation:card-enter 1s .34s cubic-bezier(.2,.8,.2,1) both;}
+.float-main{animation:float-main 7s ease-in-out infinite;}
+.float-a{animation:float-a 6s ease-in-out infinite;}
+.float-b{animation:float-b 8s -2s ease-in-out infinite;}
+.rotate-ring{animation:ring-spin 48s linear infinite;}
+.shimmer:after{content:"";position:absolute;inset:0;transform:translateX(-130%) skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.20),transparent);transition:transform .75s ease;pointer-events:none;}
+.shimmer:hover:after{transform:translateX(145%) skewX(-20deg);}
+@keyframes float-main{0%,100%{transform:translate3d(0,0,0) rotate(-5deg)}50%{transform:translate3d(0,-9px,0) rotate(-3deg)}}
+@keyframes float-a{0%,100%{transform:translateY(0) rotate(4deg)}50%{transform:translateY(-10px) rotate(2deg)}}
+@keyframes float-b{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(9px) rotate(-1deg)}}
+@keyframes ring-spin{to{transform:rotate(360deg)}}
+@keyframes card-enter{from{opacity:0;transform:translateY(22px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* Responsive editorial composition. Tailwind utility classes own all primary layout. */
+.auth-art-holder { --art-scale: .70; height:calc(365px * var(--art-scale)); }
+.auth-art-stage { transform:scale(var(--art-scale)); transform-origin:top left; }
+@media (min-width: 1200px) { .auth-art-holder {--art-scale:.80;} }
+@media (min-width: 1400px) { .auth-art-holder {--art-scale:.89;} }
+@media (min-width: 1650px) { .auth-art-holder {--art-scale:1;} }
+@media (min-width: 1024px) and (max-height: 820px) { .auth-art-holder {--art-scale:.72;} .auth-brand {margin-bottom:15px;} }
+@media (min-width: 1024px) and (max-height: 710px) { .auth-art-holder {--art-scale:.61;} .auth-brand {margin-bottom:10px;} .auth-form-card {padding-top:17px; padding-bottom:17px;} .auth-form-card #authForm {margin-top:12px;} .auth-form-card .social-divider {margin-top:10px; margin-bottom:10px;} .auth-form-card .auth-switch {margin-top:10px;} }
+@media (min-width: 1024px) and (max-width: 1199px) { .auth-art-holder {--art-scale:.67;} .auth-form-card {max-width:410px;} }
+@media (min-width: 1024px) { .auth-shell {min-height:calc(100svh - 40px);} .auth-visual {align-self:center;} }
+@media (max-width: 1023px) { .auth-shell {min-height:unset;} }
+
+/* Auth alignment: independent top branding and centered left-side composition. */
+.auth-topbar{margin-bottom:12px;}
+.auth-intro{width:100%;max-width:480px;margin-left:auto;margin-right:auto;}
+.auth-intro h1{font-size:clamp(36px,3.4vw,54px);line-height:1.12;}
+.auth-intro p{font-size:15px;}
+.auth-art-holder{width:calc(650px * var(--art-scale));max-width:100%;margin-left:auto;margin-right:auto;}
+.auth-caption{text-align:center;max-width:520px;margin-left:auto;margin-right:auto;}
+@media(min-width:1024px){
+  .auth-topbar{position:absolute;top:22px;left:50%;transform:translateX(-50%);padding-left:clamp(28px,3.4vw,58px);justify-content:flex-start;margin:0;}
+  .auth-visual{transform:translateY(-13px);}
+}
+@media(min-width:1024px) and (max-width:1199px){.auth-intro{max-width:405px;}}
+@media(min-width:1024px) and (max-height:710px){.auth-visual{transform:translateY(-7px);} .auth-intro h1{font-size:clamp(34px,3.2vw,48px);}}
+@media(max-width:1023px){.auth-topbar{margin-bottom:18px;}}
+
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-delay:0ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important;} .card-enter,.card-enter-delay,.card-enter-last{animation:none!important;opacity:1!important;transform:none!important;}}

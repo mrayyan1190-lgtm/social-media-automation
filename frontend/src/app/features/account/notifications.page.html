@@ -1,55 +1,61 @@
-<div class="nt">
-  <app-problem-banner [problem]="problem()" (reload)="load()" />
+<div class="notifications-page tw-page">
+<svg xmlns="http://www.w3.org/2000/svg" class="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+  <symbol id="n-bell" viewBox="0 0 24 24"><path d="M6.4 15.4V10a5.6 5.6 0 1 1 11.2 0v5.4l1.5 2.8H4.9l1.5-2.8Z"/><path d="M10 21h4"/></symbol>
+  <symbol id="n-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="n-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5h.01"/></symbol>
+  <symbol id="n-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></symbol>
+  <symbol id="n-done" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="n-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+</svg>
+<main class="relative mx-auto max-w-[1100px] px-4 pb-14 pt-7 sm:px-6 lg:px-9 lg:pt-8">
+  <header class="mb-5 flex flex-wrap items-center justify-between gap-4 lg:mb-6">
+    <div class="flex items-center gap-3.5"><span class="grid h-[49px] w-[49px] shrink-0 place-items-center rounded-[17px] bg-[#1B3B5F] text-white shadow-[0_13px_26px_#284d7733]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.6]"><use href="#n-bell"/></svg></span><div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7389AA]">Your workspace</p><h1 class="heading-font text-[27px] font-extrabold leading-[1.15] tracking-[-.065em] text-[#193552] sm:text-[31px]">Notifications<span class="text-[#9D8CC6]">.</span></h1></div></div>
+    <button type="button" (click)="markAllRead()" [disabled]="busy() || !unread()" class="primary-btn inline-flex h-[42px] items-center gap-2 rounded-full px-5 text-[12px] font-extrabold"><svg class="h-4 w-4 fill-none stroke-current stroke-[2.2]"><use href="#n-done"/></svg> Mark all as read</button>
+  </header>
 
-  <section class="nt-card">
-    <div class="nt-head">
-      <div class="head-left">
-        <span class="count-pill" [class.all-read]="!unread()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-          {{ unread() ? unread() + ' unread' : 'All read' }}
-        </span>
-        <span class="total">{{ items().length }} total</span>
-      </div>
-      <button class="mark-btn" type="button" (click)="markAllRead()" [disabled]="busy() || !unread()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-        Mark all as read
-      </button>
+  @if (problem(); as p) {
+    <p class="problem mb-4 rounded-[16px] px-4 py-3 text-[12px] font-bold leading-5" role="alert">{{ p.detail }} <button type="button" class="ml-1 underline" (click)="load()">Try again</button></p>
+  }
+
+  <section class="glass overflow-hidden rounded-[28px]" aria-labelledby="inboxTitle">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#E7EDF6] bg-[linear-gradient(110deg,#F1F8FF_0%,#F6F1FC_54%,#FFF6F2_100%)] px-4 py-4 sm:px-6">
+      <div class="flex items-center gap-2.5"><h2 id="inboxTitle" class="heading-font text-[16px] font-extrabold tracking-[-.035em] text-[#2C496A] sm:text-[17px]">Inbox</h2>
+        <span [class]="'rounded-full border px-2.5 py-1 text-[10px] font-extrabold ' + (unread() ? 'border-[#F3D3D9] bg-[#FFF0F1] text-[#C06A76]' : 'border-white/90 bg-white/85 text-[#6885A6]')">{{ unread() ? unread() + ' unread' : 'All read' }}</span></div>
+      <span class="text-[10px] font-semibold text-[#8D9BB1] sm:text-[11px]">{{ items().length }} {{ items().length === 1 ? 'notification' : 'notifications' }} · reviews, approvals and publishing</span>
     </div>
 
-    @for (n of items(); track n.id) {
-      <div class="nrow" [class.unread]="!n.readAtUtc">
-        <span [class]="'nt-tile ' + tile(n)">
-          @switch (tile(n)) {
-            @case ('review') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> }
-            @case ('attention') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg> }
-            @case ('approved') { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg> }
-            @default { <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg> }
-          }
-        </span>
-        <div class="ntxt">
-          <div class="ntitle"><span class="t" [title]="n.title">{{ n.title }}</span>@if (!n.readAtUtc) { <span class="chip-new">New</span> }</div>
-          <div class="nmeta">
-            <span class="desc" [title]="n.message">{{ n.message }}</span>
-            <span class="sep">·</span><span class="time">{{ time(n.createdAtUtc) }}</span>
+    <div class="flex flex-col gap-2.5 p-3 sm:p-4">
+      @for (n of items(); track n.id) {
+        <article class="note-row" [class.unread]="!n.readAtUtc" [attr.data-tone]="tile(n)">
+          <span class="note-tile grid h-11 w-11 shrink-0 place-items-center rounded-[14px]">
+            <svg class="h-5 w-5 fill-none stroke-current stroke-[1.9]"><use [attr.href]="'#n-' + icons[tile(n)]"/></svg>
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="flex min-w-0 items-center gap-2"><h3 class="truncate text-[13px] font-extrabold text-[#294462]" [title]="n.title">{{ n.title }}</h3>@if (!n.readAtUtc) { <span class="shrink-0 rounded-full bg-[#E8F1FF] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[.08em] text-[#3E72B7]">New</span> }</div>
+            <p class="mt-1 line-clamp-2 text-[11px] leading-5 text-[#6C819C]" [title]="n.message">{{ n.message }}</p>
+            <p class="mt-1 text-[10px] font-semibold text-[#93A6BB]">{{ time(n.createdAtUtc) }}</p>
           </div>
+          @if (link(n); as url) {
+            <a [routerLink]="url" (click)="markRead(n)" [class]="'note-btn inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[11px] font-extrabold ' + (isFix(n) ? 'fix' : '')">{{ isFix(n) ? 'Fix' : 'Open' }} <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#n-arrow"/></svg></a>
+          } @else if (!n.readAtUtc) {
+            <button type="button" (click)="markRead(n)" class="note-btn inline-flex h-9 shrink-0 items-center rounded-full px-4 text-[11px] font-extrabold">Mark read</button>
+          }
+        </article>
+      } @empty {
+        <div class="flex min-h-[230px] flex-col items-center justify-center rounded-[20px] border border-dashed border-[#d8e5f4] bg-[#F9FBFF]/85 px-4 py-7 text-center"><span class="mb-3 grid h-12 w-12 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#E2F1FF,#EEE7FD)] text-[#748FB9]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.8]"><use href="#n-bell"/></svg></span>
+          <h3 class="heading-font text-[15px] font-extrabold text-[#395A7A]">{{ loaded() ? 'No notifications yet' : 'Loading…' }}</h3>
+          @if (loaded()) { <p class="mt-1.5 max-w-[300px] text-[11px] leading-5 text-[#8B9FB7]">Reviews, approvals and publishing updates will appear here.</p> }
         </div>
-        @if (link(n); as url) {
-          <a class="open-btn" [class.fix]="isFix(n)" [routerLink]="url" (click)="markRead(n)">{{ isFix(n) ? 'Fix' : 'Open' }}</a>
-        } @else if (!n.readAtUtc) {
-          <button class="open-btn" type="button" (click)="markRead(n)">Mark read</button>
-        } @else {
-          <span></span>
-        }
-      </div>
-    }
+      }
+    </div>
 
-    @if (loaded() && (!items().length || !unread())) {
-      <div class="all-read-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-        You're all caught up.
-      </div>
-    } @else if (!loaded()) {
-      <div class="all-read-note">Loading…</div>
+    @if (loaded() && items().length && !unread()) {
+      <div class="flex items-center justify-center gap-2 border-t border-[#E8EDF4] bg-white/45 px-5 py-3.5 text-[11px] font-bold text-[#4C9975]"><svg class="h-4 w-4 fill-none stroke-current stroke-[2.2]"><use href="#n-done"/></svg> You're all caught up.</div>
     }
   </section>
+</main>
+
+@if (toastText()) {
+  <div class="fixed bottom-5 left-1/2 z-[100] max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-full bg-[#1D3F62] px-5 py-3 text-center text-[12px] font-bold text-white shadow-[0_13px_35px_#18395775]" role="status" aria-live="polite">{{ toastText() }}</div>
+}
 </div>

@@ -1,11 +1,9 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { AppNotification, NotificationApiService } from '../../core/services/notification-api.service';
-import { ToastService } from '../../core/services/toast.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { ReviewApiService } from '../approvals/services/review-api.service';
 import { formatInZone } from '../publications/models/time-zones';
 
@@ -23,19 +21,20 @@ const TILES: Record<string, Tile> = {
   APPROVED: 'approved',
   PUBLISHED: 'approved',
 };
+/** Symbol per tile (see the template's sprite). */
+const ICONS: Record<Tile, string> = { review: 'clock', attention: 'alert', approved: 'check', neutral: 'bell' };
 const FIX_TYPES = ['FAILED', 'ACTION_REQUIRED', 'REAUTHORIZATION_REQUIRED', 'RECONCILIATION_REQUIRED'];
 
 /** The signed-in user's notifications in the current workspace. */
 @Component({
   selector: 'app-notifications-page',
-  imports: [RouterLink, ProblemBannerComponent],
+  imports: [RouterLink],
   templateUrl: './notifications.page.html',
   styleUrl: './notifications.page.css',
 })
 export class NotificationsPage {
   private readonly api = inject(NotificationApiService);
   private readonly workspace = inject(WorkspaceService);
-  private readonly toast = inject(ToastService);
   private readonly reviewsApi = inject(ReviewApiService);
   /** Review id → post id, so a creator's review notification can open the post itself in Composer. */
   private readonly reviewPosts = signal(new Map<string, string>());
@@ -45,11 +44,15 @@ export class NotificationsPage {
   protected readonly loaded = signal(false);
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly unread = computed(() => this.items().filter((n) => !n.readAtUtc).length);
+  protected readonly icons = ICONS;
+  protected readonly toastText = signal<string | null>(null);
+  private toastTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
     effect(() => {
       if (this.workspace.orgId()) void this.load();
     });
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.toastTimer));
   }
 
   protected tile(n: AppNotification): Tile {
@@ -99,7 +102,9 @@ export class NotificationsPage {
     await this.run(async (orgId) => {
       await firstValueFrom(this.api.markAllRead(orgId));
       this.items.set(await firstValueFrom(this.api.list(orgId)));
-      this.toast.success('All notifications marked as read');
+      clearTimeout(this.toastTimer);
+      this.toastText.set('All notifications marked as read');
+      this.toastTimer = setTimeout(() => this.toastText.set(null), 2400);
     });
   }
 

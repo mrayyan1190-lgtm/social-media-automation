@@ -14,7 +14,7 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
     @let p = provider();
     <form class="card form-grid" (ngSubmit)="save()">
       <div class="card-head">
-        <h2>{{ meta() ? 'Meta' : 'LinkedIn' }}</h2>
+        <h2><span class="head-ic brand" [class.fb]="meta()">{{ meta() ? 'f' : 'in' }}</span>{{ meta() ? 'Meta' : 'LinkedIn' }}</h2>
         <span [class]="'badge delivery ' + tone(p.configurationStatus)">{{ labels[p.configurationStatus] }}</span>
       </div>
       @if (p.source === 'ENVIRONMENT') { <p class="banner info">Using the deployment's environment configuration. Saving here takes precedence.</p> }
@@ -134,7 +134,7 @@ export class ProviderCardComponent implements OnInit {
   template: `
     <form class="card form-grid" (ngSubmit)="save()">
       <div class="card-head">
-        <h2>Google sign-in</h2>
+        <h2><span class="head-ic purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Z"/><path d="m8.5 12 2.5 2.5L16 9"/></svg></span>Google sign-in</h2>
         <span [class]="'badge delivery ' + (state()?.source === 'NONE' ? 'neutral' : 'success')">{{ state()?.source === 'NONE' ? 'Not configured' : 'Configured' }}</span>
       </div>
       @if (state()?.source === 'ENVIRONMENT') { <p class="banner info">Using the deployment's environment configuration. Saving here takes precedence.</p> }
@@ -197,7 +197,7 @@ export class GoogleSignInCardComponent implements OnInit {
   imports: [NoticeComponent, FormsModule, ProblemBannerComponent],
   template: `
     <form class="card form-grid" (ngSubmit)="connect()">
-      <div class="card-head"><h2>Facebook Page token</h2></div>
+      <div class="card-head"><h2><span class="head-ic peach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>Facebook Page token</h2></div>
       <app-problem-banner [problem]="problem()" />
       <app-notice [message]="notice()" />
       <label>Workspace *

@@ -1,4 +1,6 @@
+import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
+import { WorkspaceService } from './core/services/workspace.service';
 import { LoginPageComponent } from './core/auth/login-page.component';
 import { RegisterPageComponent } from './core/auth/register-page.component';
 import { authGuard, contentCreatorGuard, onboardingGuard, systemAdminGuard, workspaceAdminGuard, workspaceMatchGuard, workspaceRedirectGuard } from './core/guards/auth.guard';
@@ -8,6 +10,7 @@ const composer = () => import('./features/composer/composer.page').then((m) => m
 
 export const routes: Routes = [
   // Public
+  { path: '', pathMatch: 'full', loadComponent: () => import('./features/landing/landing.page').then((m) => m.LandingPage) },
   { path: 'login', component: LoginPageComponent },
   { path: 'signup', component: RegisterPageComponent },
   { path: 'register', pathMatch: 'full', redirectTo: 'signup' },
@@ -21,7 +24,7 @@ export const routes: Routes = [
       { path: 'workspace', redirectTo: '/signup' },
       { path: 'profile', canActivate: [onboardingGuard('PROFILE')], loadComponent: () => import('./features/onboarding/profile-step.page').then((m) => m.ProfileStepPage) },
       { path: 'brand', canActivate: [onboardingGuard('BRAND_PROFILE')], loadComponent: () => import('./features/onboarding/brand-step.page').then((m) => m.BrandStepPage) },
-      { path: 'social-connections', canActivate: [onboardingGuard('SOCIAL_CONNECTIONS', true)], loadComponent: () => import('./features/onboarding/social-step.page').then((m) => m.SocialStepPage) },
+      { path: 'social-connections', canActivate: [onboardingGuard('SOCIAL_CONNECTIONS')], loadComponent: () => import('./features/onboarding/social-step.page').then((m) => m.SocialStepPage) },
     ],
   },
 
@@ -37,6 +40,8 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'home' },
+      // Workspace Admins get their own home design; Creators keep HomePage. The workspace is selected by the parent's canMatch.
+      { path: 'home', canMatch: [() => inject(WorkspaceService).isAdmin()], loadComponent: () => import('./features/home/admin-home.page').then((m) => m.AdminHomePage) },
       { path: 'home', loadComponent: () => import('./features/home/home.page').then((m) => m.HomePage) },
       { path: 'ai-studio', canActivate: [contentCreatorGuard], loadComponent: () => import('./features/ai-studio/ai-studio.page').then((m) => m.AiStudioPage) },
       // Composer: a new post (/composer) or an existing one (/composer/{postId}). Read-only for reviewers.
@@ -74,6 +79,6 @@ export const routes: Routes = [
       { path: '**', redirectTo: 'home' },
     ],
   },
-  // Any other URL (/, /home, links without a workspace) opens inside the current workspace.
+  // Any other URL (/home, links without a workspace) opens inside the current workspace.
   { path: '**', component: ShellComponent, canActivate: [authGuard, workspaceRedirectGuard], children: [] },
 ];

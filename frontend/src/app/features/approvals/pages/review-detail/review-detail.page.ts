@@ -21,6 +21,7 @@ import { NoticeComponent } from '../../../../shared/components/notice.component'
   selector: 'app-review-detail-page',
   imports: [NoticeComponent, RouterLink, DatePipe, PlatformIconComponent, ProblemBannerComponent],
   templateUrl: './review-detail.page.html',
+  styleUrl: './review-detail.page.css',
 })
 export class ReviewDetailPage {
   protected readonly reviewLabels: Record<string, string> = { PENDING: 'In Review', APPROVED: 'Approved', CHANGES_REQUESTED: 'Changes Requested' };

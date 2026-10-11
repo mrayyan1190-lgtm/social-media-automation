@@ -1,0 +1,56 @@
+/*
+ * Admin home design source styles (Tailwind owns layout). Component-scoped; the page background itself is set in
+ * styles.css (html:has(.admin-home)) because it has to sit behind the app shell. .hero-panel is renamed .home-hero:
+ * the landing page owns a global .hero-panel.
+ */
+.admin-home{--ink:#182f4f;--muted:#6885a8;--edge:#d5e2f2;font-family:"DM Sans",ui-sans-serif,system-ui,sans-serif;color:var(--ink);color-scheme:light}
+.font-display{font-family:"Manrope","DM Sans",sans-serif}
+.bg-page{position:fixed;z-index:-1;pointer-events:none;inset:0;background:radial-gradient(ellipse 44% 36% at 0% 8%,#b8ddf8 0%,transparent 84%),radial-gradient(ellipse 43% 48% at 100% 14%,#f0cfc9 0%,transparent 84%),radial-gradient(ellipse 56% 50% at 49% 85%,#d7d5f4 0%,transparent 88%)}
+.glass-panel{background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.96);box-shadow:0 18px 45px rgba(75,80,145,.09)}
+.home-hero{background:linear-gradient(112deg,#bddff7 0%,#d4ddf7 43%,#e0d3f3 71%,#f4cfc9 100%);border:1px solid rgba(255,255,255,.87);box-shadow:0 20px 50px rgba(69,86,161,.15)}
+.home-hero:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 33% 70% at 65% 47%,#ffffff79,transparent 88%);pointer-events:none}
+.satin-card{box-shadow:0 9px 26px rgba(41,66,105,.063)}
+.hover-up{transition:transform .23s cubic-bezier(.2,.7,.2,1),box-shadow .23s ease,border-color .23s ease}
+.hover-up:hover{transform:translateY(-3px);box-shadow:0 18px 38px rgba(77,76,159,.18);border-color:#b6c3ec}
+.hero-orbit{border:1px dashed #9caed291;animation:rotate-ambient 38s linear infinite}
+.floating-illustration{animation:float-soft 7s ease-in-out infinite}
+.floating-small{animation:float-soft 6s ease-in-out infinite -2.3s}
+.floating-later{animation:float-soft 7.3s ease-in-out infinite -3.8s}
+@keyframes float-soft{0%,100%{transform:translateY(0) rotate(var(--angle,0deg))}50%{transform:translateY(-9px) rotate(var(--angle,0deg))}}
+@keyframes rotate-ambient{to{transform:rotate(360deg)}}
+@keyframes draw-ring{from{stroke-dashoffset:380}to{stroke-dashoffset:0}}
+@keyframes rise-in{from{transform:translateY(13px);opacity:0}to{transform:translateY(0);opacity:1}}
+.enter{animation:rise-in .65s ease both}.enter-delay{animation-delay:.1s}.enter-delay2{animation-delay:.19s}
+.donut-progress{animation:draw-ring 1.4s ease-out both;transform-origin:center;transform:rotate(-90deg)}
+.grid-pattern{background-image:linear-gradient(rgba(102,137,171,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(102,137,171,.09) 1px,transparent 1px);background-size:18px 18px}
+.post-art:before{content:"";position:absolute;width:112px;height:112px;right:-40px;top:-50px;border-radius:50%;border:15px solid rgba(255,255,255,.48)}
+.post-art:after{content:"";position:absolute;left:-27px;bottom:-36px;width:105px;height:105px;border-radius:50%;border:18px solid rgba(255,255,255,.38)}
+.art-a{background:linear-gradient(140deg,#a9dafa,#9fbeec 55%,#d6caf2)}
+.art-b{background:linear-gradient(135deg,#bce7db,#9ad6d1 50%,#bfdbea)}
+.art-c{background:linear-gradient(135deg,#dbc8f5,#b6c4f2 55%,#9bd0eb)}
+.art-d{background:linear-gradient(130deg,#f5d5c6,#e2c5ed 55%,#bacff4)}
+.art-e{background:linear-gradient(130deg,#b3d6f5,#d0c7f6,#f2cfc8)}
+.tab-btn[aria-selected="true"]{background:white;color:#223d63;box-shadow:0 2px 10px rgba(40,65,103,.09)}
+.tab-btn[aria-selected="false"]{color:#8295ac}
+.focus-ui:focus-visible{outline:3px solid #8db6dd;outline-offset:3px}
+.modal-shade{background:#14294570;backdrop-filter:blur(8px)}
+.modal-content{animation:rise-in .3s ease both}
+.mini-bars{background:repeating-linear-gradient(to top,transparent 0,transparent calc(25% - 1px),#e4e9f1 calc(25% - 1px),#e4e9f1 25%)}
+.chart-bar-active{background:linear-gradient(180deg,#685ED0 0%,#4F9FDB 100%)}
+.chart-bar-empty{background:#CCD8EE}
+@media (max-width:767px){.hero-orbit{animation:none}.floating-illustration,.floating-small,.floating-later{animation:none}}
+@media (min-width:1024px) and (max-width:1279px){.hero-copy{max-width:49%!important}.hero-visual .floating-illustration{right:4%!important}.hero-visual .floating-small{right:0!important}}
+@media (max-width:639px){.home-hero{min-height:516px!important}.hero-copy{max-width:100%!important;min-width:0!important}.hero-visual{top:auto!important;bottom:0!important;right:0!important;width:100%!important;height:235px!important}.hero-visual .floating-illustration{right:16%!important;top:4px!important}}
+@media (max-width:390px){.chart-ring{height:132px!important;width:132px!important}.chart-legend{max-width:150px!important}.home-hero{min-height:530px!important}.post-mini-art{width:86px!important}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+
+/* Palette refinement: brighter accents, deeper type, and soft differentiated content surfaces. */
+.flow-panel{background:linear-gradient(145deg,rgba(248,244,255,.95),rgba(247,251,255,.92) 70%,rgba(255,237,232,.89))}
+.content-panel{background:linear-gradient(130deg,rgba(252,253,255,.95),rgba(237,245,255,.92) 100%)}
+.channels-panel{background:linear-gradient(150deg,rgba(250,247,255,.96),rgba(244,247,255,.93) 64%,rgba(255,243,239,.92))}
+.momentum-panel{background:linear-gradient(135deg,rgba(246,250,255,.97),rgba(237,236,255,.89))}
+.activity-panel{background:linear-gradient(125deg,rgba(255,252,251,.96),rgba(251,241,250,.91) 74%,rgba(255,237,230,.89))}
+.color-accent-line{position:relative}
+.color-accent-line:after{content:"";position:absolute;left:20px;right:20px;top:0;height:3px;border-radius:0 0 20px 20px;background:linear-gradient(90deg,#5B9FD5 0%,#8279CA 51%,#EBAE95 100%);opacity:.95}
+.flow-panel .chart-ring{filter:drop-shadow(0 9px 10px rgba(91,93,184,.11))}
+.card-glow:hover{box-shadow:0 17px 35px rgba(101,99,171,.14)}

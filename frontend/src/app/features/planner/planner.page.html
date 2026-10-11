@@ -1,158 +1,199 @@
-<div class="pl" [class.fit]="layout() === 'calendar'">
-  <!-- Filters -->
-  <div class="pl-filters">
-    <span class="pl-select">
-      <select aria-label="Platform" [ngModel]="platform()" (ngModelChange)="platform.set($event)">
-        <option value="">All platforms</option>
-        @for (p of platforms; track p) { <option [value]="p">{{ p }}</option> }
-      </select>
-      <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </span>
-    <span class="pl-select">
-      <select aria-label="Status" [ngModel]="status()" (ngModelChange)="status.set($event)">
-        <option value="">All statuses</option>
-        @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
-        <option value="Approved,Scheduled">Approved &amp; scheduled</option>
-      </select>
-      <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </span>
-    @if (layout() === 'list') {
-      <span class="pl-select">
-        <select aria-label="Date" [ngModel]="range()" (ngModelChange)="range.set($event)">
-          <option value="">Any date</option>
-          <option value="today">Today</option>
-          <option value="next7">Next 7 days</option>
-          <option value="last7">Last 7 days</option>
-          <option value="month">This month</option>
-        </select>
-        <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-      </span>
-    }
-    @if (filtersActive()) { <button type="button" class="pl-clear" (click)="clear()">Clear</button> }
-
-    <span class="spacer"></span>
-    <span class="pl-count">{{ filtered().length }} {{ filtered().length === 1 ? 'post' : 'posts' }} shown</span>
-
-    <div class="pl-seg" role="group" aria-label="View">
-      <button type="button" [class.active]="layout() === 'calendar'" (click)="layout.set('calendar')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendar
-      </button>
-      <button type="button" [class.active]="layout() === 'list'" (click)="layout.set('list')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>List
-      </button>
+@if (layout() === 'list') {
+  <!-- All posts, Drafts, Scheduled, Published, Failed: the content library design. -->
+  <app-posts-list [rows]="rows()" [loading]="loading()" [initialStatus]="status()" [initialSearch]="searchQuery() ?? ''" (changed)="reload()" />
+} @else {
+<div class="planner-page tw-page antialiased">
+<svg xmlns="http://www.w3.org/2000/svg" class="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></symbol>
+<symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2L12 2Z"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h1M3 12h1M3 18h1"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M4 20l4.5-1 10.5-10.5a2.8 2.8 0 0 0-4-4L4.5 15 4 20Z"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="m4 5 2-2h12l2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5ZM4 13h5l2 3h2l2-3h5"/></symbol>
+</svg>
+<main class="relative mx-auto max-w-[1550px] px-4 pb-7 pt-7 sm:px-7 lg:pt-8 xl:px-10">
+  <div class="page-head mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3.5">
+      <div class="grid h-[47px] w-[47px] shrink-0 place-items-center rounded-[16px] bg-[#193755] text-white shadow-[0_9px_21px_#263b6270]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.6]"><use href="#i-calendar"/></svg></div>
+      <div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7185A7]">Content workspace</p><h1 class="heading-font text-[26px] font-extrabold leading-tight text-[#193451] sm:text-[30px]">Planner<span class="text-[#8A87BE]">.</span></h1></div>
     </div>
+    @if (workspace.canManageContent()) {
+      <a routerLink="/ai-studio" class="soft-button inline-flex h-[42px] items-center gap-2 rounded-full bg-[#1B395B] px-5 text-[12px] font-extrabold text-white shadow-[0_11px_22px_#3a5c8833] hover:bg-[#2A547D]"><svg class="h-[17px] w-[17px] fill-current" aria-hidden="true"><use href="#i-spark"/></svg> Create with AI</a>
+    }
   </div>
 
-  <app-problem-banner [problem]="problem()" />
-
-  @if (layout() === 'calendar') {
-    <section class="pl-card">
-      <div class="pl-cal-head">
-        <button type="button" class="pl-nav" aria-label="Previous month" (click)="shiftMonth(-1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-        </button>
-        <div class="pl-cal-title">{{ monthName() }} <span>{{ month().slice(0, 4) }}</span></div>
-        <button type="button" class="pl-nav" aria-label="Next month" (click)="shiftMonth(1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
-        <button type="button" class="pl-today" (click)="month.set(thisMonth)">Today</button>
-        <span class="spacer"></span>
-        <span class="pl-footnote">{{ loading() ? 'Loading…' : monthCount() + (monthCount() === 1 ? ' post' : ' posts') + ' this month' }}</span>
-      </div>
-
-      <div class="pl-cal">
-        <div class="pl-weekdays">
-          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+  <section class="toolbar glass mb-3 rounded-[23px] p-3 sm:p-[15px]" aria-label="Planner controls">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-1 rounded-full bg-[#EDF3FC]/90 p-1">
+          <button type="button" (click)="shiftMonth(-1)" class="grid h-9 w-9 place-items-center rounded-full text-[#5C7596] transition hover:bg-white" aria-label="Previous month"><svg class="h-[18px] w-[18px] fill-none stroke-current stroke-[2.2]"><use href="#i-left"/></svg></button>
+          <button type="button" (click)="shiftMonth(1)" class="grid h-9 w-9 place-items-center rounded-full text-[#5C7596] transition hover:bg-white" aria-label="Next month"><svg class="h-[18px] w-[18px] fill-none stroke-current stroke-[2.2]"><use href="#i-right"/></svg></button>
         </div>
-        <div class="pl-grid">
-          @for (day of days(); track day.date) {
-            <div class="pl-cell" [class.other]="!day.inMonth" [class.today]="day.today">
-              <div class="pl-daynum">{{ day.day }}</div>
-              @for (p of day.posts.slice(0, 2); track p.id) {
-                <ng-container [ngTemplateOutlet]="chip" [ngTemplateOutletContext]="{ $implicit: p }" />
+        <h2 class="heading-font min-w-[120px] text-[20px] font-extrabold leading-none text-[#203B5C] sm:min-w-[163px] sm:text-[23px]">{{ monthTitle() }}</h2>
+        <button type="button" (click)="goToday()" class="rounded-full border border-[#D8E5F4] bg-white px-4 py-2 text-[11px] font-extrabold text-[#5479A7] transition hover:bg-[#EDF5FF]">Today</button>
+      </div>
+      <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        <div class="relative min-w-[125px] flex-1 sm:flex-none">
+          <label for="platformFilter" class="sr-only">Filter by social network</label>
+          <select id="platformFilter" [ngModel]="platform()" (ngModelChange)="platform.set($event)" class="h-10 w-full rounded-full border border-[#DDE6F2] bg-[#F9FBFE] py-2 pl-4 pr-9 text-[11px] font-bold text-[#4B688A] focus:ring-2 focus:ring-[#A6BFE9] sm:w-[143px]">
+            <option value="">All platforms</option>
+            @for (p of platforms; track p) { <option [value]="p">{{ p }}</option> }
+          </select>
+        </div>
+        <div class="relative min-w-[120px] flex-1 sm:flex-none">
+          <label for="statusFilter" class="sr-only">Filter by post status</label>
+          <select id="statusFilter" [ngModel]="status()" (ngModelChange)="status.set($event)" class="h-10 w-full rounded-full border border-[#DDE6F2] bg-[#F9FBFE] py-2 pl-4 pr-9 text-[11px] font-bold text-[#4B688A] focus:ring-2 focus:ring-[#A6BFE9] sm:w-[137px]">
+            <option value="">All statuses</option>
+            @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+            <option value="Approved,Scheduled">Approved &amp; scheduled</option>
+          </select>
+        </div>
+        <div class="ml-auto inline-flex h-10 items-center gap-1 rounded-full bg-[#EDF2FB] p-1" role="group" aria-label="Planner view">
+          <button type="button" (click)="mode.set('calendar')" [class.active]="mode() === 'calendar'" [attr.aria-pressed]="mode() === 'calendar'" class="seg-button flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold text-[#7286A3]"><svg class="h-[14px] w-[14px] fill-none stroke-current stroke-2"><use href="#i-calendar"/></svg> Calendar</button>
+          <button type="button" (click)="mode.set('list')" [class.active]="mode() === 'list'" [attr.aria-pressed]="mode() === 'list'" class="seg-button flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold text-[#7286A3]"><svg class="h-[14px] w-[14px] fill-none stroke-current stroke-2"><use href="#i-list"/></svg> List</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  @if (problem(); as p) {
+    <p class="problem mb-3 rounded-[16px] px-4 py-3 text-[12px] font-bold leading-5" role="alert">{{ p.detail }}</p>
+  }
+
+  @if (mode() === 'calendar') {
+    <section class="glass overflow-hidden rounded-[26px]">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#E4EAF3] bg-[linear-gradient(105deg,#F2F8FF_0%,#F5F2FC_54%,#FFF7F4_100%)] px-4 py-3 sm:px-5">
+        <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 place-items-center rounded-[12px] bg-white/80 text-[#5D8CC1]"><svg class="h-[18px] w-[18px] fill-none stroke-current stroke-[1.8]"><use href="#i-calendar"/></svg></span><div><p class="text-[12px] font-extrabold text-[#344D70]">Content calendar</p><p class="text-[10px] font-medium text-[#8B9EBA]">Image posts across your social channels</p></div></div>
+        <div class="flex items-center gap-2"><span class="rounded-full border border-white bg-white/75 px-3 py-[7px] text-[10px] font-extrabold text-[#6F83A4]">{{ loading() ? 'Loading…' : monthPosts().length + (monthPosts().length === 1 ? ' post' : ' posts') + ' this month' }}</span><span class="hidden items-center gap-1 rounded-full bg-white/65 px-3 py-[7px] text-[10px] font-bold text-[#8195AC] sm:inline-flex"><svg class="h-[13px] w-[13px] fill-none stroke-current stroke-2"><use href="#i-clock"/></svg> {{ workspace.timeZone() }}</span></div>
+      </div>
+      <div class="desktop-days grid grid-cols-7 border-b border-[#E5EDF6] bg-[#F7FAFE]">
+        @for (d of weekdays; track d) { <div class="py-2.5 text-center text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8094AF]">{{ d }}</div> }
+      </div>
+      <div class="month-grid" role="grid" aria-label="Monthly content calendar">
+        @for (c of cells(); track c.key) {
+          <div class="day-cell" [class.outside]="!c.inMonth" [class.weekend]="c.weekend" [class.selected]="c.key === selectedDay()" role="gridcell" tabindex="0"
+            [attr.aria-label]="niceDate(c.key) + ', ' + c.posts.length + ' posts'" (click)="selectDay(c.key)" (keydown.enter)="selectDay(c.key)" (keydown.space)="$event.preventDefault(); selectDay(c.key)">
+            <div class="day-head mb-1.5 flex items-center justify-between gap-1"><span class="date-token" [class.today-token]="c.key === today()">{{ c.day }}</span>@if (c.posts.length) {<span class="rounded-full bg-[#EDF1FC] px-1.5 py-1 text-[9px] font-extrabold text-[#7E85B1]">{{ c.posts.length }} post{{ c.posts.length === 1 ? '' : 's' }}</span>}</div>
+            <div class="flex flex-col gap-[4px]">
+              @for (p of c.posts.slice(0, pillCount()); track p.id) {
+                <button type="button" [class]="'event-pill pill-' + tone(p.status)" [title]="title(p) + ' · ' + p.status" (click)="openPost(p, $event)"><ng-container *ngTemplateOutlet="tiny; context: { $implicit: p.platform }" /><span class="pill-name">{{ title(p) }}</span></button>
               }
-              @if (day.posts.length > 2) {
-                <span class="pl-more-link" tabindex="0">+{{ day.posts.length - 2 }}</span>
-                <div class="pl-pop" role="list">
-                  @for (p of day.posts; track p.id) {
-                    <ng-container [ngTemplateOutlet]="chip" [ngTemplateOutletContext]="{ $implicit: p }" />
-                  }
-                </div>
+              @if (c.posts.length > pillCount()) {
+                <button type="button" class="w-fit rounded-full bg-[#DFEAFB] px-2 py-[3px] text-[9px] font-extrabold text-[#4976AB]" (click)="openDay(c.key, $event)">+{{ c.posts.length - pillCount() }} more</button>
               }
             </div>
-          }
-        </div>
-      </div>
-
-      <ng-template #chip let-p>
-        <a [class]="'pl-evt ' + palette(p.status)" [routerLink]="['/composer', p.id]"
-          [title]="title(p) + ' · ' + p.platform + ' · ' + p.status">
-          <app-platform-icon [platform]="p.platform" />
-          @if (p.publishAt) { <span class="time">{{ time(p.publishAt, { timeStyle: 'short' }) }}</span> }
-          <span class="ttl">{{ title(p) }}</span>
-        </a>
-      </ng-template>
-
-      <div class="pl-cal-foot">
-        <div class="pl-legend">
-          <span class="item"><span class="dot scheduled"></span>Scheduled</span>
-          <span class="item"><span class="dot published"></span>Published</span>
-          <span class="item"><span class="dot failed"></span>Failed</span>
-          <span class="item"><span class="dot draft"></span>Draft</span>
-          <span class="item"><span class="dot review"></span>In review</span>
-        </div>
-        <span class="pl-footnote">Times in {{ workspace.timeZone() }}</span>
-      </div>
-    </section>
-  } @else {
-    <section class="pl-card pl-card-list">
-      <div class="pl-list-head">
-        <h2>{{ listTitle() }}</h2>
-        <span class="muted">{{ filtered().length }} {{ filtered().length === 1 ? 'post' : 'posts' }}</span>
-      </div>
-      <div class="pl-list">
-        <div class="pl-row head">
-          <span>Post</span><span>Platform</span><span>Status</span>
-          <span class="hwhen">Scheduled / Published</span><span class="hupd">Updated</span><span></span>
-        </div>
-        @for (r of listRows(); track r.id) {
-          <div class="pl-row" role="link" tabindex="0" [routerLink]="['/composer', r.id]">
-            <span class="ltitle" [title]="title(r)">{{ title(r) }}</span>
-            <span class="lplatform"><app-platform-icon [platform]="r.platform" /><span class="pname">{{ r.platform }}</span></span>
-            <span [class]="'pl-status ' + palette(r.status)"><span class="dot"></span>{{ r.status }}</span>
-            <span class="lwhen" [class.dash]="!r.publishAt">{{ time(r.publishAt) }}</span>
-            <span class="lupd">{{ time(r.updatedAtUtc, { dateStyle: 'medium' }) }}</span>
-            <details class="pl-more" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
-              <summary aria-label="More options">
-                <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
-              </summary>
-              <div class="pl-menu">
-                @if (r.status === 'Scheduled' && r.latestJobId && workspace.canManageContent()) {
-                  <button type="button" (click)="reschedule(r)">Change schedule</button>
-                  <a [routerLink]="['/composer', r.id]" title="Saving an edit cancels this schedule; the post needs approval again.">Edit post</a>
-                  <button type="button" class="danger" (click)="cancelSchedule(r)">Cancel schedule</button>
-                } @else {
-                  <a [routerLink]="['/composer', r.id]">Open in Composer</a>
+            <!-- Hover / keyboard focus on a busy day: every post of that day in one card. -->
+            @if (c.posts.length > pillCount()) {
+              <div class="day-pop" role="list" [attr.aria-label]="'All posts on ' + niceDate(c.key)">
+                <div class="mb-1.5 flex items-center justify-between gap-2 px-0.5"><span class="text-[11px] font-extrabold text-[#294A6F]">{{ dayLabel(c.key) }}</span><span class="rounded-full bg-[#EDF1FC] px-1.5 py-1 text-[9px] font-extrabold text-[#7E85B1]">{{ c.posts.length }} posts</span></div>
+                @for (p of c.posts; track p.id) {
+                  <button type="button" role="listitem" [class]="'event-pill pill-' + tone(p.status)" [title]="title(p) + ' · ' + p.status" (click)="openPost(p, $event)"><ng-container *ngTemplateOutlet="tiny; context: { $implicit: p.platform }" /><span class="pill-name">{{ title(p) }}</span><i [class]="'dot dot-' + tone(p.status)"></i></button>
                 }
-                @if ((r.editorialState === 'DRAFT' || r.editorialState === 'CHANGES_REQUESTED') && workspace.canManageContent()) {
-                  <button type="button" class="danger" (click)="deleteDraft(r)">Delete draft</button>
-                }
-                @if (r.status === 'In Review' && workspace.isAdmin()) { <a routerLink="/approvals">Go to Approvals</a> }
               </div>
-            </details>
-          </div>
-        } @empty {
-          <div class="pl-empty">
-            @if (loading()) { Loading… }
-            @else if (rows().length) { No posts match these filters. }
-            @else {
-              No posts yet.
-              @if (workspace.canManageContent()) { <a routerLink="/composer">Write a post</a> or <a routerLink="/ai-studio">create one with AI</a>. }
             }
           </div>
         }
       </div>
+      <!-- Phones: the selected week and day, rather than a squashed seven-column grid. -->
+      <div class="px-3 py-4 sm:px-5 md:hidden">
+        <div class="mb-3 flex items-center justify-between"><p class="text-[12px] font-extrabold text-[#526C8D]">{{ weekLabel() }}</p><div class="flex items-center gap-1"><button type="button" (click)="shiftWeek(-1)" class="grid h-8 w-8 place-items-center rounded-full bg-[#F0F5FC] text-[#6B83A3]" aria-label="Previous week"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-left"/></svg></button><button type="button" (click)="shiftWeek(1)" class="grid h-8 w-8 place-items-center rounded-full bg-[#F0F5FC] text-[#6B83A3]" aria-label="Next week"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-right"/></svg></button></div></div>
+        <div class="week-strip grid grid-cols-7 gap-1">
+          @for (d of week(); track d.key) {
+            <button type="button" (click)="selectDay(d.key)" [class]="'flex min-h-[61px] flex-col items-center justify-center gap-1 rounded-[13px] ' + (d.key === selectedDay() ? 'bg-[#284D79] text-white shadow-[0_7px_14px_#33578934]' : 'bg-[#F1F5FB] text-[#7B8EAA]')"><span class="text-[9px] font-bold">{{ d.name }}</span><span class="text-[13px] font-extrabold">{{ d.day }}</span><span [class]="'dot ' + (d.has ? 'bg-[#EAAEAD]' : 'bg-transparent')"></span></button>
+          }
+        </div>
+        <div class="my-4 border-t border-[#E9EEF5]"></div>
+        <div class="mb-3 flex items-center justify-between gap-2"><h3 class="text-[13px] font-extrabold text-[#365373]">{{ dayLabel(selectedDay()) }}</h3><span class="chip">{{ dayPosts().length }} post{{ dayPosts().length === 1 ? '' : 's' }}</span></div>
+        <div class="flex flex-col gap-2">
+          @for (p of dayPosts(); track p.id) { <ng-container *ngTemplateOutlet="entry; context: { $implicit: p }" /> }
+          @empty { <div class="rounded-[17px] border border-dashed border-[#D9E5F3] bg-[#F9FBFF] p-7 text-center"><div class="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-[13px] bg-[#E9F1FD] text-[#7092BD]"><svg class="h-5 w-5 fill-none stroke-current stroke-2"><use href="#i-inbox"/></svg></div><p class="text-[12px] font-bold text-[#66809F]">Nothing planned for this day</p></div> }
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#E7EDF5] bg-[#F9FBFE]/95 px-4 py-3 sm:px-5">
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#7288A3]"><i class="dot dot-scheduled"></i> Scheduled</span>
+          <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#7288A3]"><i class="dot dot-published"></i> Published</span>
+          <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#7288A3]"><i class="dot dot-review"></i> In review</span>
+          <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#7288A3]"><i class="dot dot-draft"></i> Draft</span>
+          <span class="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#7288A3]"><i class="dot dot-failed"></i> Failed</span>
+        </div>
+        <span class="text-[10px] font-semibold text-[#A0AEC0]">Drafts and reviews show on their last update</span>
+      </div>
+    </section>
+  } @else {
+    <section class="glass overflow-hidden rounded-[26px]">
+      <div class="flex items-center justify-between border-b border-[#E6ECF5] bg-[linear-gradient(110deg,#F2F8FF,#F6F0FD,#FFF5F0)] px-5 py-4"><div><h3 class="text-[14px] font-extrabold text-[#304C6D]">{{ monthTitle() }}</h3><p class="mt-1 text-[10px] text-[#8C9EBA]">Your month, in one easy-to-scan list</p></div><span class="chip">{{ monthPosts().length }} post{{ monthPosts().length === 1 ? '' : 's' }}</span></div>
+      <div class="flex flex-col gap-2 p-3 sm:p-5">
+        @for (p of monthPosts(); track p.id) { <ng-container *ngTemplateOutlet="entry; context: { $implicit: p }" /> }
+        @empty { <div class="flex min-h-[280px] flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-[#DFE9F4] bg-[#F9FBFE] p-5"><div class="grid h-12 w-12 place-items-center rounded-[16px] bg-[#EAF1FF] text-[#7C9AC4]"><svg class="h-6 w-6 fill-none stroke-current stroke-2"><use href="#i-calendar"/></svg></div><p class="text-[14px] font-extrabold text-[#496787]">{{ loading() ? 'Loading posts…' : 'No posts match these filters' }}</p>@if (!loading()) {<p class="text-center text-[11px] text-[#8DA0B5]">Try another month or change the filters.</p>}</div> }
+      </div>
     </section>
   }
-  <app-schedule-dialog [submit]="submitReschedule" />
+</main>
+
+<ng-template #tiny let-platform>
+  @switch (platform) {
+    @case ('LinkedIn') { <span class="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] bg-[#2073BC] text-[8px] font-extrabold text-white" role="img" aria-label="LinkedIn">in</span> }
+    @case ('Facebook') { <span class="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] bg-[#327DDD] text-[10px] font-extrabold text-white" role="img" aria-label="Facebook">f</span> }
+    @default { <span class="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] bg-[#BD83B8] text-[11px] text-white" role="img" aria-label="Instagram">&#9678;</span> }
+  }
+</ng-template>
+<ng-template #poster let-p let-mini="mini">
+  <div [class]="'poster relative flex flex-col justify-between ' + (mini ? 'h-[65px] w-[65px] shrink-0 rounded-[15px] p-2' : 'subtle-grid h-[234px] rounded-[20px] p-5')" [attr.data-art]="artOf(p)">
+    @if (imageUrl(p); as src) {
+      <img class="absolute inset-0 z-[3] h-full w-full object-cover" [src]="src" alt="" />
+    } @else {
+      <div class="poster-grid"></div><span [class]="'relative z-[2] font-extrabold tracking-[.16em] opacity-75 ' + (mini ? 'text-[5px]' : 'text-[9px]')">SOCIAL / IMAGE POST</span><span [class]="'heading-font relative z-[2] whitespace-pre-line font-extrabold ' + (mini ? 'text-[11px] leading-[1]' : 'text-[32px] leading-[1.02]')">{{ artText(p) }}</span>
+    }
+  </div>
+</ng-template>
+<ng-template #entry let-p>
+  <button type="button" (click)="openPost(p, $event)" class="entry flex w-full items-center gap-3 rounded-[17px] border border-[#E5EDF7] bg-white p-2.5 text-left sm:gap-4 sm:p-3.5">
+    <ng-container *ngTemplateOutlet="poster; context: { $implicit: p, mini: true }" />
+    <span class="min-w-0 flex-1"><span class="mb-1 block truncate text-[12px] font-extrabold text-[#264567] sm:text-[13px]">{{ title(p) }}</span><span class="mb-2 block truncate text-[10px] text-[#8298B0]">{{ p.hook ? p.bodyExcerpt : 'Image post' }}</span><span class="flex flex-wrap items-center gap-2"><span [class]="'status-chip status-' + tone(p.status)"><i [class]="'dot dot-' + tone(p.status)"></i>{{ p.status }}</span><span class="flex items-center gap-1 text-[10px] font-bold text-[#7990A9]"><ng-container *ngTemplateOutlet="tiny; context: { $implicit: p.platform }" /> {{ p.platform }}</span></span></span>
+    <span class="ml-auto hidden shrink-0 items-center gap-1 text-[10px] font-bold text-[#899BB1] sm:inline-flex">{{ shortDate(p) }} <svg class="h-[14px] w-[14px] fill-none stroke-current stroke-2"><use href="#i-right"/></svg></span>
+  </button>
+</ng-template>
+
+<!-- Post / day details drawer (always rendered so it can slide). -->
+@if (drawer()) { <div class="modal-backdrop theme-scrim fixed inset-0 z-[80]" (click)="drawer.set(null)"></div> }
+<aside [class.translate-x-full]="!drawer()" class="fixed inset-y-0 right-0 z-[90] flex w-full max-w-[440px] flex-col bg-[#FBFCFF] shadow-[-22px_0_70px_#142e4750] transition-transform duration-300" role="dialog" [attr.aria-label]="drawer()?.kind === 'day' ? 'Day overview' : 'Post details'" aria-modal="true" [attr.aria-hidden]="!drawer()" [attr.inert]="drawer() ? null : ''">
+  <div class="flex items-center justify-between border-b border-[#E8EDF5] px-5 py-4"><div><p class="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8298B2]">Content preview</p><h2 class="heading-font mt-1 text-[22px] font-extrabold text-[#203B59]">{{ drawer()?.kind === 'day' ? 'Day overview' : 'Post details' }}</h2></div><button type="button" (click)="drawer.set(null)" class="grid h-10 w-10 place-items-center rounded-full bg-[#EEF3FB] text-[#69809F] hover:bg-[#E0ECF8]" aria-label="Close details"><svg class="h-5 w-5 fill-none stroke-current stroke-2"><use href="#i-close"/></svg></button></div>
+  @switch (drawer()?.kind) {
+    @case ('post') {
+      @let d = $any(drawer());
+      <div class="min-h-0 flex-1 overflow-auto px-5 py-5">
+        <ng-container *ngTemplateOutlet="poster; context: { $implicit: d.row, mini: false }" />
+        <div class="mt-5 flex items-center justify-between gap-2"><span [class]="'status-chip status-' + tone(d.row.status)"><i [class]="'dot dot-' + tone(d.row.status)"></i>{{ d.row.status }}</span><span class="flex items-center gap-1.5 text-[11px] font-bold text-[#8699B2]"><ng-container *ngTemplateOutlet="tiny; context: { $implicit: d.row.platform }" /> {{ d.row.platform }}</span></div>
+        <h3 class="heading-font mt-5 text-[23px] font-extrabold leading-[1.26] text-[#203D5C]">{{ title(d.row) }}</h3>
+        <p class="mt-3 whitespace-pre-line text-[13px] leading-6 text-[#58718E]">{{ d.text ?? (d.row.hook ? d.row.bodyExcerpt : 'Loading…') }}</p>
+        <div class="mt-6 rounded-[16px] border border-[#DCE7F4] bg-[#F3F7FD] p-4"><div class="flex items-center gap-2 text-[11px] font-bold text-[#65809E]"><svg class="h-4 w-4 shrink-0 fill-none stroke-current stroke-2"><use href="#i-calendar"/></svg>{{ whenText(d.row) }}</div><p class="mt-2 text-[10px] leading-5 text-[#8598B0]">{{ imageUrl(d.row) ? 'The image is the post’s first image.' : 'No image attached. The artwork is only a placeholder.' }} Times in {{ workspace.timeZone() }}.</p></div>
+      </div>
+      <div class="flex gap-2 border-t border-[#E7EDF5] bg-white p-4">
+        <button type="button" (click)="edit(d.row)" class="soft-button flex h-11 flex-1 items-center justify-center gap-2 rounded-full border border-[#DCE6F2] bg-[#F5F9FF] text-[12px] font-extrabold text-[#526E92]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-edit"/></svg> {{ workspace.canManageContent() ? 'Edit' : 'Open' }}</button>
+        @if (canChangeSchedule(d.row)) {
+          <button type="button" (click)="reschedule(d.row)" class="soft-button flex h-11 flex-[1.5] items-center justify-center gap-2 rounded-full bg-[#1F3C5E] text-[12px] font-extrabold text-white shadow-[0_7px_18px_#2145662b]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-calendar"/></svg> Change schedule</button>
+        } @else if (d.row.status === 'Approved' && workspace.isAdmin()) {
+          <a routerLink="/approvals" [queryParams]="{ tab: 'approved' }" class="soft-button flex h-11 flex-[1.5] items-center justify-center gap-2 rounded-full bg-[#1F3C5E] text-[12px] font-extrabold text-white shadow-[0_7px_18px_#2145662b]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-calendar"/></svg> Schedule</a>
+        }
+      </div>
+    }
+    @case ('day') {
+      @let key = $any(drawer()).day;
+      <div class="min-h-0 flex-1 overflow-auto px-5 py-5">
+        <div class="mb-5 rounded-[17px] bg-[linear-gradient(115deg,#E9F5FF,#F1EAFE,#F8EEEC)] p-4"><p class="text-[11px] font-bold text-[#7389A5]">Posts planned for</p><p class="heading-font mt-1 text-[19px] font-extrabold text-[#294A6F]">{{ niceDate(key) }}</p><p class="mt-2 text-[11px] font-semibold text-[#8095AF]">{{ postsOn(key).length }} post{{ postsOn(key).length === 1 ? '' : 's' }} on this day</p></div>
+        <div class="flex flex-col gap-2">@for (p of postsOn(key); track p.id) { <ng-container *ngTemplateOutlet="entry; context: { $implicit: p }" /> }</div>
+      </div>
+    }
+  }
+</aside>
+
+@if (toastText()) {
+  <div class="fixed bottom-5 left-1/2 z-[130] -translate-x-1/2 rounded-full bg-[#1D3B5D] px-5 py-3 text-center text-[11px] font-bold text-white shadow-[0_13px_30px_#1c36575c]" role="status" aria-live="polite">{{ toastText() }}</div>
+}
+<app-schedule-dialog [submit]="submitReschedule" />
 </div>
+}

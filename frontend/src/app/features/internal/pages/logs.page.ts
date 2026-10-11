@@ -58,8 +58,8 @@ type Tab = 'all' | 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
                 <tr>
                   <td>{{ when(r.atUtc) }}</td><td>{{ r.source }}</td>
                   <td><span [class]="'badge delivery ' + tone(r.outcome)">{{ words(r.outcome) }}</span></td>
-                  <td>{{ r.actor ?? '—' }}</td><td>{{ r.workspace ?? '—' }}</td><td>{{ words(r.event) }}</td>
-                  <td class="problem-text">{{ r.message }}</td>
+                  <td>{{ r.actor ?? '—' }}</td><td>{{ r.workspace ?? '—' }}</td><td class="ev">{{ words(r.event) }}</td>
+                  <td class="details" [class.problem-text]="r.outcome === 'FAILED'">{{ r.message }}</td>
                   <td><button type="button" class="link" (click)="trace(r.correlationId)">{{ r.correlationId ?? '' }}</button></td>
                 </tr>
               } @empty { <tr><td colspan="8" class="empty">{{ empty() }}</td></tr> }

@@ -27,11 +27,14 @@ export const authGuard: CanActivateFn = async (route, state) => {
   return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
 };
 
+const ONBOARDING_ORDER: OnboardingStep[] = ['WORKSPACE', 'PROFILE', 'BRAND_PROFILE', 'SOCIAL_CONNECTIONS', 'COMPLETE'];
+
 /**
- * Onboarding pages: only the step the API says is next can be opened, so a refresh or a typed URL always lands on the
- * right step, and a finished user goes to the dashboard. The step is read fresh because it changes as steps complete.
+ * Onboarding pages: the step the API says is next, or an already finished earlier step (the onboarding Back button
+ * reopens it for editing). A later step can never be skipped to, so a typed URL lands on the right step. The step is
+ * read fresh because it changes as steps complete.
  */
-export function onboardingGuard(step: OnboardingStep, alsoWhenComplete = false): CanActivateFn {
+export function onboardingGuard(step: OnboardingStep): CanActivateFn {
   return async () => {
     const auth = inject(AuthService);
     const router = inject(Router);
@@ -40,7 +43,7 @@ export function onboardingGuard(step: OnboardingStep, alsoWhenComplete = false):
       if (me) {
         if (isOperatorOnly(me)) return router.createUrlTree(['/internal']);
         const next = me.onboarding.nextStep;
-        return next === step || (alsoWhenComplete && next === 'COMPLETE') ? true : router.createUrlTree([ONBOARDING_ROUTES[next]]);
+        return ONBOARDING_ORDER.indexOf(step) <= ONBOARDING_ORDER.indexOf(next) ? true : router.createUrlTree([ONBOARDING_ROUTES[next]]);
       }
     } catch {
       // API unreachable: fall through to the login page.

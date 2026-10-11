@@ -8,7 +8,7 @@ import {
 } from '../internal-api.service';
 
 const DAY = 864e5;
-const ROLE_COLORS: Record<string, string> = { Admin: '#1e3a8a', Creator: '#3b62e8', Reviewer: '#9db4ff' };
+const ROLE_COLORS: Record<string, string> = { Admin: '#3e75bf', Creator: '#9279d0', Reviewer: '#e6a1a6' };
 const CIRC = 2 * Math.PI * 44;
 
 /** Local yyyy-MM-dd of a UTC timestamp (timestamps without an offset are UTC). */
@@ -51,7 +51,7 @@ interface Kpi { label: string; value: number; icon: string; link: string; query?
           <div class="card-h">
             <h3>AI Activity</h3>
             <div class="card-h-right">
-              <div class="legend"><span><i style="background:#2a4aab"></i>Requests</span><span><i style="background:#dc2626"></i>Failed</span></div>
+              <div class="legend"><span><i style="background:#537bc5"></i>Requests</span><span><i style="background:#d17889"></i>Failed</span></div>
               <div class="range-chips">
                 <button type="button" [class.active]="range() === 14" (click)="range.set(14)">14d</button>
                 <button type="button" [class.active]="range() === 30" (click)="range.set(30)">30d</button>
@@ -61,17 +61,17 @@ interface Kpi { label: string; value: number; icon: string; link: string; query?
           @let c = chart();
           <div class="chart-body">
             <svg viewBox="0 0 600 210" preserveAspectRatio="none" role="img" aria-label="AI requests per day">
-              <defs><linearGradient id="gNavy" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b62e8" stop-opacity=".28"/><stop offset="1" stop-color="#3b62e8" stop-opacity="0"/></linearGradient></defs>
-              <g stroke="#e6ebf6" stroke-dasharray="3 4" stroke-width="1">
+              <defs><linearGradient id="gNavy" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7198e5" stop-opacity=".32"/><stop offset="1" stop-color="#7198e5" stop-opacity=".01"/></linearGradient></defs>
+              <g stroke="#e4ebf5" stroke-dasharray="4 7" stroke-width="1">
                 @for (t of c.ticks; track t.y) { <line x1="36" [attr.y1]="t.y" x2="588" [attr.y2]="t.y"/> }
               </g>
-              <g font-size="9" fill="#93a0bd" text-anchor="end">
+              <g font-size="9" fill="#9baec7" text-anchor="end">
                 @for (t of c.ticks; track t.y) { <text x="26" [attr.y]="t.y + 3">{{ t.label }}</text> }
               </g>
               <path [attr.d]="c.area" fill="url(#gNavy)"/>
-              <path [attr.d]="c.requests" fill="none" stroke="#2a4aab" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-              <path [attr.d]="c.failed" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" opacity=".9" vector-effect="non-scaling-stroke"/>
-              <g font-size="9" fill="#93a0bd" text-anchor="middle">
+              <path [attr.d]="c.requests" fill="none" stroke="#436ec0" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+              <path [attr.d]="c.failed" fill="none" stroke="#d07785" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity=".9" vector-effect="non-scaling-stroke"/>
+              <g font-size="9" fill="#9baec7" text-anchor="middle">
                 @for (l of c.labels; track l.x) { <text [attr.x]="l.x" y="203">{{ l.text }}</text> }
               </g>
             </svg>
@@ -79,11 +79,11 @@ interface Kpi { label: string; value: number; icon: string; link: string; query?
         </section>
 
         <section class="card">
-          <div class="card-h"><h3>Users by Role</h3></div>
+          <div class="card-h"><h3>Users by Role</h3><span class="soft-tag">{{ donut().total }} total</span></div>
           <div class="donut-body">
             <div class="donut-wrap">
               <svg width="118" height="118" viewBox="0 0 118 118">
-                <circle cx="59" cy="59" r="44" fill="none" stroke="#eef1f7" stroke-width="15"/>
+                <circle cx="59" cy="59" r="44" fill="none" stroke="#edf2fd" stroke-width="15"/>
                 @for (s of donut().segments; track s.role) {
                   <circle cx="59" cy="59" r="44" fill="none" [attr.stroke]="s.color" stroke-width="15" [attr.stroke-dasharray]="s.dash"
                     [attr.stroke-dashoffset]="s.offset" transform="rotate(-90 59 59)"/>
@@ -99,7 +99,7 @@ interface Kpi { label: string; value: number; icon: string; link: string; query?
 
         <div class="dash-bottom">
           <section class="card">
-            <div class="card-h"><h3>Requires Attention</h3></div>
+            <div class="card-h"><h3>Requires Attention</h3>@if (d.attention.length) { <span class="pill amber">{{ d.attention.length }} open</span> } @else { <span class="pill green">Clear</span> }</div>
             <div class="card-b">
               @for (a of d.attention; track $index) {
                 <div class="alert" [class.info]="a.severity === 'INFO'" [class.critical]="a.severity === 'CRITICAL'">
@@ -150,70 +150,101 @@ interface Kpi { label: string; value: number; icon: string; link: string; query?
   `,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 0; }
-    .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
-    .kpi { background: #fff; border: 1px solid var(--a-line); border-radius: 14px; box-shadow: var(--a-shadow); padding: 13px 14px; position: relative;
-      overflow: hidden; display: flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; transition: transform .15s, box-shadow .15s, border-color .15s; }
-    .kpi:hover { transform: translateY(-2px); border-color: #c3d0ee; box-shadow: 0 8px 18px rgba(16, 31, 73, .1); }
-    .kpi::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #3b62e8, #16295e); opacity: 0; transition: opacity .15s; }
-    .kpi:hover::after { opacity: 1; }
-    .kpi .ic { width: 36px; height: 36px; border-radius: 10px; flex: none; background: linear-gradient(145deg, #3b62e8, #1c3479); display: flex; align-items: center;
-      justify-content: center; color: #fff; box-shadow: 0 4px 9px rgba(30, 58, 138, .28), inset 0 1px 0 rgba(255, 255, 255, .2); }
-    .kpi.danger .ic { background: linear-gradient(145deg, #ef4444, #b91c1c); box-shadow: 0 4px 9px rgba(185, 28, 28, .28); }
-    .kpi .kc { min-width: 0; display: flex; flex-direction: column; }
-    .kpi .v { font-size: 22px; font-weight: 800; letter-spacing: -.5px; line-height: 1.05; color: var(--a-ink); }
-    .kpi .l { font-size: 10.5px; font-weight: 600; color: var(--a-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .kpi .tr { position: absolute; top: 11px; right: 11px; font-size: 9.5px; font-weight: 700; color: #15803d; background: #e6f7ec; border-radius: 6px; padding: 2px 6px; }
-    .kpi .tr.zero { color: #6b7899; background: #eef1f7; }
-    .kpi .tr.down { color: #b91c1c; background: #fdeaea; }
-    .kpi .sp { position: absolute; right: 10px; bottom: 9px; }
+    /* KPI cards (the design's metric tiles): icon and change at the top, value and sparkline at the bottom. */
+    .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .kpi { position: relative; overflow: hidden; min-height: 112px; padding: 14px 15px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;
+      color: inherit; text-decoration: none; border: 1px solid #dce6f3; border-radius: 18px; background: linear-gradient(145deg, #fff 4%, #f1f7ff 130%);
+      box-shadow: 0 12px 28px #5a75921b; transition: transform .2s, box-shadow .2s; }
+    .kpi:nth-child(3n+2) { background: linear-gradient(145deg, #fff 4%, #f1eefb 130%); }
+    .kpi:nth-child(3n) { background: linear-gradient(145deg, #fff 4%, #fff0ea 130%); }
+    .kpi::before { content: ''; position: absolute; right: -25px; top: -53px; width: 118px; height: 118px; border-radius: 50%; background: radial-gradient(circle, #cadfff7a, transparent 72%); }
+    .kpi:nth-child(3n+2)::before { background: radial-gradient(circle, #e5d8f67c, transparent 72%); }
+    .kpi:nth-child(3n)::before { background: radial-gradient(circle, #f4d8d27a, transparent 72%); }
+    .kpi::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #a9cef0, #c8bee8, #ecc1bc); }
+    .kpi:hover { transform: translateY(-2px); box-shadow: 0 18px 30px #5a759229; }
+    .kpi .ic { position: relative; width: 34px; height: 34px; border-radius: 11px; flex: none; display: grid; place-items: center; color: #447bba;
+      background: linear-gradient(145deg, #d7e9ff, #e9f2ff); box-shadow: inset 0 1px 0 #fff, 0 4px 12px #7397bf20; }
+    .kpi:nth-child(2) .ic, .kpi:nth-child(6) .ic { color: #8c77c4; background: linear-gradient(145deg, #e8dffc, #f3f1ff); }
+    .kpi:nth-child(3) .ic, .kpi:nth-child(5) .ic, .kpi.danger .ic { color: #ca887f; background: linear-gradient(145deg, #fce2de, #fff1eb); }
+    .kpi:nth-child(4) .ic { color: #438c77; background: linear-gradient(145deg, #d7f6eb, #eefbf4); }
+    .kpi .ic svg { width: 17px; height: 17px; }
+    .kpi .kc { position: relative; min-width: 0; display: flex; flex-direction: column; padding-right: 58px; }
+    .kpi .v { font-family: Manrope, sans-serif; font-size: 27px; font-weight: 800; letter-spacing: -.07em; line-height: 1; color: #213957; }
+    .kpi.danger .v { color: #c85e71; }
+    .kpi .l { font-size: 10px; font-weight: 700; color: #627c9c; margin-top: 5px; line-height: 1.3; }
+    .kpi .tr { position: absolute; top: 14px; right: 14px; border-radius: 999px; background: #e3f6ec; color: #25866d; padding: 4px 7px; font-size: 9px; font-weight: 800; }
+    .kpi .tr.zero { background: #edf0f8; color: #8192ad; }
+    .kpi .tr.down { background: #ffebec; color: #c85e71; }
+    .kpi .sp { position: absolute; right: 14px; bottom: 16px; }
+    .kpi:nth-child(1) .sp polyline:not([stroke-dasharray]) { stroke: #5687d1; }
+    .kpi:nth-child(2) .sp polyline:not([stroke-dasharray]), .kpi:nth-child(6) .sp polyline:not([stroke-dasharray]) { stroke: #8a7cc9; }
+    .kpi:nth-child(3) .sp polyline:not([stroke-dasharray]), .kpi:nth-child(5) .sp polyline:not([stroke-dasharray]) { stroke: #d99796; }
+    .kpi:nth-child(4) .sp polyline:not([stroke-dasharray]) { stroke: #64a99c; }
+    .kpi .sp polyline[stroke-dasharray] { stroke: #d7d7e6; stroke-dasharray: 2 4; }
 
-    .dash-main { display: grid; gap: 14px; grid-template-columns: 1.85fr 1fr; grid-template-rows: 300px auto; }
-    .dash-bottom { grid-column: 1 / -1; display: grid; gap: 14px; grid-template-columns: 1.02fr 1.02fr .96fr 1fr; }
-    .card-h-right { display: flex; align-items: center; gap: 16px; }
-    .chart-body { flex: 1; min-height: 0; padding: 8px 12px 10px; display: flex; }
-    .chart-body svg { width: 100%; height: 100%; }
-    .legend { display: flex; gap: 14px; align-items: center; font-size: 11px; color: var(--a-muted); }
-    .legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 5px; }
-    .range-chips { display: flex; gap: 4px; }
-    .range-chips button { height: auto; font-size: 10.5px; font-weight: 600; color: var(--a-muted); padding: 3px 9px; border-radius: 7px; border: none; background: none; cursor: pointer; min-height: 0; }
-    .range-chips button.active { background: #e7eefc; color: var(--a-navy); }
+    .dash-main { display: grid; gap: 12px; grid-template-columns: minmax(0, 1.75fr) minmax(290px, 1fr); grid-template-rows: 312px auto; }
+    .dash-bottom { grid-column: 1 / -1; display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .dash-bottom .card { min-height: 252px; }
+    .dash-bottom .card:nth-child(1) { background: linear-gradient(160deg, #fff 25%, #effbf6 140%); }
+    .dash-bottom .card:nth-child(2) { background: linear-gradient(160deg, #fff 25%, #eef5ff 140%); }
+    .dash-bottom .card:nth-child(3) { background: linear-gradient(160deg, #fff 25%, #f6f0ff 140%); }
+    .dash-bottom .card:nth-child(4) { background: linear-gradient(160deg, #fff 25%, #fff0ec 140%); }
+    .card-h-right { display: flex; align-items: center; gap: 9px; }
+    .soft-tag { font-size: 10px; font-weight: 700; border-radius: 9px; padding: 6px 9px; color: #6283ac; background: linear-gradient(110deg, #eaf3ff, #f0ebfb); border: 1px solid #e5e7f4; }
+    .card-h .cards-link::after { content: ' ↗'; }
+    .chart-body { flex: 1; min-height: 0; padding: 8px 4px 4px; display: flex; }
+    .chart-body svg { width: 100%; height: 100%; overflow: visible; }
+    .legend { display: flex; gap: 10px; align-items: center; font-size: 10px; font-weight: 700; color: #7c8fad; }
+    .legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    /* 14d / 30d: the design's tiny switch. */
+    .range-chips { display: flex; gap: 2px; background: #f0f4fb; padding: 3px; border-radius: 9px; }
+    .range-chips button { height: auto; min-height: 0; padding: 5px 8px; border: 0; border-radius: 7px; background: none; box-shadow: none; font-size: 10px; font-weight: 800; color: #7d91ab; cursor: pointer; }
+    .range-chips button.active { background: #fff; color: #446db1; box-shadow: 0 1px 4px #95a5bf40; }
 
-    .donut-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 20px; padding: 8px 14px; }
-    .donut-wrap { position: relative; flex: none; }
+    .donut-body { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 20px 40px; padding: 8px 14px; }
+    .donut-wrap { position: relative; flex: none; border-radius: 50%; box-shadow: 0 0 0 9px #edf2fd7a, 0 13px 30px #7886c62b; }
+    .donut-wrap svg { display: block; width: 150px; height: 150px; }
     .donut-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .donut-c .n { font-size: 21px; font-weight: 800; color: var(--a-ink); }
-    .donut-c .t { font-size: 10px; font-weight: 600; color: var(--a-faint); text-transform: uppercase; letter-spacing: .6px; }
-    .dlegend { display: flex; flex-direction: column; gap: 9px; }
-    .dlegend .row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--a-muted); }
+    .donut-c .n { font-family: Manrope, sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -.07em; color: #23395a; }
+    .donut-c .t { font-size: 10px; font-weight: 800; color: #90a2b8; text-transform: uppercase; letter-spacing: .12em; }
+    .dlegend { display: flex; flex-direction: column; min-width: 140px; }
+    .dlegend .row { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 11px; font-weight: 700; color: #607896; }
     .dlegend i { width: 9px; height: 9px; border-radius: 3px; }
-    .dlegend b { margin-left: auto; color: var(--a-ink); padding-left: 14px; }
+    .dlegend b { margin-left: auto; color: #294263; padding-left: 28px; }
 
-    .card-b.tight { padding-top: 6px; padding-bottom: 6px; }
-    .alert { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--a-line-soft);
-      border-left: 3px solid #d97706; background: #fffdf6; margin-bottom: 8px; font-size: 12px; }
-    .alert.info { border-left-color: #3b82f6; background: #f8fbff; }
-    .alert.critical { border-left-color: #dc2626; background: #fff8f8; }
-    .alert b { font-weight: 600; }
-    .alert .sep { color: var(--a-faint); }
+    .card-b.tight { padding-top: 4px; padding-bottom: 4px; }
+    .alert { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid #f6e4d2;
+      border-left: 3px solid #d9a46b; background: #fffaf3; margin-bottom: 8px; font-size: 11px; color: #5f7494; }
+    .alert.info { border-color: #d9e8fb; border-left-color: #7da6dd; background: #f6f9ff; }
+    .alert.critical { border-color: #f3dfe7; border-left-color: #d17889; background: #fff6f7; }
+    .alert b { font-weight: 800; color: #344d6b; }
+    .alert .sep { color: #98aac0; }
     .alert .cards-link { margin-left: auto; flex: none; }
-    .kv { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7.5px 2px; border-bottom: 1px solid var(--a-line-soft); font-size: 12.5px; }
+    .kv { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid #ecf0f6; font-size: 11px; color: #5f7494; }
     .kv:last-child { border-bottom: none; }
-    .kv .k { color: var(--a-muted); }
-    .mini-h { font-size: 11px; font-weight: 700; color: var(--a-faint); text-transform: uppercase; letter-spacing: .7px; margin: 6px 0 2px; }
-    .act .row { display: flex; align-items: flex-start; gap: 10px; padding: 7px 2px; border-bottom: 1px solid var(--a-line-soft); }
+    .kv .k { color: #5f7494; }
+    .kv b { color: #233b5b; }
+    .mini-h { margin: 6px 0 2px; font-size: 9px; font-weight: 800; color: #9b89b5; text-transform: uppercase; letter-spacing: .11em; }
+    .act .row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #ecf0f6; }
     .act .row:last-child { border-bottom: none; }
-    .act .dt { width: 6px; height: 6px; border-radius: 50%; background: #8aa5e8; margin-top: 6px; flex: none; }
-    .act .tx { font-size: 12px; color: var(--a-ink); line-height: 1.4; }
-    .act .mt { margin-left: auto; font-size: 11px; color: var(--a-faint); white-space: nowrap; padding-left: 10px; }
-    .all-ok { margin: 6px 0; font-size: 12.5px; color: #15803d; font-weight: 600; }
-    .all-ok.muted { color: var(--a-faint); font-weight: 500; }
+    .act .dt { width: 6px; height: 6px; border-radius: 50%; background: #a3b8e8; margin-top: 6px; flex: none; }
+    .act .tx { font-size: 11px; color: #344d6b; line-height: 1.45; }
+    .act .mt { margin-left: auto; font-size: 10px; color: #98aac0; white-space: nowrap; padding-left: 10px; }
+    /* "All systems operational": the design's green note. Empty activity: the design's soft icon tile. */
+    .all-ok { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0; padding: 16px 12px; border-radius: 12px; border: 1px solid #d8f3e5; background: #eaf9f2;
+      font-size: 11px; font-weight: 700; color: #287f67; }
+    .all-ok::before { content: '✓'; display: grid; place-items: center; width: 17px; height: 17px; flex: none; border: 1.6px solid currentColor; border-radius: 50%; font-size: 9px; line-height: 1; }
+    .all-ok.muted { flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 150px; padding: 0; border: 0; background: none; color: #8ea0b7; font-weight: 600; }
+    .all-ok.muted::before { content: ''; width: 48px; height: 48px; border: 0; border-radius: 15px; background: linear-gradient(140deg, #e5f3ff, #f0ebfa, #fff0ed); }
 
-    @media (max-width: 1200px) {
+    @media (max-width: 1190px) {
       .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-      .dash-main { grid-template-columns: 1fr; grid-template-rows: 300px auto auto; }
-      .dash-bottom { grid-template-columns: 1fr 1fr; }
+      .dash-main { grid-template-columns: minmax(0, 1.25fr) minmax(0, .85fr); }
+      .dash-bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-    @media (max-width: 700px) { .kpis, .dash-bottom { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .dash-main { grid-template-columns: 1fr; grid-template-rows: 300px auto auto; } }
+    @media (max-width: 700px) { .kpis, .dash-bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi { min-height: 101px; } .kpi .v { font-size: 22px; } }
+    @media (max-width: 350px) { .kpis, .dash-bottom { grid-template-columns: 1fr; } }
   `,
 })
 export class OverviewPage implements OnInit {

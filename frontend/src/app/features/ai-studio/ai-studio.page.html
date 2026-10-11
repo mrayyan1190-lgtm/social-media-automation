@@ -1,295 +1,291 @@
-<div class="content">
-  <app-problem-banner [problem]="problem()" />
+<div class="tw-page ai-studio relative text-[#1B304F] antialiased selection:bg-[#E0E9FE] selection:text-[#1B304F]">
+  <div class="studio-environment" aria-hidden="true"></div>
+  <svg class="absolute h-0 w-0 overflow-hidden" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="ic-spark" viewBox="0 0 24 24"><path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2Z"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m3 17 6-6 4 4 3-3 5 5"/></symbol>
+    <symbol id="ic-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></symbol>
+    <symbol id="ic-send" viewBox="0 0 24 24"><path d="m5 12 14-8-4 16-3.3-6.3L5 12Zm6.7 1.7L19 4"/></symbol>
+    <symbol id="ic-arrow" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol>
+    <symbol id="ic-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="ic-sliders" viewBox="0 0 24 24"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+    <symbol id="ic-close" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M20 8V3l-3 3a9 9 0 0 0-14 6m1 4v5l3-3a9 9 0 0 0 14-6"/></symbol>
+    <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s3.4-6 10-6 10 6 10 6-3.4 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.7"/></symbol>
+    <symbol id="ic-pen" viewBox="0 0 24 24"><path d="m14 5 5 5M4 20l4.3-.9L20 7.4 16.6 4 4.9 15.7 4 20Z"/></symbol>
+    <symbol id="ic-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></symbol>
+    <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 .5l2-2a5 5 0 0 0-7-7l-1.1 1.1M14 11a5 5 0 0 0-7-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></symbol>
+    <symbol id="ic-message" viewBox="0 0 24 24"><path d="M20 11.5a8 8 0 0 1-8 8 8.6 8.6 0 0 1-4-.9L4 20l1.4-4A8 8 0 1 1 20 11.5Z"/></symbol>
+    <symbol id="ic-wand" viewBox="0 0 24 24"><path d="m4 20 11-11m-2-6h3m-1.5-1.5v3m5 6h3m-1.5-1.5v3M6 4l.8 2.2L9 7l-2.2.8L6 10l-.8-2.2L3 7l2.2-.8L6 4Z"/></symbol>
+    <symbol id="ic-file" viewBox="0 0 24 24"><path d="M5 3h9l5 5v13H5V3Z"/><path d="M14 3v5h5M8 13h8m-8 4h8"/></symbol>
+    <symbol id="ic-arrow-right" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+  </svg>
 
-  <ng-template #chipOf let-platform>
+  <!-- Platform badge (cards, preview, menus): the design's colours per platform. -->
+  <ng-template #badge let-platform let-size="size">
     @switch (platform) {
-      @case ('LinkedIn') { <span class="in-chip li">in</span> }
-      @case ('Facebook') { <span class="in-chip fb"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 21v-7h2.4l.4-3h-2.8V9.1c0-.9.3-1.5 1.6-1.5h1.3V4.9c-.2 0-1-.1-1.9-.1-1.9 0-3.2 1.2-3.2 3.3V11H9v3h2.3v7h2.2z"/></svg></span> }
-      @default { <span class="in-chip ig"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg></span> }
+      @case ('LinkedIn') { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[#146BB8] font-display text-[12px] font-extrabold text-white">in</span> }
+      @case ('Facebook') { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[#3079D8] font-display text-[12px] font-extrabold text-white">f</span> }
+      @case ('All') { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#477DAF,#9478C6,#E09EAE)] font-display text-[12px] font-extrabold text-white">✳</span> }
+      @default { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#B965B1,#EC8CA3)] font-display text-[12px] font-extrabold text-white">◎</span> }
     }
   </ng-template>
 
-  <ng-template #allChip>
-    <span class="in-chip all"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z"/></svg></span>
-  </ng-template>
-
-  <div class="wrap" [class.top]="!hero()">
-
-    <!-- ============ GENERATED POSTS PANEL (loading + result) ============ -->
-    <!-- Result rows of one answer (the latest one and every earlier turn) -->
-    <ng-template #rowsTpl let-list let-shared="shared">
-            <div class="rows">
-              <div class="rows-head"><span>Post</span><span>Actions</span></div>
-              @for (r of list; track r.post.id) {
-                @let v = r.post.currentVersion;
-                <div class="row">
-                  <span class="row-thumb">
-                    @if (v.images[0]; as m) { <img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" /> }
-                    <span class="row-plat" [title]="shared ? 'All platforms' : r.post.platform"><ng-container *ngTemplateOutlet="shared ? allChip : chipOf; context: { $implicit: r.post.platform }" /></span>
-                  </span>
-                  <div class="row-main">
-                    <p class="row-text">{{ body(v) }}</p>
-                    <span class="row-meta">
-                      <button type="button" class="more" (click)="preview.set(r)">… Show more</button>
-                      @if (chip(r).tone !== 'draft' || r.post.editorialState === 'CHANGES_REQUESTED') { <span [class]="'pill ' + chip(r).tone">{{ chip(r).label }}</span> }
-                    </span>
-                    @if (r.error) { <p class="post-err" role="alert">{{ r.error }}</p> }
-                  </div>
-                  <div class="row-actions">
-                    <button type="button" class="act" title="Preview" aria-label="Preview" (click)="preview.set(r)">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    </button>
-                    <button type="button" class="act" [class.done]="r.saved" [title]="r.saved ? 'Saved in Drafts' : 'Save draft'" aria-label="Save draft" (click)="saveDraft(r)">
-                      @if (r.saved) { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
-                      @else { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 15h7"/><polyline points="12 12 15 15 12 18"/></svg> }
-                    </button>
-                    <a class="act" title="Edit in Composer" aria-label="Edit in Composer" [routerLink]="['/composer', r.post.id]">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    </a>
-                    @if (workspace.isAdmin()) {
-                      <button type="button" class="act" [disabled]="!!r.busy" title="Schedule" aria-label="Schedule" (click)="schedule(r)">
-                        @if (r.busy) { <span class="spin"></span> }
-                        @else { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5.5"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="17.5" cy="17.5" r="4.5"/><polyline points="17.5 15.5 17.5 17.5 19 18.5"/></svg> }
-                      </button>
-                    } @else {
-                      <button type="button" class="act" [disabled]="!!r.busy || r.submitted || r.post.editorialState !== 'DRAFT'"
-                        [title]="r.submitted || r.post.editorialState !== 'DRAFT' ? 'Submitted for review' : 'Submit for review'" aria-label="Submit for review" (click)="submit(r)">
-                        @if (r.busy) { <span class="spin"></span> }
-                        @else { <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg> }
-                      </button>
-                    }
-                  </div>
-                </div>
-              }
-            </div>
-    </ng-template>
-
-    @if (!hero()) {
-      <section class="chat">
-        <!-- earlier prompts of this chat, each with its answer -->
-        @for (t of history(); track t.request.id) {
-          @if (t.asked) { <div class="bubble">{{ t.asked }}</div> }
-          <div class="answer">
-            @if (t.request.status === 'FAILED') {
-              <p class="gen-msg error" role="alert">{{ failureText(t.request) }}</p>
-            } @else {
-              @if (t.request.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
-              <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: t.results, shared: shared(t.request) }" />
-            }
-          </div>
+  <div id="app" class="relative mx-auto flex min-h-[calc(100dvh-90px)] w-full max-w-[1540px] flex-col">
+    <app-problem-banner [problem]="problem()" />
+    <!-- A small contextual heading, not a duplicate application navbar. -->
+    <header class="relative z-20 flex h-[74px] shrink-0 items-center justify-between px-5 sm:px-9 lg:px-14">
+      <div class="flex items-center gap-3">
+        <span class="grid h-10 w-10 place-items-center rounded-[14px] bg-[#1A3555] shadow-[0_9px_23px_rgba(26,53,85,.17)]"><svg class="h-[19px] w-[19px] fill-none stroke-[#EAF4FF] stroke-[1.5]"><use href="#ic-spark"/></svg></span>
+        <div class="leading-tight"><h1 class="font-display text-[16px] font-extrabold tracking-[-.055em] sm:text-[18px]">AI Studio<span class="text-[#8198B4]">.</span></h1><p class="hidden text-[10px] font-semibold tracking-[.02em] text-[#7F91AA] sm:block">Your creative workspace</p></div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span class="hidden items-center gap-2 rounded-full border border-white/80 bg-white/65 px-4 py-2 text-[11px] font-bold text-[#607894] shadow-sm sm:inline-flex"><svg class="h-3.5 w-3.5 fill-none stroke-[#6797AD] stroke-2"><use href="#ic-lock"/></svg> Human-approved publishing</span>
+        @if (!hero()) {
+          <button id="resetTop" type="button" (click)="reset()" [disabled]="busy() || generating()" class="inline-flex items-center gap-2 rounded-full border border-[#DCE6F2] bg-white/80 px-4 py-2 text-[12px] font-bold text-[#426585] shadow-sm transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7BACDA] disabled:cursor-not-allowed disabled:opacity-55" aria-label="Start a new session"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-plus"/></svg> New session</button>
         }
-        <div class="turn-latest"></div>
-        @if (asked(); as q) { <div class="bubble">{{ q }}</div> }
-        <div class="answer">
-          @if (generating()) {
-            <!-- loading -->
-            <div class="worked" role="status"><span class="spin"></span>{{ stageText() }}</div>
-            <div class="rows">
-              <div class="rows-head"><span>Post</span><span>Actions</span></div>
-              @for (p of (request()?.platforms ?? []).slice(0, unifiedRun() ? 1 : undefined); track p) {
-                <div class="row">
-                  <span class="row-thumb skel-thumb"><ng-container *ngTemplateOutlet="unifiedRun() ? allChip : chipOf; context: { $implicit: p }" /></span>
-                  <div class="skel-body"><div class="skel"></div><div class="skel"></div></div>
-                </div>
-              }
-            </div>
-          } @else if (request()?.status === 'FAILED') {
-            <p class="gen-msg error" role="alert">{{ failureText() }}</p>
-            <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()">Try again</button>
-          } @else {
-            <div class="worked">
-              @if (workedFor(); as w) { Worked for {{ w }} }
-              <button type="button" class="regen" (click)="retry()" [disabled]="!canRetry()" title="Write these posts again">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                Regenerate
-              </button>
-            </div>
-            @if (request()?.warning; as w) { <p class="gen-msg warn" role="status">{{ w }} You can add an image in Composer.</p> }
-            <!-- result -->
-            <ng-container *ngTemplateOutlet="rowsTpl; context: { $implicit: results(), shared: shared(request()) }" />
+        <span class="grid h-9 w-9 place-items-center rounded-full border border-white bg-[#F6F7FE] font-display text-[12px] font-extrabold text-[#777BB4] shadow-sm" [title]="workspace.current()?.organizationName ?? ''">{{ (workspace.current()?.organizationName ?? '?').charAt(0).toUpperCase() }}</span>
+      </div>
+    </header>
+
+    <main class="relative flex min-h-0 flex-1 flex-col">
+      @if (hero()) {
+      <!-- Welcome -->
+      <section id="welcome" class="relative mx-auto flex w-full max-w-[1220px] flex-1 flex-col items-center justify-center px-4 pb-9 pt-7 sm:px-7 lg:pb-14">
+        <div class="welcome-decor pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div class="orbital absolute left-[9%] top-[17%] h-40 w-40"></div>
+          <div class="orbital reverse absolute right-[9%] bottom-[13%] h-[230px] w-[230px]"></div>
+          <div class="floating absolute left-[1%] bottom-[10%] -rotate-12 rounded-[20px] border border-white bg-white/75 p-2.5 shadow-[0_20px_45px_rgba(82,113,156,.09)]"><div class="artboard lavender h-[102px] w-[90px] rounded-xl p-3"><div class="art-grid"></div><p class="art-label text-[6px]">CREATE / 01</p><p class="art-text mt-5 text-[16px]">THINK.<br />CREATE.</p></div></div>
+          <div class="floating delay absolute right-[7%] top-[17%] rotate-12 rounded-[17px] border border-white bg-white/80 p-2 shadow-[0_20px_45px_rgba(82,113,156,.09)]"><div class="artboard peach h-[112px] w-[100px] rounded-xl p-3"><div class="art-grid"></div><p class="art-label text-[6px]">YOUR BRAND</p><p class="art-text mt-6 text-[19px]">MAKE<br />IT MATTER.</p></div></div>
+          <div class="floating slow absolute right-[20%] bottom-[15%] flex items-center gap-2 rounded-full border border-white bg-white/90 px-3.5 py-2 text-[11px] font-extrabold text-[#6679A4] shadow-[0_12px_32px_rgba(82,113,156,.12)]"><svg class="h-3.5 w-3.5 fill-none stroke-[#63A891] stroke-2"><use href="#ic-check"/></svg> Ready for review</div>
+        </div>
+        <div class="fade-up relative z-10 mb-4 flex items-center gap-2 rounded-full border border-white bg-white/75 px-3.5 py-1.5 text-[10px] font-extrabold uppercase tracking-[.15em] text-[#7D87B2] shadow-[0_7px_26px_#bac9df33]"><svg class="h-3.5 w-3.5 fill-none stroke-[#9186D2] stroke-2"><use href="#ic-spark"/></svg> Image-first content creation</div>
+        <h2 class="fade-up relative z-10 max-w-[800px] text-center font-display text-[clamp(27px,4.1vw,48px)] font-extrabold leading-[1.14] tracking-[-.065em] text-[#1B304F]" style="animation-delay:70ms">What do you want to <span class="bg-[linear-gradient(110deg,#567FB2,#817AB9_55%,#B87D89)] bg-clip-text text-transparent">post today?</span></h2>
+        <p class="fade-up relative z-10 mb-7 mt-3 max-w-[510px] text-center text-[13px] font-medium text-[#6B809D] sm:mb-8 sm:text-[15px]" style="animation-delay:130ms">Turn one idea into an image post, ready for your review.</p>
+        <div id="welcomeComposerMount" class="relative z-20 w-full max-w-[930px]"><ng-container *ngTemplateOutlet="composerTpl" /></div>
+        <div id="suggestions" class="relative z-10 mt-7 grid w-full max-w-[930px] gap-2.5 sm:grid-cols-3">
+          @for (s of suggestions; track s.label) {
+            <button type="button" (click)="useSuggestion(s.prompt)" class="suggestion group flex min-h-[69px] items-center gap-3 rounded-[22px] border border-white/90 bg-white/75 p-3 text-left shadow-[0_9px_30px_rgba(85,115,154,.075)] transition duration-200 hover:-translate-y-1 hover:bg-white hover:shadow-[0_13px_34px_rgba(85,115,154,.14)]"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[15px]" [style.background-color]="s.bg" [style.color]="s.fg"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.8]"><use [attr.href]="'#ic-' + s.icon"/></svg></span><span class="text-[12px] font-bold leading-[1.45] text-[#55708D] group-hover:text-[#1C3957]">{{ s.label }}</span></button>
           }
         </div>
+        <p class="relative z-10 mt-6 flex items-center gap-2 text-center text-[11px] font-semibold text-[#8A9BB1]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#ic-lock"/></svg> Nothing publishes automatically. Every post goes through review.</p>
       </section>
-    }
-
-    <!-- ============ EMPTY STATE ============ -->
-    @if (hero()) { <h1 class="empty-title">What do you want to post today?</h1> }
-
-    <!-- ============ COMPOSER ============ -->
-    <!-- With results, prompt + options stay docked at the bottom of the screen while the posts scroll. -->
-    <div class="dock">
-    <div class="composer">
-      @if (images().length) {
-        <div class="thumbs">
-          @for (img of images(); track img.id; let first = $first) {
-            <span class="thumb" [title]="img.originalFileName + (withImage() ? ' · attached to the posts' : ' · analysed by AI')">
-              <img [src]="previewUrl(img.id)" [alt]="img.originalFileName" />
-              <button type="button" aria-label="Remove image" (click)="removeImage(img.id)" [disabled]="busy() || generating()">&times;</button>
-            </span>
+      } @else {
+      <!-- Conversation state -->
+      <section id="threadSection" class="mx-auto flex w-full max-w-[1130px] flex-1 flex-col px-4 pb-3 sm:px-7">
+        <div class="flex items-center justify-between gap-4 border-b border-[#C5D5EA]/50 pb-3 pt-2 sm:pt-4"><div><p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#8A9BB5]">CREATIVE WORKSPACE</p><h2 class="mt-0.5 font-display text-[18px] font-extrabold tracking-[-.045em] sm:text-[22px]">Your post drafts <span id="draftCount" class="ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white/75 px-1.5 text-[11px] text-[#7990B0]">{{ draftCount() }}</span></h2></div><button id="resetThread" type="button" (click)="reset()" [disabled]="busy() || generating()" class="flex h-9 items-center gap-1.5 rounded-full border border-white bg-white/85 px-3.5 text-[11px] font-extrabold text-[#5F7997] shadow-sm transition hover:bg-white sm:hidden"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#ic-plus"/></svg> New</button><span class="hidden rounded-full bg-[#E3F2ED] px-3 py-1.5 text-[10px] font-bold text-[#568873] sm:inline-flex">● Review before publishing</span></div>
+        <div id="threadList" class="min-h-[290px] flex-1 space-y-8 py-7 sm:space-y-9">
+          @for (t of history(); track t.request.id) {
+            <ng-container *ngTemplateOutlet="groupTpl; context: { $implicit: t.request, asked: t.asked, results: t.results, latest: false }" />
           }
-          <span class="thumbs-note">{{ withImage() ? 'AI reads all images · all are attached' : 'AI reads the images · none attached' }}</span>
+          <div class="turn-latest"></div>
+          @if (request()) {
+            <ng-container *ngTemplateOutlet="groupTpl; context: { $implicit: request(), asked: asked(), results: results(), latest: true }" />
+          }
+        </div>
+        <div class="sticky bottom-0 z-20 -mx-2 mt-auto bg-[linear-gradient(180deg,#EDF1FF00_0%,#EDEFF7DF_20%,#EDEFF8_95%)] px-2 pb-3 pt-8 sm:pb-5" id="threadComposerMount"><ng-container *ngTemplateOutlet="composerTpl" /></div>
+      </section>
+      }
+    </main>
+  </div>
+
+  <!-- One prompt and its answer: the request bubble, the AI Studio line and one card per draft. -->
+  <ng-template #groupTpl let-req let-asked="asked" let-list="results" let-latest="latest">
+    <div class="answer space-y-3">
+      @if (asked) { <div class="ask ml-auto max-w-[720px] rounded-[22px] rounded-tr-[8px] border border-[#E0EAF8] bg-[#EAF3FF] px-4 py-3.5 text-[12px] font-semibold leading-6 text-[#395A7B] shadow-[0_5px_16px_#819ec520] sm:px-5 sm:text-[13px]">{{ asked }}</div> }
+      @let running = latest && generating();
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+        <div class="flex items-center gap-2.5"><span class="grid h-8 w-8 place-items-center rounded-xl bg-[#243F68] text-white"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-spark"/></svg></span><div><p class="font-display text-[12px] font-extrabold text-[#29415D] sm:text-[13px]">AI Studio <span class="ml-2 rounded-full bg-white/70 px-2.5 py-1 font-sans text-[10px] font-bold text-[#8197AD]">{{ running ? 'Working' : req.status === 'FAILED' ? 'Not generated' : 'Saved draft' }}</span></p><p class="text-[10px] font-medium text-[#92A1B7]">
+          @if (running) { {{ stageText() }} }
+          @else if (req.status === 'FAILED') { Nothing was saved }
+          @else { {{ list.length }} {{ list.length === 1 ? 'version' : 'platform versions' }} prepared · Editable }
+        </p></div></div>
+        @if (!running) {
+          <button type="button" (click)="retry(asked)" [disabled]="!asked || busy() || generating() || uploading() || !brand()" class="inline-flex items-center gap-1.5 rounded-full border border-white/90 bg-white/70 px-3 py-1.5 text-[11px] font-bold text-[#527DB0] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-55"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-refresh"/></svg> {{ req.status === 'FAILED' ? 'Try again' : 'Regenerate' }}</button>
+        }
+      </div>
+      @if (running) {
+        <div class="grid gap-3" [class]="req.platforms.length > 1 ? 'lg:grid-cols-2' : ''">
+          @for (p of req.platforms; track p) {
+            <article class="view-shadow overflow-hidden rounded-[25px] border border-white/95 bg-white/95 p-3 sm:p-3.5" aria-busy="true">
+              <div class="flex items-center gap-2.5 border-b border-[#EBF0F6] pb-2.5"><ng-container *ngTemplateOutlet="badge; context: { $implicit: p }" /><span class="text-[12px] font-extrabold text-[#294461]">{{ p }} post</span><span class="spin ml-auto h-4 w-4 rounded-full border-2 border-[#D8E3F1] border-t-[#4F81BA]"></span></div>
+              <div class="mt-3 grid grid-cols-[100px_minmax(0,1fr)] gap-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-5"><div class="skeleton h-[116px] rounded-[16px] sm:h-[130px]"></div><div class="space-y-3 py-1"><div class="skeleton h-3 w-[40%] rounded-full"></div><div class="skeleton h-3 rounded-full"></div><div class="skeleton h-3 w-[85%] rounded-full"></div><div class="skeleton h-3 w-[60%] rounded-full"></div></div></div>
+            </article>
+          }
+        </div>
+      } @else if (req.status === 'FAILED') {
+        <p class="rounded-[18px] border border-[#F3D9D5] bg-[#FFF5F3] px-4 py-3 text-[12px] font-semibold leading-6 text-[#A2645F]" role="alert">{{ failureText(req) }}</p>
+      } @else {
+        @if (req.warning) { <p class="rounded-[18px] border border-[#F2E2C8] bg-[#FFF9EF] px-4 py-3 text-[12px] font-semibold leading-6 text-[#9A7A45]" role="status">{{ req.warning }} You can add an image in Composer.</p> }
+        <div class="grid gap-3" [class]="list.length > 1 ? 'lg:grid-cols-2' : ''">
+          @for (r of list; track r.post.id) {
+            @let v = r.post.currentVersion;
+            @let c = chip(r);
+            <article class="post-item view-shadow overflow-hidden rounded-[25px] border border-white/95 bg-white/95 p-3 sm:p-3.5" [attr.data-post]="r.post.id">
+              <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#EBF0F6] pb-2.5"><div class="flex items-center gap-2.5"><ng-container *ngTemplateOutlet="badge; context: { $implicit: shared(req) ? 'All' : r.post.platform }" /><span class="text-[12px] font-extrabold text-[#294461]">{{ shared(req) ? 'All platforms' : r.post.platform }} post</span><span class="rounded-full bg-[#EFF3FB] px-2.5 py-1 text-[10px] font-bold text-[#718BA8]" data-status>{{ c.label }} · v{{ pad(v.versionNumber) }}</span></div><span class="inline-flex items-center gap-1 rounded-full bg-[#E8F5EF] px-2.5 py-1 text-[10px] font-bold text-[#5D9A83]"><svg class="h-3 w-3 fill-none stroke-current stroke-[1.8]"><use href="#ic-check"/></svg> {{ c.tone === 'draft' ? 'Ready to edit' : c.tone === 'review' ? 'Awaiting approval' : 'Approved' }}</span></div>
+              <div class="mt-3 grid grid-cols-[100px_minmax(0,1fr)] gap-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-5">
+                <div class="h-[116px] sm:h-[130px]">
+                  @if (v.images[0]; as m) {
+                    <div class="relative h-full overflow-hidden rounded-[16px]"><img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" class="absolute inset-0 h-full w-full object-cover" />@if (v.images.length > 1) {<span class="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-[#4F81BA]">+{{ v.images.length - 1 }}</span>}</div>
+                  } @else {
+                    <div class="flex h-full min-h-[120px] flex-col items-center justify-center rounded-[18px] bg-[#F2F5FC] text-[#9AACBF]"><svg class="h-9 w-9 fill-none stroke-current stroke-[1.8]"><use href="#ic-file"/></svg><span class="mt-2 text-[11px] font-bold">Caption draft</span></div>
+                  }
+                </div>
+                <div class="flex min-w-0 flex-col justify-between py-0.5"><div><div class="flex items-center justify-between gap-2"><p class="text-[10px] font-extrabold uppercase tracking-[.12em] text-[#8FA2B9]">CAPTION PREVIEW</p>@if (settingsLabel(req); as label) {<span class="hidden text-[10px] font-bold text-[#8EA2B8] sm:block">{{ label }}</span>}</div><p data-copy class="mt-2.5 whitespace-pre-line text-[12px] font-medium leading-[1.7] text-[#425D7A] sm:text-[13px]" [class.line-clamp-3]="!expanded().has(r.post.id)">{{ text(r.post) }}</p><button type="button" (click)="toggleExpanded(r.post.id)" class="mt-2 text-[11px] font-extrabold text-[#4F81BA] hover:text-[#1F568F]">{{ expanded().has(r.post.id) ? 'Show less ↑' : 'Show more ↓' }}</button></div><p data-time class="hidden text-[10px] font-semibold text-[#A0ADC0] sm:block">{{ c.tone === 'draft' ? 'Not scheduled · Awaiting human review' : c.tone === 'review' ? 'In review · Waiting for human approval' : 'Approved · Ready to schedule' }}</p></div>
+              </div>
+              @if (r.error) { <p class="mt-3 rounded-[14px] bg-[#FFF5F3] px-3 py-2 text-[11px] font-semibold text-[#A2645F]" role="alert">{{ r.error }}</p> }
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#EBF0F6] pt-2.5"><button type="button" (click)="preview.set(r)" class="inline-flex items-center gap-1.5 rounded-full bg-[#EDF4FD] px-3 py-2 text-[11px] font-bold text-[#4675A6] transition hover:bg-[#DFEDFD]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-eye"/></svg> Preview</button><div class="flex flex-wrap items-center gap-1 sm:gap-2">
+                <button type="button" (click)="copy(r.post)" title="Copy caption" aria-label="Copy caption" class="grid h-8 w-8 place-items-center rounded-full text-[#7D91AC] hover:bg-[#EDF4FC] hover:text-[#477DB5]"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-copy"/></svg></button>
+                <a [routerLink]="['/composer', r.post.id]" class="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-[#6F85A1] transition hover:bg-[#F2F5FC]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-pen"/></svg> Edit</a>
+                @if (workspace.isAdmin()) {
+                  <button type="button" (click)="schedule(r)" [disabled]="!!r.busy" title="Approve and schedule" class="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-[#6F85A1] transition hover:bg-[#F2F5FC] disabled:cursor-not-allowed disabled:opacity-55"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-calendar"/></svg> <span class="hidden sm:inline">Plan</span></button>
+                } @else {
+                  @let sent = r.submitted || r.post.editorialState !== 'DRAFT';
+                  <button type="button" (click)="submit(r)" [disabled]="!!r.busy || sent" class="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#1F4068] px-3.5 text-[11px] font-bold text-white shadow-[0_6px_12px_#284b6920] transition hover:bg-[#315A86]" [class.opacity-65]="sent" [class.cursor-default]="sent">
+                    @if (r.busy) { <span class="spin h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white"></span> Sending }
+                    @else if (sent) { <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-check"/></svg> {{ c.tone === 'ready' ? 'Approved' : 'In review' }} }
+                    @else { <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-send"/></svg> Review }
+                  </button>
+                }
+              </div></div>
+            </article>
+          }
         </div>
       }
-      <div class="composer-top">
-        <textarea rows="1" maxlength="2000" aria-label="Describe your post idea" placeholder="Describe your post idea…" [(ngModel)]="prompt"
-          (keydown.enter)="onEnter($any($event))"></textarea>
-      </div>
-      <div class="composer-bottom">
-        <span class="pop-wrap">
-          <button type="button" class="plus-btn" title="Attach media and options" [attr.aria-expanded]="plusOpen()" (click)="plusOpen.set(!plusOpen()); platOpen.set(false)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-          @if (plusOpen()) {
-            <span class="dd-menu left" role="menu">
-              <label class="dd-opt" role="menuitem" [class.off]="!caps().imageAnalysis || images().length >= maxImages">
-                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.19 9.19a1.83 1.83 0 0 1-2.59-2.59l8.48-8.48"/></svg></span>
-                <span class="dd-titles"><span class="dd-title">{{ uploading() ? 'Uploading…' : 'Upload images' }}</span>
-                  <span class="dd-desc">{{ caps().imageAnalysis ? 'Up to ' + maxImages + ' · AI reads them' : 'Image analysis unavailable' }}</span></span>
-                <input type="file" accept="image/jpeg,image/png" multiple hidden (change)="upload($event); plusOpen.set(false)"
-                  [disabled]="uploading() || !caps().imageAnalysis || images().length >= maxImages" />
-              </label>
-              <button type="button" class="dd-opt" role="menuitemcheckbox" [class.selected]="withImage()" [attr.aria-checked]="withImage()"
-                [disabled]="!imageOptionAvailable()" (click)="setOutput(!withImage()); plusOpen.set(false)">
-                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
-                <span class="dd-titles"><span class="dd-title">Image</span>
-                  <span class="dd-desc">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Attach your images' : 'AI creates the images' }}</span></span>
-                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </button>
-              <button type="button" class="dd-opt" role="menuitem" (click)="advOpen.set(!advOpen()); plusOpen.set(false)">
-                <span class="dd-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>
-                <span class="dd-titles"><span class="dd-title">{{ advOpen() ? 'Hide options' : 'Tone, length & more' }}</span><span class="dd-desc">Tone, quick styles, models</span></span>
-              </button>
-            </span>
-          }
-        </span>
-        <div class="platpick pop-wrap" [class.open]="platOpen()">
-          <button type="button" class="tm-btn" aria-label="Platforms" [attr.aria-expanded]="platOpen()" (click)="platOpen.set(!platOpen()); plusOpen.set(false)">
-            @if (allPlatforms()) {
-              <ng-container *ngTemplateOutlet="allChip" /><span>All platforms</span>
-            } @else {
-              <span class="mini-chips">@for (p of selected(); track p) { <ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" /> }</span>
-              @if (selected().length === 1) { <span>{{ selected()[0] }}</span> }
-            }
-            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          @if (platOpen()) {
-            <div class="dd-menu" role="menu">
-              @for (p of platforms; track p) {
-                <button type="button" class="dd-opt" role="menuitemcheckbox" [class.selected]="!allPlatforms() && selected().includes(p)"
-                  [attr.aria-checked]="!allPlatforms() && selected().includes(p)" (click)="toggle(p)">
-                  <ng-container *ngTemplateOutlet="chipOf; context: { $implicit: p }" />
-                  <span class="dd-titles"><span class="dd-title">{{ p }}</span><span class="dd-desc">Post written for {{ p }}</span></span>
-                  <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </button>
-              }
-              <div class="dd-sep"></div>
-              <button type="button" class="dd-opt" role="menuitemradio" [class.selected]="allPlatforms()" [attr.aria-checked]="allPlatforms()" (click)="chooseAll()">
-                <ng-container *ngTemplateOutlet="allChip" />
-                <span class="dd-titles"><span class="dd-title">All platforms</span><span class="dd-desc">One post that fits every platform</span></span>
-                <svg class="dd-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </button>
-            </div>
-          }
-        </div>
-
-        <!-- Text is always written; this only adds images (generated, or your uploads when you attached some). -->
-        <button type="button" class="tm-btn img-toggle" [class.on]="withImage()" [attr.aria-pressed]="withImage()" [disabled]="!imageOptionAvailable()"
-          [title]="!imageOptionAvailable() ? 'Images are not available right now' : images().length ? 'Attach your uploaded images to the posts' : 'AI also creates images for the posts'"
-          (click)="setOutput(!withImage())">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-          <span>Image</span>
-        </button>
-
-        @if (prompt.length > 1500) { <span class="count">{{ prompt.length }}/2000</span> }
-        <button type="button" class="send-btn" (click)="generate()" [disabled]="!canGenerate()" [attr.aria-label]="busy() || generating() ? 'Generating' : 'Generate'"
-          [title]="busy() || generating() ? 'Generating…' : 'Generate'">
-          @if (busy() || generating()) { <span class="spin light"></span> }
-          @else { <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> }
-        </button>
-      </div>
     </div>
+  </ng-template>
 
-    @if (advOpen()) {
-      <div class="adv">
-        <button type="button" class="adv-close" aria-label="Close options" title="Close" (click)="advOpen.set(false)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-        </button>
-        <div class="adv-top">
-          @if (brandLoaded() && !brand()) {
-            <span class="brand-miss">@if (workspace.isAdmin()) { Complete your <a routerLink="/brand">Brand profile</a> first } @else { The Admin needs to complete the Brand profile first }</span>
+  <!-- Shared composer, shown in the welcome state and docked under the conversation -->
+  <ng-template #composerTpl>
+  <div id="composer" class="relative w-full">
+    @if (settingsOpen()) {
+    <div id="settingsTray" class="mb-3 rounded-[22px] border border-white/90 bg-white/90 p-4 shadow-[0_12px_37px_#758eb42b] frosted sm:p-5">
+      <div class="flex items-center justify-between gap-3"><p class="font-display text-[13px] font-extrabold text-[#334B6F]">Fine-tune your post</p><button id="closeSettings" type="button" (click)="settingsOpen.set(false)" class="rounded-full p-1 text-[#7890AE] hover:bg-[#F2F5FA]" aria-label="Close preferences"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-close"/></svg></button></div>
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <div><p class="mb-2 text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8195AF]">Tone</p><div class="flex flex-wrap gap-2" id="toneChoices">
+          <button type="button" (click)="tone = ''" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="tone === '' ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">Brand tone</button>
+          @for (t of tones; track t) { <button type="button" (click)="tone = t" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="tone === t ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">{{ t }}</button> }
+        </div></div>
+        <div><p class="mb-2 text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8195AF]">Length</p><div class="flex flex-wrap gap-2" id="lengthChoices">
+          @for (l of lengths; track l.value) { <button type="button" (click)="length = l.value" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="length === l.value ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">{{ l.label }}</button> }
+        </div></div>
+        <div><p class="mb-2 text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8195AF]">Hashtags</p><div class="flex flex-wrap gap-2">
+          @for (o of [{ v: 'AUTO', l: 'Auto' }, { v: 'NONE', l: 'None' }]; track o.v) { <button type="button" (click)="hashtags = $any(o.v)" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="hashtags === o.v ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">{{ o.l }}</button> }
+        </div></div>
+        <div><p class="mb-2 text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8195AF]">Emojis</p><div class="flex flex-wrap gap-2">
+          @for (o of [{ v: 'AUTO', l: 'Auto' }, { v: 'NONE', l: 'None' }]; track o.v) { <button type="button" (click)="emojis = $any(o.v)" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="emojis === o.v ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">{{ o.l }}</button> }
+        </div></div>
+        @if (withImage() && !images().length) {
+          <div><p class="mb-2 text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8195AF]">Images</p><div class="flex flex-wrap gap-2">
+            @for (n of imageCounts; track n) { <button type="button" (click)="imageCount.set(n)" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="imageCount() === n ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">{{ n }}</button> }
+          </div></div>
+          @if (caps().imageModels.length > 1) {
+            <div><p class="mb-2 text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8195AF]">Image model</p><div class="flex flex-wrap gap-2">
+              @for (m of caps().imageModels; track m) { <button type="button" (click)="imageModel.set(m)" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="imageModel() === m ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">{{ modelName(m) }}</button> }
+            </div></div>
           }
-          <button type="button" class="save" (click)="savePrompt()">{{ promptSaved() ? 'Saved ✓' : 'Save prompt' }}</button>
-        </div>
-        <div class="chips">
-          @for (c of presets; track c.label) {
-            <button type="button" class="chipbtn" [class.on]="activeChips().includes(c.label)" (click)="toggleChip(c.label)">{{ c.label }}</button>
-          }
-        </div>
-        <div class="fields">
-          <label>Tone<select [(ngModel)]="tone"><option value="">Use Brand Tone</option>@for (t of tones; track t) { <option [value]="t">{{ t }}</option> }</select></label>
-          <label>Length<select [(ngModel)]="length"><option value="SHORT">Short</option><option value="MEDIUM">Medium</option><option value="LONG">Long</option></select></label>
-          <label>Hashtags<select [(ngModel)]="hashtags"><option value="AUTO">Auto</option><option value="NONE">None</option></select></label>
-          <label>Emojis<select [(ngModel)]="emojis"><option value="AUTO">Auto</option><option value="NONE">None</option></select></label>
-          @if (images().length && caps().visionModels.length) {
-            <label>Vision model<select [ngModel]="visionModel()" (ngModelChange)="visionModel.set($event)">
-              @for (m of caps().visionModels; track m; let first = $first) { <option [value]="m">{{ modelName(m) }}{{ first ? ' (default)' : '' }}</option> }</select></label>
-          }
-          @if (withImage() && !images().length) {
-            <label>Images<select [ngModel]="imageCount()" (ngModelChange)="imageCount.set(+$event)">
-              @for (n of imageCounts; track n) { <option [value]="n">{{ n }}</option> }</select></label>
-          }
-          @if (withImage() && !images().length && caps().imageModels.length) {
-            <label>Image model<select [ngModel]="imageModel()" (ngModelChange)="imageModel.set($event)">
-              @for (m of caps().imageModels; track m; let first = $first) { <option [value]="m">{{ modelName(m) }}{{ first ? ' (default)' : '' }}</option> }</select></label>
-          }
-        </div>
-      </div>
-    }
-    </div>
-
-    <!-- ============ SUGGESTIONS ============ -->
-    @if (hero()) {
-      <div class="suggests">
-        @for (s of suggestions; track s.text) {
-          <button type="button" class="suggest" (click)="useSuggestion(s.text)">
-            @switch (s.icon) {
-              @case ('spark') { <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2 5.4 5.4 2-5.4 2-2 5.4-2-5.4-5.4-2 5.4-2 2-5.4z"/><path d="M18.8 14.2l1 2.7 2.7 1-2.7 1-1 2.7-1-2.7-2.7-1 2.7-1 1-2.7z"/></svg> }
-              @case ('bulb') { <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4.1 12.7c.7.5 1.1 1.4 1.1 2.3h6c0-.9.4-1.8 1.1-2.3A7 7 0 0 0 12 2z"/></svg> }
-              @default { <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/></svg> }
-            }
-            {{ s.text }}
-          </button>
+        }
+        @if (images().length && caps().visionModels.length > 1) {
+          <div><p class="mb-2 text-[10px] font-extrabold uppercase tracking-[.11em] text-[#8195AF]">Vision model</p><div class="flex flex-wrap gap-2">
+            @for (m of caps().visionModels; track m) { <button type="button" (click)="visionModel.set(m)" class="rounded-full border px-3 py-2 text-[11px] font-bold" [class]="visionModel() === m ? 'border-[#A9C6EB] bg-[#E5F1FF] text-[#416CA0]' : 'border-[#E1E8F2] text-[#7589A1]'">{{ modelName(m) }}</button> }
+          </div></div>
         }
       </div>
-      <p class="review-note">Nothing is published automatically · every post goes through review</p>
+    </div>
     }
-  </div>
-  @if (preview(); as p) {
-    @let pv = p.post.currentVersion;
-    <div class="modal-back" (click)="preview.set(null)">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Post preview" (click)="$event.stopPropagation()">
-        <div class="modal-head">
-          <h2>Post Preview</h2>
-          <button type="button" class="act" title="Copy text" aria-label="Copy text" (click)="copy(p.post)">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
-          <button type="button" class="act" aria-label="Close" (click)="preview.set(null)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="modal-card">
-          <div class="modal-text">
-            @for (para of paragraphs(pv); track $index) { <p>{{ para }}</p> }
-            @if (pv.hashtags.length) { <p class="post-tags">{{ pv.hashtags.join('  ') }}</p> }
+    @if (images().length) {
+    <div id="attachmentLine" class="mb-2.5 flex items-center gap-2 rounded-[18px] border border-white/85 bg-white/90 p-2 text-xs shadow-sm"><span id="attachedThumb" class="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#EAF0FB] text-[#7A96BA]"><img [src]="previewUrl(images()[0].id)" alt="Uploaded image thumbnail" class="h-full w-full object-cover" /></span><span id="attachmentDescription" class="min-w-0 flex-1 truncate font-bold text-[#637C98]">{{ images().length === 1 ? images()[0].originalFileName : images().length + ' images attached' }} · {{ withImage() ? 'attached to the posts' : 'read by AI' }}</span><button type="button" id="removeAttachment" (click)="images.set([])" [disabled]="busy() || generating()" class="rounded-full p-2 text-[#8498AF] hover:bg-[#F2F5FA]" aria-label="Remove uploaded images"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-close"/></svg></button></div>
+    }
+    <div class="composer-halo relative">
+      <div class="composer-inner relative flex min-h-[104px] flex-col justify-between px-4 pb-3 pt-3.5 sm:min-h-[107px] sm:px-5 sm:pb-3.5 sm:pt-4">
+        <label for="postPrompt" class="sr-only">Describe your social media post idea</label>
+        <textarea id="postPrompt" rows="1" maxlength="2000" [(ngModel)]="prompt" (input)="autosize($any($event.target))" (keydown.enter)="onEnter($any($event))" class="max-h-[84px] min-h-[34px] w-full resize-none bg-transparent text-[13px] font-medium leading-[1.42] text-[#294361] placeholder:text-[#91A3B7] focus:outline-none sm:text-[15px]" placeholder="Describe your post idea..."></textarea>
+        <div id="composerTools" class="mt-2 flex items-center justify-between gap-2">
+          <div class="relative flex min-w-0 items-center gap-1 sm:gap-2">
+            <button id="addButton" type="button" (click)="plusOpen.set(!plusOpen()); platOpen.set(false)" class="mini-control grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#EAF1FC] text-[#567CA9] transition duration-200 hover:bg-[#DCEBFB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#80B6DF]" aria-label="Add images or settings" aria-haspopup="menu" [attr.aria-expanded]="plusOpen()"><svg class="h-4.5 w-4.5 h-[18px] fill-none stroke-current stroke-2"><use href="#ic-plus"/></svg></button>
+            <span class="mx-0.5 h-5 w-px bg-[#D8E3F1] sm:mx-1" aria-hidden="true"></span>
+            <button id="platformButton" type="button" (click)="platOpen.set(!platOpen()); plusOpen.set(false)" class="platform-trigger inline-flex h-9 min-w-0 items-center gap-1.5 rounded-full px-1.5 text-[11px] font-extrabold text-[#537091] transition hover:bg-[#F1F5FB] sm:gap-2 sm:px-2 sm:text-[12px]" aria-haspopup="menu" [attr.aria-expanded]="platOpen()">
+              @if (allPlatforms()) {
+                <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#477DAF,#9478C6,#E09EAE)] font-display text-[12px] font-extrabold text-white">✳</span><span id="platformText" class="max-w-[92px] truncate sm:max-w-none">All platforms</span>
+              } @else {
+                @switch (selected()[0]) {
+                  @case ('LinkedIn') { <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[#1569B7] font-display text-[12px] font-extrabold text-white">in</span> }
+                  @case ('Facebook') { <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[#3079D8] font-display text-[12px] font-extrabold text-white">f</span> }
+                  @default { <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#B965B1,#EC8CA3)] font-display text-[12px] font-extrabold text-white">◎</span> }
+                }
+                <span id="platformText" class="max-w-[92px] truncate sm:max-w-none">{{ selected()[0] }}</span>
+              }
+              <svg class="h-3.5 w-3.5 shrink-0 fill-none stroke-[#8197AD] stroke-2"><use href="#ic-chevron"/></svg>
+            </button>
+            <button id="imageToggle" type="button" (click)="setOutput(!withImage())" [disabled]="!imageOptionAvailable()" [attr.aria-pressed]="withImage()"
+              [title]="!imageOptionAvailable() ? 'Images are not available right now' : images().length ? 'Attach your uploaded images to the posts' : 'AI also creates images for the posts'"
+              [class]="withImage() ? 'mini-control inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#EAF1FF] px-2.5 text-[11px] font-extrabold text-[#417BC2] transition hover:bg-[#DFEBFC] sm:px-3.5 sm:text-[12px]' : 'mini-control inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#F3F5FA] px-2.5 text-[11px] font-extrabold text-[#8A9CB1] transition hover:bg-[#E7EDF5] sm:px-3.5 sm:text-[12px] disabled:cursor-not-allowed disabled:opacity-55'"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.9]"><use href="#ic-image"/></svg><span>Image</span></button>
           </div>
-          @if (pv.images.length) {
-            <div class="pv-grid" [class.multi]="pv.images.length > 1" [class.three]="pv.images.length === 3">
-              @for (m of pv.images; track m.mediaAssetId) { <img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" /> }
-            </div>
-          }
         </div>
+        <button id="sendButton" type="button" (click)="generate()" [disabled]="!canGenerate()" class="group grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[linear-gradient(135deg,#325E98,#477CC5)] text-white shadow-[0_8px_18px_#4e7cb548] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_11px_20px_#4e7cb55e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6A9ACF] disabled:cursor-not-allowed disabled:opacity-55" [attr.aria-label]="busy() || generating() ? 'Generating' : 'Generate post'">
+          @if (busy() || generating() || uploading()) { <span class="spin h-5 w-5 rounded-full border-2 border-white/40 border-t-white"></span> }
+          @else { <svg class="h-5 w-5 fill-none stroke-current stroke-2"><use href="#ic-arrow"/></svg> }
+        </button>
       </div>
     </div>
+
+    <!-- Anchor menus, floated ABOVE the composer for visibility in a bottom dock -->
+    @if (plusOpen()) {
+    <div id="addMenu" role="menu" aria-label="Post options" class="studio-popover absolute bottom-[119px] left-0 z-[70] w-[274px] rounded-[22px] border border-[#E3EAF4] bg-white p-2.5">
+      <button id="uploadOption" type="button" role="menuitem" (click)="fileInput.click(); plusOpen.set(false)" [disabled]="uploading() || !caps().imageAnalysis || images().length >= maxImages" class="flex w-full items-center gap-3 rounded-[15px] px-3 py-3 text-left transition hover:bg-[#F2F7FE] disabled:cursor-not-allowed disabled:opacity-55"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#EDF3FE] text-[#6794BD]"><svg class="h-[19px] w-[19px] fill-none stroke-current stroke-2"><use href="#ic-upload"/></svg></span><span><span class="block text-[12px] font-extrabold text-[#243D5A]">{{ uploading() ? 'Uploading…' : 'Upload images' }}</span><span class="mt-0.5 block text-[10px] font-medium text-[#8C9FB4]">{{ caps().imageAnalysis ? 'Up to ' + maxImages + ' images · optional' : 'Image analysis unavailable' }}</span></span></button>
+      <button id="generateImageOption" type="button" role="menuitemcheckbox" (click)="setOutput(!withImage()); plusOpen.set(false)" [disabled]="!imageOptionAvailable()" [attr.aria-checked]="withImage()" class="flex w-full items-center gap-3 rounded-[15px] px-3 py-3 text-left transition hover:bg-[#F2F7FE] disabled:cursor-not-allowed disabled:opacity-55"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#F2EDFF] text-[#9179C5]"><svg class="h-[19px] w-[19px] fill-none stroke-current stroke-2"><use href="#ic-image"/></svg></span><span class="flex-1"><span class="block text-[12px] font-extrabold text-[#243D5A]">{{ images().length ? 'Attach images' : 'Generate image' }}</span><span class="mt-0.5 block text-[10px] font-medium text-[#8C9FB4]">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Use your uploads in the post' : 'Create an image post' }}</span></span>@if (withImage()) {<svg id="imageMenuCheck" class="h-4 w-4 fill-none stroke-[#5380BE] stroke-2"><use href="#ic-check"/></svg>}</button>
+      <div class="mx-2 my-1 h-px bg-[#EDF1F7]"></div>
+      <button id="settingsOption" type="button" role="menuitem" (click)="settingsOpen.set(true); plusOpen.set(false)" class="flex w-full items-center gap-3 rounded-[15px] px-3 py-3 text-left transition hover:bg-[#F2F7FE]"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#FFF0EB] text-[#C4868B]"><svg class="h-[19px] w-[19px] fill-none stroke-current stroke-2"><use href="#ic-sliders"/></svg></span><span><span class="block text-[12px] font-extrabold text-[#243D5A]">Tone, length &amp; more</span><span class="mt-0.5 block text-[10px] font-medium text-[#8C9FB4]">Customize your writing</span></span></button>
+    </div>
+    }
+    @if (platOpen()) {
+    <div id="platformMenu" role="menu" aria-label="Choose platform" class="studio-popover absolute bottom-[119px] left-12 z-[70] w-[282px] rounded-[22px] border border-[#E3EAF4] bg-white p-2.5">
+      @for (p of [{ id: 'LinkedIn', label: 'in', sub: 'Professional audience', cls: 'bg-[#1368B4] text-[15px] font-bold' }, { id: 'Facebook', label: 'f', sub: 'Community-focused', cls: 'bg-[#3478D6] text-[18px] font-bold' }, { id: 'Instagram', label: '◎', sub: 'Visual-first storytelling', cls: 'bg-[linear-gradient(135deg,#C16EB6,#EE97AD)] text-[19px]' }]; track p.id) {
+        @let on = !allPlatforms() && selected()[0] === p.id;
+        <button type="button" role="menuitemradio" (click)="choosePlatform($any(p.id))" [attr.aria-checked]="on" class="menu-option flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition hover:bg-[#F3F7FD]"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] font-display text-white" [class]="p.cls">{{ p.label }}</span><span class="flex-1"><span class="block text-[12px] font-extrabold">{{ p.id }}</span><span class="mt-0.5 block text-[10px] text-[#8EA2B7]">{{ p.sub }}</span></span>@if (on) {<svg class="platform-check h-4 w-4 fill-none stroke-[#3677B8] stroke-2"><use href="#ic-check"/></svg>}</button>
+      }
+      <div class="mx-2 my-1 h-px bg-[#EDF1F7]"></div>
+      <button type="button" role="menuitemradio" (click)="choosePlatform('All')" [attr.aria-checked]="allPlatforms()" class="menu-option flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition hover:bg-[#F3F7FD]"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[linear-gradient(135deg,#477DAF,#9478C6,#E09EAE)] text-[17px] font-extrabold text-white">✳</span><span class="flex-1"><span class="block text-[12px] font-extrabold">All platforms</span><span class="mt-0.5 block text-[10px] text-[#8EA2B7]">One idea, three versions</span></span>@if (allPlatforms()) {<svg class="platform-check h-4 w-4 fill-none stroke-[#3677B8] stroke-2"><use href="#ic-check"/></svg>}</button>
+    </div>
+    }
+    <input #fileInput id="fileInput" type="file" accept="image/png,image/jpeg" multiple class="hidden" aria-label="Upload images for post" (change)="upload($event)" />
+    <p id="composerNote" class="mt-2.5 text-center text-[10px] font-medium text-[#93A3B7]">
+      @if (brandLoaded() && !brand()) {
+        @if (workspace.isAdmin()) { Complete your <a routerLink="/brand" class="font-bold text-[#4F81BA] underline">Brand profile</a> first: AI writes with it. } @else { Your Admin needs to complete the Brand profile before AI can write posts. }
+      } @else {
+        Drafts are saved for review · Nothing is published or sent to social networks from here.
+      }
+    </p>
+  </div>
+  </ng-template>
+
+  <!-- Expanded social post preview -->
+  @if (preview(); as p) {
+  @let pv = p.post.currentVersion;
+  @let pc = chip(p);
+  <div id="previewModal" class="fixed inset-0 z-[100] flex items-center justify-center theme-scrim p-3 frosted sm:p-6" role="dialog" aria-modal="true" aria-labelledby="modalTitle" (click)="$event.target === $event.currentTarget ? preview.set(null) : null">
+    <div class="view-shadow relative flex w-full max-w-[850px] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-[#F8FBFF] sm:flex-row">
+      <button type="button" (click)="preview.set(null)" class="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-[#667E9A] shadow-sm hover:bg-white" aria-label="Close preview"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-close"/></svg></button>
+      <div id="modalVisual" class="flex min-h-[280px] w-full items-center justify-center bg-[#E4EEFA] p-6 sm:w-[43%] sm:p-8"><div class="w-full max-w-[280px] rounded-[22px] border border-white bg-white p-2.5 shadow-[0_18px_45px_#5576a438]"><div class="flex items-center gap-2 pb-2"><ng-container *ngTemplateOutlet="badge; context: { $implicit: p.post.platform }" /><span class="text-[11px] font-extrabold text-[#344D68]">{{ workspace.current()?.organizationName ?? 'Your brand' }}</span></div><div class="h-[230px] sm:h-[300px]">
+        @if (pv.images[0]; as m) {
+          <div class="relative h-full overflow-hidden rounded-[16px]"><img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" class="absolute inset-0 h-full w-full object-cover" />@if (pv.images.length > 1) {<span class="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-[#4F81BA]">+{{ pv.images.length - 1 }}</span>}</div>
+        } @else {
+          <div class="flex h-full min-h-[120px] flex-col items-center justify-center rounded-[18px] bg-[#F2F5FC] text-[#9AACBF]"><svg class="h-9 w-9 fill-none stroke-current stroke-[1.8]"><use href="#ic-file"/></svg><span class="mt-2 text-[11px] font-bold">Caption draft</span></div>
+        }
+      </div><div class="flex gap-3 px-1 pb-1 pt-3 text-[#8197B1]"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-message"/></svg><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-send"/></svg><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-link"/></svg></div></div></div>
+      <div class="flex w-full flex-col p-6 sm:w-[57%] sm:p-8"><p class="text-[10px] font-bold uppercase tracking-[.2em] text-[#849AB7]">POST PREVIEW</p><h3 id="modalTitle" class="mt-1.5 font-display text-[22px] font-extrabold tracking-[-.05em]">{{ p.post.platform }} preview</h3><span id="modalStatus" class="mt-3 w-fit rounded-full bg-[#E8F0FB] px-3 py-1.5 text-[10px] font-bold text-[#5980AE]">{{ pc.tone === 'draft' ? 'Draft' : pc.tone === 'review' ? 'Awaiting human approval' : 'Approved' }} · Version {{ pad(pv.versionNumber) }}</span><p id="modalCaption" class="mt-5 flex-1 whitespace-pre-line text-[14px] font-medium leading-7 text-[#566D87]">{{ text(p.post) }}</p><div class="mt-5 flex flex-wrap gap-2"><a [routerLink]="['/composer', p.post.id]" id="modalEdit" class="rounded-full bg-[#1C375A] px-5 py-3 text-[12px] font-bold text-white hover:bg-[#2C547F]">Edit caption</a><button id="modalReview" type="button" (click)="submit(p); preview.set(null)" [disabled]="!!p.busy || p.submitted || p.post.editorialState !== 'DRAFT'" class="rounded-full border border-[#D7E3F0] bg-white px-5 py-3 text-[12px] font-bold text-[#607D9C] hover:bg-[#EDF4FC] disabled:cursor-not-allowed disabled:opacity-55">Send for review</button></div></div>
+    </div>
+  </div>
   }
-  <app-schedule-dialog [submit]="submitSchedule" />
+
+  <!-- Plan your post (Admin): approve this exact version and schedule it -->
+  @if (scheduling()) {
+  <div id="scheduleModal" class="fixed inset-0 z-[110] flex items-center justify-center theme-scrim p-4 frosted" role="dialog" aria-modal="true" aria-labelledby="scheduleTitle" (click)="$event.target === $event.currentTarget ? scheduling.set(null) : null">
+    <form class="view-shadow w-full max-w-[450px] rounded-[28px] border border-white/80 bg-[#FCFDFF] p-5 sm:p-7" (submit)="$event.preventDefault(); saveSchedule()"><div class="flex items-center justify-between"><h3 id="scheduleTitle" class="font-display text-[20px] font-extrabold tracking-[-.055em]">Plan your post</h3><button type="button" (click)="scheduling.set(null)" class="grid h-9 w-9 place-items-center rounded-full bg-[#F0F4FA] text-[#7891AA]" aria-label="Close schedule"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-close"/></svg></button></div><p class="mt-2 text-[12px] leading-6 text-[#768DA8]">This exact approved version is published at the time you choose, in {{ workspace.timeZone() }}.</p><label for="scheduleInput" class="mb-2 mt-5 block text-[12px] font-bold text-[#405B7A]">Publish time</label><app-date-time-picker id="scheduleInput" [inline]="true" [(value)]="scheduleAt" />@if (scheduleProblem(); as sp) {<p class="mt-3 rounded-xl bg-[#FFF5F3] px-3 py-2 text-[12px] font-semibold text-[#A2645F]" role="alert">{{ sp.detail }}</p>}<div class="mt-5 flex justify-end gap-2"><button type="button" (click)="scheduling.set(null)" class="rounded-full border border-[#DFE7F1] bg-white px-5 py-3 text-[12px] font-bold text-[#5E7794]">Cancel</button><button id="saveSchedule" type="submit" [disabled]="scheduleBusy()" class="rounded-full bg-[#203F65] px-5 py-3 text-[12px] font-bold text-white hover:bg-[#345D87] disabled:cursor-not-allowed disabled:opacity-55">{{ scheduleBusy() ? 'Scheduling…' : 'Schedule' }}</button></div></form>
+  </div>
+  }
 </div>

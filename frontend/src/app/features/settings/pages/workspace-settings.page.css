@@ -1,59 +1,37 @@
-.ws { display: flex; flex-direction: column; gap: 18px; color: light-dark(#0f172a, #e0e4ee); -webkit-font-smoothing: antialiased; }
-.ws button { min-height: 0; }
-.ws-card { background: var(--surface); border: 1px solid light-dark(#e9edf5, #202b42); border-radius: 16px; overflow: hidden;
-  box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.07)), 0 10px 30px -18px light-dark(rgba(15, 23, 42, 0.25), rgba(0, 0, 0, 0.45)); }
-.ws-section { padding: 20px 26px; }
-.ws-section + .ws-section { border-top: 1px solid light-dark(#f1f3f9, #1c243a); }
-
-/* Section header */
-.ws-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
-.ws-head .label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: light-dark(#a7b1c0, #6a7b95); }
-.note, .ws-head .note { margin: 0; font-size: 12px; color: light-dark(#a7b1c0, #6a7b95); }
-
-/* Fields */
-.ws-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 22px; }
-.ws-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-.ws-field label { display: block; margin: 0; font-size: 12.5px; font-weight: 600; color: light-dark(#334155, #b7c3d4); }
-.ws-field .help { font-size: 11.5px; color: light-dark(#a7b1c0, #6a7b95); line-height: 1.5; }
-.ws-error { font-size: 12px; color: light-dark(#be123c, #f16a8b); }
-.ws-input, .ws-select select { width: 100%; height: auto; font: inherit; font-size: 13.5px; line-height: 1.6; color: light-dark(#25303f, #c9d3e0); background: var(--surface);
-  border: 1px solid light-dark(#e6ebf4, #212e45); border-radius: 12px; padding: 11px 13px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
-.ws-input:hover, .ws-select select:hover { border-color: light-dark(#d6e0f2, #182a49); }
-.ws-input:focus, .ws-select select:focus { border-color: light-dark(#c7d7fa, #182749); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-.ws-input::placeholder { color: light-dark(#a9b3c2, #6a7b95); }
-.ws-input:disabled, .ws-select select:disabled { background: light-dark(#fbfcfe, #171f30); color: light-dark(#64748b, #8996aa); cursor: default; }
-.ws-select { position: relative; display: block; }
-.ws-select select { appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 34px; }
-.ws-select .caret { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: light-dark(#a7b1c0, #6a7b95); pointer-events: none; }
-
-/* Approvals toggle */
-.ws-toggle { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 14px 16px; border: 1px solid light-dark(#eef1f7, #1e283e);
-  border-radius: 12px; background: light-dark(#fbfcfe, #171f30); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-.ws-toggle:hover:not(.locked), .ws-toggle:focus-visible { border-color: light-dark(#c7d7fa, #182749); background: light-dark(#eef4ff, #182949); outline: none; }
-.ws-toggle.locked { cursor: default; opacity: 0.75; }
-.toggle-txt { min-width: 0; }
-.toggle-txt .tt { font-size: 13px; font-weight: 600; color: light-dark(#25303f, #c9d3e0); }
-.toggle-txt .td { font-size: 12px; color: light-dark(#8b96a6, #6f7c90); margin-top: 4px; line-height: 1.5; }
-.switch { position: relative; flex: none; width: 40px; height: 23px; border-radius: 999px; background: light-dark(#e2e8f0, #263549); transition: background 0.18s; margin-top: 1px; }
-.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: var(--surface);
-  box-shadow: 0 2px 4px light-dark(rgba(15, 23, 42, 0.25), rgba(0, 0, 0, 0.45)); transition: transform 0.18s; }
-.ws-toggle.on .switch { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.ws-toggle.on .switch::after { transform: translateX(17px); }
-
-/* Footer */
-.ws-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 15px 26px;
-  border-top: 1px solid light-dark(#f1f3f9, #1c243a); background: light-dark(#fcfdff, #171f2f); }
-.ws-foot .meta { font-size: 12px; color: light-dark(#a7b1c0, #6a7b95); }
-.ws-save { font: inherit; font-size: 13.5px; font-weight: 600; color: #fff; border: none; border-radius: 999px; padding: 10px 22px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 8px 18px -10px rgba(37, 99, 235, 0.95);
-  transition: background 0.15s, transform 0.06s; }
-.ws-save svg { width: 15px; height: 15px; }
-.ws-save:hover:not(:disabled) { background: linear-gradient(135deg, #2f74ea, #1d4ed8); }
-.ws-save:active:not(:disabled) { transform: translateY(1px); }
-.ws-save:disabled { opacity: 0.6; cursor: not-allowed; }
-.ws-save.saved { background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 8px 18px -10px rgba(22, 163, 74, 0.9); opacity: 1; }
-
-@media (max-width: 860px) {
-  .ws-grid { grid-template-columns: minmax(0, 1fr); }
-  .ws-section, .ws-foot { padding-left: 18px; padding-right: 18px; }
-}
+/*
+ * Settings design source styles (Tailwind owns layout). Component-scoped; the page gradient is set in styles.css
+ * (html:has(.settings-page)) because it sits behind the app shell. The social account cards style themselves.
+ */
+.settings-page{--navy:#183552;--muted:#7990aa;--blue:#4c84b8;--line:#dce8f4;font-family:"DM Sans",ui-sans-serif,system-ui,sans-serif;color:var(--navy);color-scheme:light;overflow-x:hidden}
+button:not(:disabled){cursor:pointer}
+.display-font{font-family:Manrope,"DM Sans",system-ui,sans-serif}
+.glass-panel{background:rgba(255,255,255,.86);border:1px solid rgba(255,255,255,.98);box-shadow:0 17px 48px rgba(60,85,126,.075),0 3px 8px rgba(60,85,126,.035);backdrop-filter:blur(20px)}
+/* Both card headers share one height so the two columns line up. */
+.panel-head{min-height:77px}
+.soft-field{width:100%;height:47px;border:1px solid #DCE6F3;outline:none;color:#274666;background:rgba(248,251,255,.93);border-radius:14px;padding:0 15px 0 43px;transition:border-color .18s,box-shadow .18s,background .18s;font-size:13px;font-weight:700}
+.soft-field:focus{border-color:#80B3E5;background:white;box-shadow:0 0 0 3px rgba(139,191,240,.23)}
+.soft-field:hover:not(:focus):not(:disabled){border-color:#bed3e9}
+.soft-field:disabled{opacity:.75;cursor:default}
+.soft-field.ng-invalid.ng-touched{border-color:#E4A3AE}
+.select-field{appearance:none;padding-right:39px;cursor:pointer}
+.switch-track{width:49px;height:29px;border-radius:100px;background:#D7E0EC;box-shadow:inset 0 1px 3px rgba(49,70,103,.10);position:relative;transition:background .24s,box-shadow .24s;display:inline-block;flex-shrink:0}
+.switch-knob{position:absolute;left:4px;top:4px;width:21px;height:21px;border-radius:50%;background:white;box-shadow:0 2px 6px rgba(24,49,79,.22);transition:transform .24s}
+[aria-checked="true"] .switch-track{background:linear-gradient(100deg,#508FCB,#897CCC)}
+[aria-checked="true"] .switch-knob{transform:translateX(20px)}
+[role="switch"]:disabled{opacity:.6;cursor:default}
+.primary-button{color:#fff;background:linear-gradient(105deg,#193D64 0%,#346BA3 62%,#6B75C0 100%);box-shadow:0 9px 18px rgba(42,79,133,.20);transition:transform .18s,box-shadow .18s,filter .18s,opacity .18s}
+.primary-button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px rgba(42,79,133,.29);filter:saturate(1.12)}
+.primary-button:active{transform:translateY(0)}
+.secondary-button{border:1px solid #DCE6F2;background:#fff;color:#566F90;transition:background .18s,border-color .18s,transform .18s,opacity .18s}
+.secondary-button:hover:not(:disabled){background:#F1F6FD;border-color:#BED3EA;transform:translateY(-1px)}
+.primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:default;box-shadow:none}
+.float-shape{position:absolute;pointer-events:none;border:1px solid rgba(255,255,255,.62);border-radius:50%;transform:rotate(-12deg)}
+.card-enter{animation:showCard .6s cubic-bezier(.16,1,.3,1) both}
+.card-enter:nth-child(2){animation-delay:.08s}
+@keyframes showCard{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.problem{color:#B65165;background:linear-gradient(105deg,#FFF0F1,#FFF8F7);border:1px solid #F5D8DC}
+.toast{transform:translate(-50%,20px);opacity:0;pointer-events:none;transition:transform .25s,opacity .25s}
+.toast.show{transform:translate(-50%,0);opacity:1}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #93BEEB;outline-offset:3px}
+@media(max-width:680px){.glass-panel{backdrop-filter:blur(10px)}.card-enter{animation:none}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}

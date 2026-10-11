@@ -1,0 +1,80 @@
+/*
+ * Onboarding design source styles (custom surfaces and motion; Tailwind owns layout). Global on purpose: the step forms
+ * and the social cards are projected/child content of the layout. Page-level rules are scoped to .onboarding-root.
+ */
+.onboarding-root { color-scheme: light; min-width: 320px; }
+.auth-background {
+  background:
+    radial-gradient(ellipse 36% 48% at 7% 25%, rgba(249,253,255,.67) 0%, transparent 90%),
+    radial-gradient(ellipse 33% 53% at 100% 63%, rgba(253,240,232,.50) 0%, transparent 83%),
+    linear-gradient(112deg, #e1effb 0%, #e5ebf9 47%, #f0e3e6 78%, #f4e2db 100%);
+}
+.card-glass { background:rgba(255,255,255,.78); border:1px solid rgba(255,255,255,.90); box-shadow:0 24px 70px rgba(58,75,110,.10), 0 3px 16px rgba(55,80,121,.04); -webkit-backdrop-filter: blur(22px); backdrop-filter:blur(22px); }
+.input-surface { background:rgba(247,249,253,.87); border:1px solid #d9e3f0; color:#1b304e; transition:border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+.input-surface:focus { outline:0; border-color:#8cadd1; background:#fff; box-shadow:0 0 0 4px rgba(143,179,219,.20); }
+.input-surface::placeholder { color:#9aaac0; }
+.input-surface:invalid:not(:placeholder-shown):not(:focus) { border-color:#d9aab0; }
+.progress-spectrum { background:linear-gradient(90deg,#78b7df 0%,#a9aedf 50%,#e8b5a9 100%); }
+.step-fade { animation:enterStep .42s cubic-bezier(.2,.8,.2,1) both; }
+.menu-enter { animation:menuIn .18s cubic-bezier(.2,.8,.2,1) both; }
+.soft-btn { transition:transform .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.soft-btn:hover { transform:translateY(-2px); box-shadow:0 12px 24px rgba(25,52,87,.16); }
+.soft-btn:active { transform:translateY(0); }
+.social-card { transition:transform .22s ease, border-color .22s ease, box-shadow .22s ease, background-color .22s ease; }
+.social-card:hover { transform:translateY(-3px); border-color:#c4d6e8; box-shadow:0 14px 28px rgba(73,97,136,.09); }
+.social-card[data-connected="true"] { border-color:#c6ddcf; background:rgba(248,252,249,.95); }
+.decor-orbit { position:absolute; width:330px; height:330px; border:1px solid rgba(255,255,255,.33); border-radius:50%; pointer-events:none; }
+@keyframes enterStep { from { opacity:0; transform:translateY(11px); } to { opacity:1; transform:translateY(0); } }
+@keyframes menuIn { from { opacity:0; transform:translateY(-5px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+/* Two-column desktop grid: 40% information, 60% form region.  The
+   floating form within that region is deliberately capped on large LCDs. */
+@media (min-width:1024px) {
+  .desktop-compact-main {
+    max-width: 1480px;
+    grid-template-columns: minmax(0, 40%) minmax(0, 60%);
+    column-gap: 0;
+    padding-inline: clamp(24px, 3.2vw, 52px);
+  }
+  .desktop-compact-left {
+    width: 100%;
+    max-width: none;
+    padding-right: clamp(16px, 2vw, 38px);
+  }
+  .desktop-compact-left h1 {
+    max-width: none;
+    font-size: clamp(25px, 2vw, 33px);
+    line-height: 1.22;
+    letter-spacing: -.055em;
+    white-space: normal;
+  }
+  .desktop-compact-left p { max-width: 330px; font-size: 14px; line-height: 1.65; }
+  .onboarding-form-column {
+    width: min(100%, 680px);
+    max-width: 680px;
+    margin-inline: auto;
+    justify-self: center;
+  }
+}
+@media (min-width:1024px) and (max-width:1279px) {
+  .desktop-compact-main { padding-inline: 28px; }
+  .desktop-compact-left h1 { font-size: clamp(24px, 2.25vw, 29px); }
+  .onboarding-form-column { max-width: 635px; }
+}
+@media (min-width:1024px) and (max-height:760px) {
+  .desktop-compact-main { padding-top: 16px !important; padding-bottom: 16px !important; }
+  .desktop-compact-panel { padding-top: 18px !important; padding-bottom: 18px !important; }
+  .desktop-compact-left { transform: translateY(-2px); }
+}
+@media (max-width:1023px) {
+  .desktop-compact-left h1 {
+    font-size:clamp(27px,4vw,38px);
+    letter-spacing:-.055em;
+    line-height:1.18;
+  }
+}
+@media (max-width:500px) {
+  .desktop-compact-left h1 { font-size:clamp(25px,7.4vw,34px); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .onboarding-root *,.onboarding-root *::before,.onboarding-root *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
+}

@@ -1,4 +1,4 @@
-import { Component, ViewEncapsulation, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { OrganizationApiService } from '../services/organization-api.service';
 import { WorkspaceService } from '../services/workspace.service';
@@ -18,9 +18,8 @@ import { ProblemBannerComponent } from '../../shared/components/problem-banner.c
   selector: 'app-register-page',
   imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './register-page.component.html',
-  styleUrl: './register-page.component.css',
-  // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.
-  encapsulation: ViewEncapsulation.ShadowDom,
+  styleUrl: './auth-page.css',
+  host: { '(document:keydown.escape)': 'legal.set(null)' },
 })
 export class RegisterPageComponent {
   protected readonly auth = inject(AuthService);
@@ -33,6 +32,8 @@ export class RegisterPageComponent {
 
   readonly busy = signal(false);
   readonly showPassword = signal(false);
+  /** Title of the open Terms of Service / Privacy Policy dialog, or null. */
+  readonly legal = signal<string | null>(null);
   readonly problem = signal<ApiProblem | null>(null);
   readonly form = inject(FormBuilder).nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -58,11 +59,19 @@ export class RegisterPageComponent {
   }
 
   private readonly password = toSignal(this.form.controls.password.valueChanges, { initialValue: '' });
+  /** 0 = empty, otherwise 1 (Weak) to 4 (Strong); any typed password shows at least one bar. */
   readonly strength = computed(() => {
     const v = this.password();
     if (!v) return 0;
-    return [v.length >= 8, /[A-Z]/.test(v) && /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length;
+    return Math.max(1, [v.length >= 8, /[A-Z]/.test(v) && /[a-z]/.test(v), /[0-9]/.test(v), /[^A-Za-z0-9]/.test(v)].filter(Boolean).length);
   });
+  readonly strengthLabel = computed(() => ['Password', 'Weak', 'Fair', 'Good', 'Strong'][this.strength()]);
+  readonly strengthColor = computed(() => ['#D9E5F1', '#D1A682', '#A8B5D3', '#75AD9A'][this.strength() - 1]);
+
+  openLegal(title: string, close: HTMLElement): void {
+    this.legal.set(title);
+    setTimeout(() => close.focus());
+  }
 
   /** Google mode: leave without creating a workspace. */
   async signOut(): Promise<void> {
@@ -74,9 +83,11 @@ export class RegisterPageComponent {
     }
   }
 
-  async submit(): Promise<void> {
+  async submit(formEl: HTMLFormElement): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      // The design reports field problems with the browser's own validation bubbles.
+      formEl.reportValidity();
       return;
     }
     this.busy.set(true);

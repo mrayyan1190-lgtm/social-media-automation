@@ -5,7 +5,6 @@ import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { ToastService } from '../../core/services/toast.service';
-import { TopbarActionService } from '../../core/services/topbar-action.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { BLOCKED_HINT, ReviewSummary } from '../approvals/models/review.model';
@@ -71,7 +70,6 @@ export class ComposerPage {
   private readonly location = inject(Location);
   protected readonly workspace = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
-  private readonly topbar = inject(TopbarActionService);
   private destroyed = false;
 
   /** Route parameter (existing post). */
@@ -84,6 +82,11 @@ export class ComposerPage {
   /** Preview "See more" toggle and dropzone drag highlight. */
   protected readonly expanded = signal(false);
   protected readonly dragging = signal(false);
+  /** The Live preview tab; null follows the post's platform. */
+  protected readonly previewTab = signal<SocialPlatform | null>(null);
+  protected readonly shownPreview = computed(() => this.previewTab() ?? this.platform() ?? 'LinkedIn');
+  /** The "Approve this draft?" / "Send for review?" confirmation. */
+  protected readonly confirming = signal(false);
 
   // Loaded data
   protected readonly post = signal<Post | null>(null);
@@ -136,19 +139,18 @@ export class ComposerPage {
   /** A rewrite (any Improve with AI item) is running. */
   protected readonly isRewriting = computed(() => IMPROVE_ACTIONS.some((a) => a.action === this.busy()));
   protected readonly changesRequested = computed(() => this.reviews().find((r) => r.status === 'CHANGES_REQUESTED') ?? null);
+  /** Header chip: "Draft · v02", "In review · v01", … */
+  protected readonly stateLabel = computed(() => {
+    const v = this.version();
+    if (!v) return 'New draft';
+    const label = { DRAFT: 'Draft', IN_REVIEW: 'In review', CHANGES_REQUESTED: 'Changes requested', APPROVED: 'Approved', ARCHIVED: 'Archived' }[this.state()] ?? 'Draft';
+    return `${label} · v${String(v.versionNumber).padStart(2, '0')}`;
+  });
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
-      this.topbar.action.set(null);
     });
-    // Submit for Review lives in the navbar while this page is open.
-    effect(() => this.topbar.action.set(this.canEdit() && this.state() !== 'APPROVED' ? {
-      label: this.busy() === 'submit' ? (this.workspace.isAdmin() ? 'Approving…' : 'Submitting…') : this.workspace.isAdmin() ? 'Approve' : 'Submit for Review',
-      disabled: !!this.busy() || !this.targets().length || this.missingTargets().length > 0,
-      title: this.missingTargets().length ? 'Choose an account first' : '',
-      run: () => void this.submitForReview(),
-    } : null));
     effect(() => {
       const orgId = this.workspace.orgId();
       if (orgId) void this.loadWorkspaceData(orgId);
@@ -186,6 +188,10 @@ export class ComposerPage {
 
   /** Full-screen viewer: Escape closes, arrow keys step through the post's images. */
   protected onViewerKey(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      this.confirming.set(false);
+      this.menu.set(null);
+    }
     const i = this.viewing();
     if (i === null) return;
     const count = this.images().length;
@@ -359,7 +365,13 @@ export class ComposerPage {
     });
   }
 
+  /** Approve (Admin) / Submit (Creator) asks first, as in the design; the top-bar button submits directly. */
+  protected confirmSubmit(): void {
+    this.confirming.set(true);
+  }
+
   protected async submitForReview(): Promise<void> {
+    this.confirming.set(false);
     const orgId = this.workspace.orgId();
     const targets = this.targets();
     await this.run('submit', async () => {

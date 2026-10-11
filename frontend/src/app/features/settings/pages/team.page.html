@@ -1,104 +1,97 @@
-<div class="mb">
-  <app-problem-banner [problem]="problem()" (reload)="load()" />
+<div class="members-page tw-page">
+<svg xmlns="http://www.w3.org/2000/svg" class="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+  <symbol id="m-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1.5a6 6 0 0 1 12 0V20M17 5.4a3 3 0 0 1 0 5.4M21 20v-1.5a5 5 0 0 0-3.2-4.7"/></symbol>
+  <symbol id="m-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="m-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6z"/><path d="m9.5 12.5 1.8 1.8 3.4-3.8"/></symbol>
+  <symbol id="m-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="m-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="m-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10.5V16M12 7.5h.01"/></symbol>
+</svg>
+<main class="relative mx-auto max-w-[1200px] px-4 pb-14 pt-7 sm:px-6 lg:px-9 lg:pt-8">
+  <header class="mb-5 flex flex-wrap items-center justify-between gap-4 lg:mb-6">
+    <div class="flex items-center gap-3.5"><span class="grid h-[49px] w-[49px] shrink-0 place-items-center rounded-[17px] bg-[#1B3B5F] text-white shadow-[0_13px_26px_#284d7733]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.6]"><use href="#m-users"/></svg></span><div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7389AA]">Workspace team</p><h1 class="heading-font text-[27px] font-extrabold leading-[1.15] tracking-[-.065em] text-[#193552] sm:text-[31px]">Members<span class="text-[#9D8CC6]">.</span></h1></div></div>
+    <button type="button" (click)="openAdd()" class="primary-btn inline-flex h-[42px] items-center gap-2 rounded-full px-5 text-[12px] font-extrabold"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#m-plus"/></svg> Add Creator</button>
+  </header>
 
-  <section class="mb-card">
-    <div class="mb-head">
-      <div class="head-left">
-        <span class="label">Members</span>
-        <span class="count-pill">{{ members().length }} {{ members().length === 1 ? 'member' : 'members' }}</span>
-      </div>
-      <button class="mb-primary sm" type="button" (click)="openAdd()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-        Add Creator
-      </button>
+  @if (problem(); as p) {
+    <p class="problem mb-4 rounded-[16px] px-4 py-3 text-[12px] font-bold leading-5" role="alert">{{ p.detail }} <button type="button" class="ml-1 underline" (click)="load()">Try again</button></p>
+  }
+
+  <section class="glass team overflow-hidden rounded-[28px]" aria-labelledby="teamTitle">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#E7EDF6] bg-[linear-gradient(110deg,#F1F8FF_0%,#F6F1FC_54%,#FFF6F2_100%)] px-4 py-4 sm:px-6">
+      <div class="flex items-center gap-2.5"><h2 id="teamTitle" class="heading-font text-[16px] font-extrabold tracking-[-.035em] text-[#2C496A] sm:text-[17px]">Team</h2><span class="rounded-full border border-white/90 bg-white/85 px-2.5 py-1 text-[10px] font-extrabold text-[#6885A6]">{{ members().length }} {{ members().length === 1 ? 'member' : 'members' }}</span></div>
+      <span class="text-[10px] font-semibold text-[#8D9BB1] sm:text-[11px]">{{ activeCount() }} active · people who can sign in to this workspace</span>
     </div>
 
-    <div class="mb-table">
-      <div class="mrow head">
-        <span></span><span>Name</span><span class="hmail">Email</span><span class="hrole">Role</span><span>Status</span><span></span>
-      </div>
-      @if (loading()) {
-        <p class="mb-empty">Loading members…</p>
-      } @else {
+    @if (loading()) {
+      <p class="px-5 py-14 text-center text-[12px] font-bold text-[#8B9EB4]">Loading members…</p>
+    } @else if (!members().length) {
+      <p class="px-5 py-14 text-center text-[12px] font-bold text-[#8B9EB4]">No members yet.</p>
+    } @else {
+      <div class="member-table">
+        <div class="table-head member-grid px-5 py-3.5 text-[10px] font-extrabold uppercase tracking-[.12em] text-[#8294AF] lg:px-6"><span>Member</span><span>Email</span><span>Role</span><span>Status</span><span class="sr-only">Actions</span></div>
         @for (m of members(); track m.memberId) {
-          <div class="mrow">
-            <span class="ava">{{ initial(m) }}</span>
-            <span class="mname" [title]="m.displayName || m.email">{{ m.displayName || '—' }}</span>
-            <span class="memail" [title]="m.email">{{ m.email }}</span>
-            <span [class]="'role-chip ' + (m.role === 'Admin' ? 'admin' : 'creator')">
-              @if (m.role === 'Admin') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6z"/><path d="M9.5 12.5l1.8 1.8 3.4-3.8"/></svg>
-              } @else {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-              }
-              {{ m.role }}
-            </span>
-            <span [class]="'mb-status ' + (m.status === 'Active' ? 'active' : 'inactive')"><span class="dot"></span>{{ m.status === 'Active' ? 'Active' : 'Inactive' }}</span>
-            <span class="fact">
+          <div class="member-row member-grid px-5 py-3 lg:px-6" [class.inactive]="m.status !== 'Active'">
+            <div class="flex min-w-0 items-center gap-3"><span class="avatar">{{ initial(m) }}</span><span class="min-w-0"><span class="block truncate text-[12.5px] font-extrabold text-[#2A4869]" [title]="m.displayName || m.email">{{ m.displayName || '—' }}</span><span class="mobile-email mt-0.5 block truncate text-[10.5px] font-medium text-[#8EA1BA]">{{ m.email }}</span></span></div>
+            <span class="email truncate text-[11.5px] font-semibold text-[#6B82A1]" [title]="m.email">{{ m.email }}</span>
+            <span><span [class]="'chip ' + (m.role === 'Admin' ? 'admin' : 'creator')"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use [attr.href]="m.role === 'Admin' ? '#m-shield' : '#m-pen'"/></svg>{{ m.role }}</span></span>
+            <span><span [class]="'status ' + (m.status === 'Active' ? 'active' : 'off')">{{ m.status === 'Active' ? 'Active' : 'Inactive' }}</span></span>
+            <span class="flex justify-end">
               @if (m.status === 'Active' && m.role === 'Creator') {
-                <button class="mini-btn danger" type="button" [disabled]="busy() === m.memberId" (click)="deactivate(m)">Deactivate</button>
+                <button type="button" class="ghost-danger h-9 rounded-full px-3.5 text-[11px] font-extrabold" [disabled]="busy() === m.memberId" (click)="confirming.set(m)">Deactivate</button>
               } @else {
-                <span class="dash">—</span>
+                <span class="text-[#C3CEDB]">—</span>
               }
             </span>
           </div>
-        } @empty {
-          <p class="mb-empty">No members.</p>
         }
-      }
-    </div>
+      </div>
+    }
 
-    <div class="mb-foot">
-      <span class="meta">Admins approve and publish. Creators write posts and submit them for review.</span>
-      <span class="meta"><b>{{ activeCount() }}</b> active</span>
-    </div>
+    <div class="flex flex-wrap items-center justify-between gap-2 border-t border-[#E8EDF4] bg-white/45 px-5 py-3.5 text-[10.5px] font-semibold text-[#8A9FB8] sm:px-6"><span class="inline-flex items-center gap-1.5"><svg class="h-[14px] w-[14px] shrink-0 fill-none stroke-current stroke-[1.8]"><use href="#m-info"/></svg> Admins approve and publish. Creators write posts and submit them for review.</span><span><b class="text-[#5D799B]">{{ activeCount() }}</b> active</span></div>
   </section>
-</div>
+</main>
 
-<dialog #dialog class="mb-modal" (close)="resetErrors()" (click)="closeOnBackdrop($event)">
-  <form (ngSubmit)="addCreator()" autocomplete="off" novalidate>
-    <div class="modal-head">
-      <h3>Add Creator</h3>
-      <button class="close" type="button" aria-label="Close" (click)="dialog.close()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
-      </button>
+<!-- Add Creator -->
+<dialog #dialog class="sheet" (close)="resetErrors()" (click)="closeOnBackdrop($event)">
+  <form (ngSubmit)="addCreator()" autocomplete="off" novalidate class="p-5 sm:p-6">
+    <div class="mb-5 flex items-center justify-between"><div><p class="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8599B5]">Workspace team</p><h2 class="heading-font mt-1 text-[22px] font-extrabold tracking-[-.04em] text-[#254362]">Add Creator</h2></div><button type="button" (click)="dialog.close()" class="grid h-9 w-9 place-items-center rounded-full bg-[#EDF3FA] text-[#7089A4]" aria-label="Close"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#m-x"/></svg></button></div>
+
+    <label for="mb-name" class="mb-1.5 block text-[12px] font-bold text-[#466485]">Full name</label>
+    <input id="mb-name" name="fullName" maxlength="200" placeholder="e.g. Ayesha Khan" [class.invalid]="errors().name" [(ngModel)]="fullName" class="field h-11 w-full rounded-[13px] px-3.5 text-[13px]" />
+    @if (errors().name) { <p class="err">Enter the creator's full name.</p> }
+
+    <label for="mb-email" class="mb-1.5 mt-4 block text-[12px] font-bold text-[#466485]">Email</label>
+    <input id="mb-email" name="email" type="email" maxlength="256" placeholder="name@company.com" [class.invalid]="errors().email" [(ngModel)]="email" class="field h-11 w-full rounded-[13px] px-3.5 text-[13px]" />
+    @if (errors().email) { <p class="err">Enter a valid email address.</p> }
+
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      <div><label for="mb-pass" class="mb-1.5 block text-[12px] font-bold text-[#466485]">Password</label>
+        <input id="mb-pass" name="password" type="password" autocomplete="new-password" [placeholder]="'At least ' + minPassword + ' characters'" [class.invalid]="errors().password" [(ngModel)]="password" class="field h-11 w-full rounded-[13px] px-3.5 text-[13px]" />
+        @if (errors().password) { <p class="err">At least {{ minPassword }} characters.</p> }</div>
+      <div><label for="mb-pass2" class="mb-1.5 block text-[12px] font-bold text-[#466485]">Confirm password</label>
+        <input id="mb-pass2" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter the password" [class.invalid]="errors().confirm" [(ngModel)]="confirmPassword" class="field h-11 w-full rounded-[13px] px-3.5 text-[13px]" />
+        @if (errors().confirm) { <p class="err">Passwords don't match.</p> }</div>
     </div>
 
-    <div class="modal-body">
-      <div class="field">
-        <label for="mb-name">Full name</label>
-        <input class="input" id="mb-name" name="fullName" maxlength="200" placeholder="e.g. Ayesha Khan" [class.invalid]="errors().name" [(ngModel)]="fullName" />
-        @if (errors().name) { <span class="err">Enter the creator's full name.</span> }
-      </div>
-      <div class="field">
-        <label for="mb-email">Email</label>
-        <input class="input" id="mb-email" name="email" type="email" maxlength="256" placeholder="name@company.com" [class.invalid]="errors().email" [(ngModel)]="email" />
-        @if (errors().email) { <span class="err">Enter a valid email address.</span> }
-      </div>
-      <div class="field">
-        <label for="mb-pass">Password</label>
-        <input class="input" id="mb-pass" name="password" type="password" autocomplete="new-password" placeholder="At least {{ minPassword }} characters" [class.invalid]="errors().password" [(ngModel)]="password" />
-        <span class="help">At least {{ minPassword }} characters. Share it with the Creator yourself.</span>
-        @if (errors().password) { <span class="err">Password must be at least {{ minPassword }} characters.</span> }
-      </div>
-      <div class="field">
-        <label for="mb-pass2">Confirm password</label>
-        <input class="input" id="mb-pass2" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter the password" [class.invalid]="errors().confirm" [(ngModel)]="confirmPassword" />
-        @if (errors().confirm) { <span class="err">Passwords don't match.</span> }
-      </div>
-      <div class="role-row">
-        <span class="lbl">Role</span>
-        <span class="role-chip admin">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-          Creator
-        </span>
-      </div>
-      @if (formProblem(); as p) { <p class="err" role="alert">{{ p }}</p> }
-    </div>
+    <div class="mt-4 flex items-center justify-between gap-3 rounded-[14px] bg-[#F4F7FC] px-3.5 py-3"><span class="text-[11px] font-medium leading-5 text-[#8295AD]">Share the password with the Creator yourself; no invitation email is sent.</span><span class="chip creator shrink-0"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#m-pen"/></svg>Creator</span></div>
+    @if (formProblem(); as p) { <p class="problem mt-3 rounded-[13px] px-3.5 py-2.5 text-[12px] font-bold leading-5" role="alert">{{ p }}</p> }
 
-    <div class="modal-foot">
-      <button class="mb-ghost" type="button" (click)="dialog.close()">Cancel</button>
-      <button class="mb-primary" type="submit" [disabled]="busy() === 'add'">{{ busy() === 'add' ? 'Creating…' : 'Create Creator' }}</button>
-    </div>
+    <div class="mt-5 flex items-center justify-end gap-2"><button type="button" (click)="dialog.close()" class="rounded-full border border-[#d9e5f2] bg-white px-4 py-2.5 text-[12px] font-bold text-[#617C9A]">Cancel</button><button type="submit" [disabled]="busy() === 'add'" class="primary-btn rounded-full px-5 py-2.5 text-[12px] font-extrabold">{{ busy() === 'add' ? 'Creating…' : 'Create Creator' }}</button></div>
   </form>
 </dialog>
+
+@if (confirming(); as m) {
+  <div class="overlay theme-scrim fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" (click)="$event.target === $event.currentTarget ? confirming.set(null) : null">
+    <section class="w-full max-w-[420px] rounded-[25px] border border-white bg-[#FBFCFF] p-6 shadow-[0_26px_80px_rgba(32,54,84,.30)]">
+      <h2 id="confirmTitle" class="heading-font text-[20px] font-extrabold text-[#294766]">Deactivate {{ m.displayName || m.email }}?</h2>
+      <p class="mt-2 text-[12px] leading-6 text-[#8192A8]">They lose access to this workspace. Their posts and history stay.</p>
+      <div class="mt-6 flex justify-end gap-2"><button type="button" (click)="confirming.set(null)" class="rounded-full border border-[#d9e5f2] bg-white px-4 py-2.5 text-[12px] font-extrabold text-[#607998]">Cancel</button><button type="button" (click)="deactivate(m)" [disabled]="!!busy()" class="rounded-full bg-[#B94F69] px-4 py-2.5 text-[12px] font-extrabold text-white hover:bg-[#A7435F]">{{ busy() ? 'Working…' : 'Deactivate' }}</button></div>
+    </section>
+  </div>
+}
+
+@if (toastText()) {
+  <div class="fixed bottom-5 left-1/2 z-[100] max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-full bg-[#1D3F62] px-5 py-3 text-center text-[12px] font-bold text-white shadow-[0_13px_35px_#18395775]" role="status" aria-live="polite">{{ toastText() }}</div>
+}
+</div>

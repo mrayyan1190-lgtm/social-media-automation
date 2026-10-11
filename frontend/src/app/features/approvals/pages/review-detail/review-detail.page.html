@@ -1,3 +1,13 @@
+<div class="review-detail-page">
+<main class="rd-main">
+  <header class="rd-head">
+    <div class="rd-title">
+      <span class="rd-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.4-3 8.2-7 9-4-.8-7-4.6-7-9V6z"/><path d="m9.5 12.5 1.8 1.8 3.4-3.8"/></svg></span>
+      <div><p class="rd-eyebrow">Approvals</p><h1>Review<span>.</span></h1></div>
+    </div>
+    <a routerLink="/approvals" class="rd-back">← All approvals</a>
+  </header>
+
 @if (loading() && !detail()) { <p class="muted">Loading review…</p> }
 
 <app-problem-banner [problem]="problem()" (reload)="load()" />
@@ -118,3 +128,5 @@
     </aside>
   </div>
 }
+</main>
+</div>

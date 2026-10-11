@@ -1,60 +1,29 @@
-.nt { display: flex; flex-direction: column; gap: 18px; color: light-dark(#0f172a, #e0e4ee); -webkit-font-smoothing: antialiased; }
-.nt button { min-height: 0; }
-.nt-card { background: var(--surface); border: 1px solid light-dark(#e9edf5, #202b42); border-radius: 16px; overflow: hidden;
-  box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.07)), 0 10px 30px -18px light-dark(rgba(15, 23, 42, 0.25), rgba(0, 0, 0, 0.45)); }
+/*
+ * Notifications in the workspace design (as Approvals / All posts). Component-scoped; the page gradient is set in
+ * styles.css (html:has(.notifications-page)) because it sits behind the app shell.
+ */
+.notifications-page{font-family:'DM Sans',system-ui,sans-serif;color:#1d3858;color-scheme:light}
+button:not(:disabled),a{cursor:pointer}
+button:disabled{opacity:.55;cursor:not-allowed}
+.heading-font{font-family:'Manrope','DM Sans',sans-serif}
+.glass{background:rgba(255,255,255,.84);border:1px solid rgba(255,255,255,.93);box-shadow:0 16px 46px rgba(51,75,118,.085);backdrop-filter:blur(18px)}
+.primary-btn{background:linear-gradient(113deg,#234b80,#456fbc 62%,#756ab9);color:#fff;box-shadow:0 9px 22px rgba(54,91,158,.20);transition:transform .18s,box-shadow .18s}
+.primary-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 24px rgba(54,91,158,.28)}
+.primary-btn:disabled{box-shadow:none}
+.problem{color:#BD5066;background:#FFF4F5;border:1px solid #F5D6DB}
 
-/* Header: unread count + Mark all as read */
-.nt-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 13px 18px;
-  border-bottom: 1px solid light-dark(#f1f3f9, #1c243a); background: light-dark(#fcfdff, #171f2f); }
-.head-left { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.count-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: -0.005em; color: light-dark(#2563eb, #6a94f1);
-  background: light-dark(#eef4ff, #182949); border: 1px solid light-dark(#c7d7fa, #182749); border-radius: 999px; padding: 4px 11px 4px 9px; transition: all 0.18s; }
-.count-pill svg { width: 13px; height: 13px; flex: none; }
-.count-pill.all-read { color: light-dark(#15803d, #73e89f); background: light-dark(#f0fdf5, #18492b); border-color: light-dark(#cdf2dd, #227747); }
-.head-left .total { font-size: 12px; color: light-dark(#a7b1c0, #6a7b95); font-variant-numeric: tabular-nums; }
-.mark-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: light-dark(#475569, #a6b2c3); background: var(--surface); border: 1px solid light-dark(#dfe5ef, #26344c); border-radius: 999px;
-  padding: 7px 15px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; transition: all 0.15s; }
-.mark-btn svg { width: 14px; height: 14px; color: light-dark(#94a3b8, #667b99); }
-.mark-btn:hover:not(:disabled) { border-color: light-dark(#c7d7fa, #182749); background: light-dark(#eef4ff, #182949); color: light-dark(#2563eb, #6a94f1); }
-.mark-btn:hover:not(:disabled) svg { color: light-dark(#2563eb, #6a94f1); }
-.mark-btn:active:not(:disabled) { transform: translateY(1px); }
-.mark-btn:disabled { opacity: 0.5; cursor: default; background: var(--surface); border-color: light-dark(#e8edf4, #212f44); color: light-dark(#a7b1c0, #6a7b95); }
-.mark-btn:disabled svg { color: #b8c1cf; }
-
-/* Rows */
-.nrow { display: grid; grid-template-columns: 34px minmax(0, 1fr) 96px; align-items: center; gap: 14px; padding: 13px 18px; transition: background 0.12s; }
-.nrow + .nrow { border-top: 1px solid light-dark(#f4f6fa, #1b2438); }
-.nrow.unread { background: light-dark(#fbfdff, #17232f); }
-.nrow:hover { background: light-dark(#f7faff, #182232); }
-.nt-tile { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; }
-.nt-tile svg { width: 16px; height: 16px; }
-.nt-tile.review { background: light-dark(#fffbeb, #493f18); color: light-dark(#b45309, #f3a468); border: 1px solid light-dark(#fde9b8, #775e22); }
-.nt-tile.attention { background: light-dark(#fff1f2, #49181c); color: light-dark(#be123c, #f16a8b); border: 1px solid light-dark(#ffd9dd, #49181d); }
-.nt-tile.approved { background: light-dark(#f0fdf5, #18492b); color: light-dark(#15803d, #73e89f); border: 1px solid light-dark(#cdf2dd, #227747); }
-.nt-tile.neutral { background: light-dark(#f8fafc, #192634); color: light-dark(#64748b, #8996aa); border: 1px solid light-dark(#e8edf4, #212f44); }
-.ntxt { min-width: 0; }
-.ntitle { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ntitle .t { font-size: 13.5px; font-weight: 600; color: light-dark(#25303f, #c9d3e0); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nrow:not(.unread) .ntitle .t { font-weight: 500; color: light-dark(#5b6779, #98a2b2); }
-.chip-new { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #fff;
-  background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 6px; padding: 2px 6px; flex: none; }
-.nmeta { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12.5px; color: light-dark(#8b96a6, #6f7c90); min-width: 0; }
-.nmeta .desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nmeta .sep { color: #cbd3df; flex: none; }
-.nmeta .time { flex: none; color: light-dark(#a7b1c0, #6a7b95); font-variant-numeric: tabular-nums; }
-.open-btn { justify-self: end; font: inherit; font-size: 12.5px; font-weight: 600; color: light-dark(#475569, #a6b2c3); background: var(--surface); border: 1px solid light-dark(#dfe5ef, #26344c);
-  border-radius: 9px; padding: 7px 0; width: 96px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  text-decoration: none; transition: all 0.15s; }
-.open-btn:hover { border-color: light-dark(#c7d7fa, #182749); color: light-dark(#2563eb, #6a94f1); background: light-dark(#eef4ff, #182949); }
-.open-btn.fix:hover { border-color: light-dark(#fda4af, #77222d); color: light-dark(#be123c, #f16a8b); background: light-dark(#fff1f2, #49181c); }
-
-.all-read-note { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 26px 18px; border-top: 1px solid light-dark(#f4f6fa, #1b2438);
-  font-size: 12.5px; color: light-dark(#a7b1c0, #6a7b95); }
-.all-read-note svg { width: 14px; height: 14px; color: light-dark(#22c55e, #74e79e); }
-
-@media (max-width: 760px) {
-  .nrow { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
-  .nrow .open-btn { grid-column: 2; justify-self: start; width: auto; padding: 7px 14px; }
-  .nmeta { flex-wrap: wrap; }
-  .nmeta .desc { white-space: normal; }
-}
+/* One notification: a left accent and icon tile in the type's colour, as the approval rows. */
+.note-row{--accent:#9DB0C8;--tile-bg:#F0F4F9;--tile-fg:#71839C;position:relative;display:flex;align-items:center;gap:14px;padding:14px 16px 14px 18px;border-radius:19px;border:1px solid #E5EDF7;background:rgba(255,255,255,.9);transition:border-color .2s,box-shadow .2s,transform .2s}
+.note-row::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 4px 4px 0;background:var(--accent);opacity:.75}
+.note-row:hover{border-color:#C6D8EC;box-shadow:0 9px 26px #637d9c1d}
+.note-row.unread{background:linear-gradient(100deg,#F7FBFF,#FBFAFF 65%,#FFFAF8);border-color:#D9E6F5}
+.note-row[data-tone="review"]{--accent:#648EE1;--tile-bg:#EBF2FF;--tile-fg:#638BCE}
+.note-row[data-tone="attention"]{--accent:#E28C8D;--tile-bg:#FFF0F0;--tile-fg:#C87685}
+.note-row[data-tone="approved"]{--accent:#69B89C;--tile-bg:#E8F8F0;--tile-fg:#469A7D}
+.note-tile{background:var(--tile-bg);color:var(--tile-fg)}
+.note-btn{border:1px solid #DAE4F2;background:#F7FAFE;color:#527397;transition:transform .18s,background .18s,box-shadow .18s}
+.note-btn:hover{transform:translateY(-2px);background:#EBF4FF;box-shadow:0 6px 16px #607ca526}
+.note-btn.fix{border-color:transparent;background:#C97885;color:#fff}
+.note-btn.fix:hover{background:#B9687A}
+@media(max-width:560px){.note-row{flex-wrap:wrap;padding:13px}.note-row .note-btn{margin-left:58px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important}}

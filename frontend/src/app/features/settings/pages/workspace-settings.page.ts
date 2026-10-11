@@ -1,15 +1,12 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { Organization, OrganizationApiService } from '../../../core/services/organization-api.service';
-import { ToastService } from '../../../core/services/toast.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { supportedTimeZones } from '../../publications/models/time-zones';
 import { SocialConnectionsComponent } from '../../social-accounts/components/social-connections.component';
-import { NoticeComponent } from '../../../shared/components/notice.component';
 
 /** Offered content languages; a saved tag outside this list is still shown and kept. */
 const LANGUAGES = [
@@ -25,26 +22,26 @@ const LANGUAGES = [
  */
 @Component({
   selector: 'app-workspace-settings-page',
-  imports: [NoticeComponent, ReactiveFormsModule, ProblemBannerComponent, SocialConnectionsComponent],
+  imports: [ReactiveFormsModule, SocialConnectionsComponent],
   templateUrl: './workspace-settings.page.html',
   styleUrl: './workspace-settings.page.css',
-
 })
 export class WorkspaceSettingsPage {
   private readonly api = inject(OrganizationApiService);
-  private readonly toast = inject(ToastService);
   private readonly query = inject(ActivatedRoute).snapshot.queryParamMap;
   protected readonly oauthStatus = this.query.get('status');
   protected readonly oauthMessage = this.query.get('message');
+  /** Provider sign-in that came back unsuccessful (?status=failed). */
+  protected readonly oauthFailure = this.oauthStatus === 'failed' ? `The connection did not complete: ${this.oauthMessage ?? 'please try again.'}` : null;
   protected readonly workspace = inject(WorkspaceService);
   protected readonly zones = supportedTimeZones();
   protected readonly organization = signal<Organization | null>(null);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
-  /** Briefly true after a save: the button turns green. */
-  protected readonly saved = signal(false);
   protected readonly savedOnce = signal(false);
   protected readonly problem = signal<ApiProblem | null>(null);
+  protected readonly toastText = signal<string | null>(null);
+  private toastTimer?: ReturnType<typeof setTimeout>;
   protected readonly form = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(200)]],
     // Not shown: kept as saved (optional, used as brand context for AI).
@@ -60,11 +57,25 @@ export class WorkspaceSettingsPage {
   });
 
   constructor() {
-    if (this.oauthStatus === 'failed') this.toast.error(`The connection did not complete: ${this.query.get('message') ?? 'please try again.'}`);
     effect(() => {
       if (this.workspace.orgId()) void this.load();
     });
     effect(() => (this.workspace.isAdmin() ? this.form.enable() : this.form.disable()));
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.toastTimer));
+  }
+
+  protected toast(message: string): void {
+    clearTimeout(this.toastTimer);
+    this.toastText.set(message);
+    this.toastTimer = setTimeout(() => this.toastText.set(null), 2800);
+  }
+
+  /** Drops unsaved edits: back to the workspace as last loaded. */
+  protected reset(): void {
+    const organization = this.organization();
+    if (!organization) return;
+    this.apply(organization);
+    this.toast('Unsaved changes reset');
   }
 
   protected toggleReviewer(): void {
@@ -94,14 +105,11 @@ export class WorkspaceSettingsPage {
     this.form.markAllAsTouched();
     if (!orgId || !current || this.form.invalid) return;
     this.busy.set(true);
-    this.saved.set(false);
     this.problem.set(null);
     try {
       this.apply(await firstValueFrom(this.api.updateSettings(orgId, this.form.getRawValue(), current.rowVersion)));
-      this.saved.set(true);
       this.savedOnce.set(true);
-      this.toast.success('Settings saved');
-      setTimeout(() => this.saved.set(false), 2000);
+      this.toast('Settings saved');
       await this.workspace.refreshOrganization(orgId);
     } catch (error) {
       this.problem.set(toApiProblem(error));

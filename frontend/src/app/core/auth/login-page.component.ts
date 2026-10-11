@@ -1,4 +1,4 @@
-import { Component, ViewEncapsulation, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiProblem, toApiProblem } from '../http/api-problem';
@@ -20,9 +20,8 @@ function googleProblem(code: string | null): ApiProblem | null {
   selector: 'app-login-page',
   imports: [ProblemBannerComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './login-page.component.html',
-  styleUrl: './login-page.component.css',
-  // The page is a standalone design; Shadow DOM keeps the app's global element styles (label, input, button) out of it.
-  encapsulation: ViewEncapsulation.ShadowDom,
+  styleUrl: './auth-page.css',
+  host: { '(document:keydown.escape)': 'resetOpen.set(false)' },
 })
 export class LoginPageComponent {
   protected readonly auth = inject(AuthService);
@@ -31,15 +30,24 @@ export class LoginPageComponent {
 
   readonly busy = signal(false);
   readonly showPassword = signal(false);
+  /** The design's "Reset your password" dialog; there is no reset flow in the MVP yet. */
+  readonly resetOpen = signal(false);
   readonly problem = signal<ApiProblem | null>(googleProblem(inject(ActivatedRoute).snapshot.queryParamMap.get('error')));
   readonly form = inject(FormBuilder).nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
   });
 
-  async submit(): Promise<void> {
+  openReset(close: HTMLElement): void {
+    this.resetOpen.set(true);
+    setTimeout(() => close.focus());
+  }
+
+  async submit(formEl: HTMLFormElement): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      // The design reports field problems with the browser's own validation bubbles.
+      formEl.reportValidity();
       return;
     }
     this.busy.set(true);

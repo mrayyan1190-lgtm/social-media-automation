@@ -26,7 +26,7 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
       @let vis = cfg.vision;
       <div class="ai-grid">
         <form class="card form-grid" (ngSubmit)="save()">
-          <div class="card-head"><h2>Text Generation</h2><span [class]="'badge delivery ' + tone(cfg.status.health)">{{ labels[cfg.status.health] }}</span></div>
+          <div class="card-head"><h2><span class="head-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="4"/><path d="M9 1.5v3M15 1.5v3M9 19.5v3M15 19.5v3M1.5 9h3M1.5 15h3M19.5 9h3M19.5 15h3M9 13l3-5 3 5-3 3-3-3Z"/></svg></span>Text Generation</h2><span [class]="'badge delivery ' + tone(cfg.status.health)">{{ labels[cfg.status.health] }}</span></div>
           <label>Provider *
             <select name="provider" [(ngModel)]="provider" required>
               <option value="OpenAI">OpenAI</option><option value="Groq">Groq</option><option value="HuggingFace">Hugging Face</option>
@@ -80,7 +80,7 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
         </form>
 
         <form class="card form-grid" (ngSubmit)="saveImage()">
-          <div class="card-head"><h2>Image Generation</h2><span [class]="'badge delivery ' + tone(img.status.health)">{{ labels[img.status.health] }}</span></div>
+          <div class="card-head"><h2><span class="head-ic purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2Z"/></svg></span>Image Generation</h2><span [class]="'badge delivery ' + tone(img.status.health)">{{ labels[img.status.health] }}</span></div>
           <p class="hint">Creates images for posts. Each image becomes a new post version and is reviewed by a person before it can be scheduled.</p>
           <label>Provider *
             <select name="imgProvider" [ngModel]="imgProvider" (ngModelChange)="chooseImgProvider($event)">
@@ -166,7 +166,7 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
         </form>
 
         <form class="card form-grid" (ngSubmit)="saveVision()">
-          <div class="card-head"><h2>Image Understanding (Vision)</h2><span [class]="'badge delivery ' + (vis.usable ? 'success' : 'neutral')">{{ vis.usable ? 'Configured' : vis.enabled ? 'Not Configured' : 'Disabled' }}</span></div>
+          <div class="card-head"><h2><span class="head-ic peach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>Image Understanding (Vision)</h2><span [class]="'badge delivery ' + (vis.usable ? 'success' : 'neutral')">{{ vis.usable ? 'Configured' : vis.enabled ? 'Not Configured' : 'Disabled' }}</span></div>
           <p class="hint">Reads images users upload in Create with AI and Composer, so posts can be written about them. Uses the Hugging Face token saved above; users can pick another of these models in Advanced Options.</p>
           <label>Default Vision Model *
             <select name="visModel" [(ngModel)]="visModel">

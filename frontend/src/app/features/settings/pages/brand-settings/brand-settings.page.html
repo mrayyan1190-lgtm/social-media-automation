@@ -1,67 +1,108 @@
-<div class="br">
+<div class="brand-page tw-page">
+<svg xmlns="http://www.w3.org/2000/svg" class="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+  <symbol id="b-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.3a2.4 2.4 0 0 0 2.1-3.5A2.4 2.4 0 0 1 17.5 14H19a3 3 0 0 0 3-3 9 9 0 0 0-10-8Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="16" cy="8" r="1"/></symbol>
+  <symbol id="b-building" viewBox="0 0 24 24"><path d="M4 21V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15M16 11h2a2 2 0 0 1 2 2v8M3 21h18M8 8h1M12 8h1M8 12h1M12 12h1M8 16h1M12 16h1"/></symbol>
+  <symbol id="b-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1.5a6 6 0 0 1 12 0V20M17 5.4a3 3 0 0 1 0 5.4M21 20v-1.5a5 5 0 0 0-3.2-4.7"/></symbol>
+  <symbol id="b-voice" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></symbol>
+  <symbol id="b-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-3 3-4.5 6-4.5 9S9 18 12 21M12 3c3 3 4.5 6 4.5 9s-1.5 6-4.5 9"/></symbol>
+  <symbol id="b-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/></symbol>
+  <symbol id="b-spark" viewBox="0 0 24 24"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2L12 2Z"/></symbol>
+  <symbol id="b-save" viewBox="0 0 24 24"><path d="M5 3h12l4 4v14H3V3h2Zm2 0v7h10V4M7 21v-8h10v8"/></symbol>
+  <symbol id="b-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+  <symbol id="b-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10.5V16M12 7.5h.01"/></symbol>
+</svg>
+<main class="@container relative mx-auto max-w-[1410px] px-4 pb-5 pt-5 sm:px-7 lg:px-9 lg:pt-6">
+  <header class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3.5">
+      <span class="grid h-[49px] w-[49px] shrink-0 place-items-center rounded-[17px] bg-[#193655] text-white shadow-[0_10px_23px_rgba(32,64,107,.2)]"><svg class="h-[23px] w-[23px] fill-none stroke-current stroke-[1.65]"><use href="#b-palette"/></svg></span>
+      <div><p class="mb-0.5 text-[10px] font-extrabold uppercase tracking-[.18em] text-[#728CB0]">Workspace identity</p><h1 class="display-font text-[27px] font-extrabold leading-tight tracking-[-.065em] text-[#193551] sm:text-[29px]">Brand<span class="text-[#9990C7]">.</span></h1></div>
+    </div>
+    <div class="flex items-center gap-2 rounded-full border border-white bg-white/70 px-3.5 py-2 shadow-sm">
+      <span class="h-2 w-2 rounded-full" [style.background]="form.dirty ? '#E8AF73' : current() ? '#72BAA3' : '#A9B9CA'"></span>
+      <span class="text-[11px] font-bold text-[#7085A1]">{{ form.dirty ? 'Unsaved changes' : current() ? 'Brand profile saved' : 'No brand profile yet' }}</span>
+    </div>
+  </header>
+
   @if (!workspace.canManageBrand()) {
-    <p class="banner info">Only workspace Admins can edit the brand. You can view it.</p>
+    <p class="note mb-4 rounded-[15px] px-4 py-3 text-[12px] font-bold">Only workspace Admins can edit the brand. You can view it.</p>
   }
-  <app-problem-banner [problem]="problem()" (reload)="load()" />
+  @if (problem(); as p) {
+    <p class="problem mb-4 rounded-[15px] px-4 py-3 text-[12px] font-bold leading-[1.5]" role="alert">{{ p.detail }} <button type="button" class="ml-1 underline" (click)="load()">Try again</button></p>
+  }
   @if (!loading() && !current()) {
-    <p class="banner info">This workspace has no brand profile yet. Fill in the form to create it.</p>
+    <p class="note mb-4 rounded-[15px] px-4 py-3 text-[12px] font-bold">This workspace has no brand profile yet. Fill in the form to create it.</p>
   }
 
-  <form class="br-card" [formGroup]="form" (ngSubmit)="save()">
-    @if (loading()) {
-      <p class="br-meta">Loading…</p>
-    } @else {
-      <div class="br-grid">
-        <div class="br-field full">
-          <label for="br-desc">Business Description <span class="req">*</span></label>
-          <textarea class="br-textarea desc" id="br-desc" formControlName="businessDescription"></textarea>
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <div class="grid items-stretch gap-4 @5xl:grid-cols-[1.08fr_.92fr] lg:gap-5">
+      <!-- What the business is and who it talks to -->
+      <section class="glass-panel overflow-hidden rounded-[27px]" aria-labelledby="profileTitle">
+        <div class="panel-head relative flex items-center gap-3 overflow-hidden border-b border-white/80 bg-[linear-gradient(108deg,#DCECFB_0%,#EAE9FB_57%,#F9E9E5_100%)] px-5 py-4 sm:px-6">
+          <div class="float-shape -right-8 -top-16 h-[180px] w-[180px]" aria-hidden="true"></div>
+          <div class="relative grid h-[40px] w-[40px] shrink-0 place-items-center rounded-[14px] bg-white/85 text-[#5D8FBD] shadow-sm"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.75]"><use href="#b-building"/></svg></div>
+          <div class="relative min-w-0"><h2 id="profileTitle" class="display-font text-[17px] font-extrabold tracking-[-.035em] text-[#23415F] sm:text-[19px]">Brand profile</h2><p class="mt-0.5 text-[11px] font-medium text-[#6A84A2]">What you do and who it is for</p></div>
         </div>
-        <div class="br-field full">
-          <label for="br-audience">Target Audience <span class="req">*</span></label>
-          <textarea class="br-textarea audience" id="br-audience" formControlName="targetAudience"></textarea>
-        </div>
-        <div class="br-field">
-          <label for="br-tone">Brand Tone <span class="req">*</span></label>
-          <span class="br-select">
-            <select id="br-tone" formControlName="brandTone">
-              @for (option of toneOptions; track option) { <option [value]="option">{{ option }}</option> }
-            </select>
-            <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-          </span>
-        </div>
-        <div class="br-field">
-          <label for="br-website">Website <span class="tag-opt">Optional</span></label>
-          <input class="br-input" id="br-website" type="url" formControlName="website" placeholder="https://yourcompany.com" />
-          @if (form.controls.website.hasError('httpUrl')) {
-            <span class="br-error">Enter a full address such as https://example.com.</span>
-          }
-        </div>
-      </div>
-
-      <div class="br-adv-row">
-        <button class="br-adv-pill" type="button" [attr.aria-expanded]="advOpen()" aria-controls="br-adv" (click)="advOpen.set(!advOpen())">
-          <svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-          Advanced
-        </button>
-      </div>
-      @if (advOpen()) {
-        <div class="br-adv" id="br-adv">
-          <div class="br-field full">
-            <label for="br-avoid">Words to avoid <span class="tag-opt">Optional</span></label>
-            <input class="br-input" id="br-avoid" formControlName="prohibitedTerms" placeholder="e.g. cheapest, guarantee, revolutionary" />
+        @if (loading()) {
+          <p class="px-6 py-10 text-[12px] font-bold text-[#8B9EB4]">Loading…</p>
+        } @else {
+          <div class="space-y-4 px-5 py-5 sm:px-6">
+            <div>
+              <label for="br-desc" class="mb-1.5 flex items-center justify-between text-[12px] font-extrabold text-[#34506C]"><span>Business description <span class="text-[#C06A76]">*</span></span><span class="text-[10px] font-bold text-[#A0B0C4]">{{ form.controls.businessDescription.value.length }} / 2000</span></label>
+              <div class="relative"><span class="field-ic"><svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.7]"><use href="#b-building"/></svg></span>
+                <textarea id="br-desc" formControlName="businessDescription" maxlength="2000" rows="5" class="soft-field area" placeholder="What does your business offer, and what makes it different?"></textarea></div>
+            </div>
+            <div>
+              <label for="br-audience" class="mb-1.5 flex items-center justify-between text-[12px] font-extrabold text-[#34506C]"><span>Target audience <span class="text-[#C06A76]">*</span></span><span class="text-[10px] font-bold text-[#A0B0C4]">{{ form.controls.targetAudience.value.length }} / 2000</span></label>
+              <div class="relative"><span class="field-ic"><svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.7]"><use href="#b-users"/></svg></span>
+                <textarea id="br-audience" formControlName="targetAudience" maxlength="2000" rows="4" class="soft-field area" placeholder="Who are your customers? Roles, industries, needs…"></textarea></div>
+            </div>
+            <div class="flex items-start gap-2 rounded-[13px] bg-[#F4F7FC] px-3 py-2.5"><svg class="mt-0.5 h-[14px] w-[14px] shrink-0 fill-none stroke-[#8A9BB5] stroke-[1.8]"><use href="#b-info"/></svg><p class="text-[11px] font-medium leading-[1.5] text-[#8295AD]">The more specific these are, the closer AI drafts sound like your brand.</p></div>
           </div>
-        </div>
-      }
-
-      <div class="br-foot">
-        <span class="br-meta">Used automatically in AI Studio for every post.</span>
-        @if (workspace.canManageBrand()) {
-          <button class="br-save" [class.saved]="saved()" type="submit" [disabled]="form.invalid || saving()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h7"/></svg>
-            {{ saving() ? 'Saving…' : saved() ? 'Saved' : current() ? 'Save Changes' : 'Create Brand Profile' }}
-          </button>
         }
-      </div>
-    }
+      </section>
+
+      <!-- How it sounds and what to stay away from -->
+      <section class="glass-panel flex min-w-0 flex-col overflow-hidden rounded-[27px]" aria-labelledby="voiceTitle">
+        <div class="panel-head relative overflow-hidden border-b border-white/80 bg-[linear-gradient(110deg,#E7EDFC_0%,#EDE8F9_54%,#F7E6E2_100%)] px-5 py-4 sm:px-6">
+          <div class="float-shape -right-[48px] -top-[80px] h-[215px] w-[215px]" aria-hidden="true"></div>
+          <div class="relative flex items-center gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-white/85 text-[#8B80BE] shadow-sm"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.75]"><use href="#b-voice"/></svg></span><div><h2 id="voiceTitle" class="display-font text-[17px] font-extrabold tracking-[-.04em] text-[#23415F] sm:text-[19px]">Voice & guardrails</h2><p class="mt-0.5 text-[11px] font-medium text-[#7C8DAC]">How posts sound and what they avoid</p></div></div>
+        </div>
+        @if (!loading()) {
+          <div class="flex flex-1 flex-col gap-4 px-5 py-5 sm:px-6">
+            <div>
+              <span class="mb-1.5 block text-[12px] font-extrabold text-[#34506C]">Brand tone <span class="text-[#C06A76]">*</span></span>
+              <app-theme-select label="Brand tone" [options]="toneOptions" [value]="form.controls.brandTone.value" (valueChange)="setTone($event)" [class.locked]="!workspace.canManageBrand()" />
+            </div>
+            <div>
+              <label for="br-website" class="mb-1.5 flex items-center justify-between text-[12px] font-extrabold text-[#34506C]"><span>Website</span><span class="text-[10px] font-bold text-[#A0B0C4]">Optional</span></label>
+              <div class="relative"><span class="field-ic center"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.7]"><use href="#b-globe"/></svg></span>
+                <input id="br-website" type="url" formControlName="website" placeholder="https://yourcompany.com" class="soft-field" /></div>
+              @if (form.controls.website.hasError('httpUrl')) { <p class="mt-1 text-[11px] font-bold text-[#C06A76]">Enter a full address such as https://example.com.</p> }
+            </div>
+            <div>
+              <label for="br-avoid" class="mb-1.5 flex items-center justify-between text-[12px] font-extrabold text-[#34506C]"><span>Words to avoid</span><span class="text-[10px] font-bold text-[#A0B0C4]">Optional · comma separated</span></label>
+              <div class="relative"><span class="field-ic center"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.7]"><use href="#b-ban"/></svg></span>
+                <input id="br-avoid" formControlName="prohibitedTerms" placeholder="e.g. cheapest, guarantee, revolutionary" class="soft-field" /></div>
+              @if (avoidList().length) {
+                <div class="mt-2 flex flex-wrap gap-1.5">@for (w of avoidList(); track w) { <span class="rounded-full border border-[#F4CBD1] bg-[#FFF5F6] px-2.5 py-1 text-[10px] font-extrabold text-[#BD5066]">{{ w }}</span> }</div>
+              }
+            </div>
+            <div class="mt-auto flex items-start gap-2 rounded-[15px] border border-[#E6E9F7] bg-[linear-gradient(110deg,#F5F8FF,#F9F6FC)] p-3"><svg class="mt-[2px] h-[15px] w-[15px] shrink-0 fill-none stroke-[#8598BF] stroke-[1.7]"><use href="#b-spark"/></svg><p class="text-[10.5px] font-medium leading-[1.55] text-[#8292AA]">Used automatically in <strong class="font-extrabold text-[#637E9C]">AI Studio</strong> for every post, so drafts match your voice.</p></div>
+          </div>
+        }
+      </section>
+    </div>
+
+    <footer class="glass-panel mt-4 flex flex-col items-stretch justify-between gap-3 rounded-[22px] px-4 py-3 sm:flex-row sm:items-center sm:px-5" aria-label="Brand actions">
+      <div class="flex items-center gap-2"><span class="grid h-8 w-8 shrink-0 place-items-center rounded-[12px] bg-[#EAF2FF] text-[#678EBE]"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.8]"><use href="#b-info"/></svg></span><div><p class="text-[11px] font-bold text-[#5F7898]">Shared by everyone creating content in this workspace</p><p class="text-[10px] text-[#9AABC0]">Changes apply to new AI drafts; existing posts keep their text.</p></div></div>
+      @if (workspace.canManageBrand()) {
+        <div class="flex items-center gap-2"><button type="button" (click)="reset()" [disabled]="saving() || form.pristine" class="secondary-button h-[42px] rounded-full px-4 text-[11px] font-extrabold">Reset</button><button type="submit" [disabled]="form.invalid || saving() || loading()" class="primary-button flex h-[42px] flex-1 items-center justify-center gap-2 rounded-full px-6 text-[12px] font-extrabold sm:flex-none"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.8]"><use href="#b-save"/></svg>{{ saving() ? 'Saving…' : current() ? 'Save changes' : 'Create brand profile' }} <svg class="h-[14px] w-[14px] fill-none stroke-current stroke-2"><use href="#b-arrow"/></svg></button></div>
+      }
+    </footer>
   </form>
+</main>
+
+@if (toastText()) {
+  <div class="fixed bottom-6 left-1/2 z-[110] flex w-max max-w-[calc(100vw-32px)] -translate-x-1/2 items-center gap-2 rounded-full bg-[#193A5B] px-5 py-3 text-center text-[12px] font-bold text-white shadow-[0_15px_35px_rgba(34,61,102,.30)]" role="status" aria-live="polite">{{ toastText() }}</div>
+}
 </div>

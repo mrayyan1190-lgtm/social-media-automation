@@ -1,55 +1,27 @@
-<header>
-  <div class="bar-in">
-    <a class="brand" routerLink="/">
-      <span class="brand-mark" aria-hidden="true">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
-      </span>
-      <span class="brand-name">SocialMedia<span> Engine</span></span>
-    </a>
-
-    <div class="bar-right">
-      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
-      <app-onboarding-menu />
-    </div>
-  </div>
-  <div class="progress" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="3" aria-label="Step 1 of 3"><i></i></div>
-</header>
-
-<main class="page">
-  <div class="step">
-
-    <div class="intro">
-      <div class="eyebrow">Step 1 of 3</div>
-      <h1>Welcome onboard! <span>👋</span></h1>
-      <p>Let's set up your workspace. This helps us personalize your experience.</p>
-    </div>
-
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="field">
-        <label for="full-name">Full Name</label>
-        <div class="input">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
-          <input id="full-name" formControlName="fullName" type="text" autocomplete="name" placeholder="Your full name" />
+<app-onboarding-layout [step]="1">
+  <section class="step-screen step-fade" data-right-step="1" aria-label="Your profile">
+    <form id="formStep1" #formEl [formGroup]="form" (ngSubmit)="submit(formEl)" novalidate class="desktop-compact-panel card-glass rounded-[23px] px-5 py-5 sm:px-6 sm:py-6" autocomplete="on">
+      <div class="space-y-4">
+        <div>
+          <label for="fullName" class="mb-1.5 block text-[13px] font-bold text-[#344c6a]">Full name <span class="text-[#a96877]">*</span></label>
+          <div class="relative">
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3.5 top-1/2 h-[19px] w-[19px] -translate-y-1/2 fill-none stroke-[#93a8bf] stroke-[1.7]" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-2.5a7 7 0 0 1 14 0V20" stroke-linecap="round"/></svg>
+            <input id="fullName" formControlName="fullName" type="text" autocomplete="name" placeholder="Your full name" required minlength="2" maxlength="90" class="input-surface h-[46px] w-full rounded-[12px] pl-11 pr-4 text-[14px] font-medium" />
+          </div>
         </div>
-        @if (form.controls.fullName.touched && form.controls.fullName.invalid) { <span class="field-error">Full name is required.</span> }
-      </div>
-
-      <div class="field">
-        <label for="timezone">Workspace Timezone</label>
-        <div class="input">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>
-          <select id="timezone" formControlName="timeZoneId">
-            @for (z of zones; track z) { <option [value]="z">{{ z }}</option> }
-          </select>
-          <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        <div>
+          <label for="timezone" class="mb-1.5 block text-[13px] font-bold text-[#344c6a]">Workspace timezone <span class="text-[#a96877]">*</span></label>
+          <div class="relative">
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3.5 top-1/2 h-[19px] w-[19px] -translate-y-1/2 fill-none stroke-[#93a8bf] stroke-[1.7]" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+            <select id="timezone" formControlName="timeZoneId" required class="input-surface h-[46px] w-full appearance-none rounded-[12px] pl-11 pr-10 text-[14px] font-medium">
+              @for (z of zones; track z) { <option [value]="z">{{ zoneLabel(z) }}</option> }
+            </select>
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 fill-none stroke-[#91a5bb] stroke-2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
         </div>
       </div>
-
       <app-problem-banner [problem]="problem()" />
-
-      <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Next' }}</button>
-
+      <button type="submit" [disabled]="busy()" class="soft-btn mt-5 inline-flex h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-[#183354] px-5 text-[14px] font-bold text-white shadow-[0_9px_23px_rgba(24,51,84,.14)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#799bbc]">{{ busy() ? 'Saving…' : 'Next' }} <svg viewBox="0 0 24 24" class="h-[17px] w-[17px] fill-none stroke-current stroke-2" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </form>
-
-  </div>
-</main>
+  </section>
+</app-onboarding-layout>

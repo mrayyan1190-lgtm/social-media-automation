@@ -1,0 +1,146 @@
+<div class="posts-page tw-page">
+<svg xmlns="http://www.w3.org/2000/svg" class="hidden" aria-hidden="true"><symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></symbol><symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V5a2 2 0 0 1 2-2Z"/><path d="M14 3v6h5M8 14h8M8 18h5"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V4h6v2m4 0-1 15H6L5 6M10 10v7M14 10v7"/></symbol><symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11a3 3 0 0 0-4-4L4 16v4Z"/><path d="m13 7 4 4"/></symbol><symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol><symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2L12 2Z"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></symbol></svg>
+<main class="relative mx-auto max-w-[1490px] px-4 pb-16 pt-7 sm:px-7 lg:px-9 lg:pt-8">
+  <header class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3.5">
+      <span class="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-[16px] bg-[#1D3C5C] text-white shadow-[0_9px_22px_#274a703d]"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.7]"><use href="#i-file"/></svg></span>
+      <div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7C8CAA]">Content workspace</p><h1 class="heading mt-0.5 text-[26px] font-extrabold leading-tight tracking-[-.065em] text-[#1B3858] sm:text-[30px]">{{ heading() }}<span class="text-[#8C87BD]">.</span></h1></div>
+    </div>
+    @if (workspace.canManageContent()) {
+      <a routerLink="/ai-studio" class="ai-btn inline-flex h-[42px] items-center gap-2 rounded-full bg-[#1B395B] px-5 text-[12px] font-extrabold text-white shadow-[0_11px_22px_#3a5c8833] hover:bg-[#2A547D]"><svg class="h-[17px] w-[17px] fill-current" aria-hidden="true"><use href="#i-spark"/></svg> Create with AI</a>
+    }
+  </header>
+
+  <!-- Filters only on All posts: Drafts, Scheduled, Published and Failed are already one status. -->
+  @if (!initialStatus()) {
+  <section class="toolbar mb-4 rounded-[24px] p-3 sm:p-3.5" aria-label="Filter your posts">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <label class="outline-input flex h-[42px] w-full items-center gap-2.5 rounded-[15px] px-3.5 lg:max-w-[360px]"><svg class="h-[17px] w-[17px] shrink-0 fill-none stroke-[#8AA0B7] stroke-[1.8]"><use href="#i-search"/></svg><span class="sr-only">Search posts</span><input type="search" placeholder="Search your posts..." [value]="search()" (input)="search.set($any($event.target).value)" class="w-full min-w-0 bg-transparent text-[12px] font-medium text-[#3A587A] outline-none placeholder:text-[#9DACC1]"/></label>
+      <div class="flex flex-wrap items-center gap-2">
+        <app-theme-select class="min-w-[125px] flex-1 sm:w-[151px] sm:flex-none" label="Filter by platform" [options]="platformOptions" [(value)]="platform" />
+        <app-theme-select class="min-w-[130px] flex-1 sm:w-[170px] sm:flex-none" label="Filter by status" [options]="statusOptions" [(value)]="status" />
+        <app-theme-select class="min-w-[120px] flex-1 sm:w-[151px] sm:flex-none" label="Filter by date" [options]="dateOptions" [value]="range()" (valueChange)="range.set($any($event))" />
+        @if (filtersActive()) {
+          <button class="h-[38px] rounded-full border border-[#dae6f4] bg-white/80 px-3.5 text-[11px] font-extrabold text-[#54789f] hover:bg-white" type="button" (click)="clear()">Clear</button>
+        }
+      </div>
+    </div>
+  </section>
+  }
+
+  @if (problem(); as p) {
+    <p class="problem mb-4 rounded-[16px] px-4 py-3 text-[12px] font-bold leading-5" role="alert">{{ p.detail }}</p>
+  }
+
+  <section class="glass library overflow-hidden rounded-[28px]" aria-label="Posts library">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#E7EDF6] bg-[linear-gradient(110deg,#F1F8FF_0%,#F6F1FC_54%,#FFF6F2_100%)] px-4 py-4 sm:px-6">
+      <div class="flex items-center gap-2.5"><h2 class="heading text-[16px] font-extrabold tracking-[-.035em] text-[#2C496A] sm:text-[17px]">Content library</h2><span class="rounded-full border border-white/90 bg-white/85 px-2.5 py-1 text-[10px] font-extrabold text-[#6885A6]">{{ shown().length }} {{ shown().length === 1 ? 'post' : 'posts' }}</span></div>
+      <span class="text-[10px] font-semibold text-[#8D9BB1] sm:text-[11px]">{{ page().sub }}</span>
+    </div>
+
+    @if (shown().length) {
+      <div class="desktop-post-table">
+        <div [class.no-date]="!page().date" class="table-heading table-grid px-5 py-3.5 text-[10px] font-extrabold uppercase tracking-[.12em] text-[#8294AF] lg:px-6"><span>Post</span><span>Platform</span><span>Status</span>@if (page().date) { <span>{{ page().date }}</span> }<span>Updated</span><span class="sr-only">Actions</span></div>
+        <div>
+          @for (p of shown(); track p.id) {
+            <div [class.no-date]="!page().date" class="table-grid post-row arrival px-5 py-2.5 lg:px-6">
+              <button type="button" (click)="openDetails(p)" class="flex min-w-0 items-center gap-3 text-left"><span><ng-container *ngTemplateOutlet="thumb; context: { $implicit: p }" /></span><span class="min-w-0"><span class="block truncate text-[12px] font-extrabold text-[#2A4869] hover:text-[#3C6CA6]">{{ title(p) }}</span><span class="mt-1 block truncate text-[10px] font-medium text-[#93A6BB]">{{ subtitle(p) }}</span></span></button>
+              <div class="flex items-center gap-2"><ng-container *ngTemplateOutlet="platformIcon; context: { $implicit: p.platform }" /><span class="truncate text-[11px] font-bold text-[#6B82A1]">{{ p.platform }}</span></div>
+              <div><span [class]="statusClass(p.status)">{{ p.status }}</span></div>
+              @if (page().date) { <span class="text-[11px] font-semibold text-[#6D84A1]">{{ when(p.publishAt) }}</span> }
+              <span class="text-[10px] font-semibold text-[#92A1B8]">{{ day(p.updatedAtUtc) }}</span>
+              <button type="button" data-more (click)="openMenu($event, p)" class="more-action grid h-9 w-9 place-items-center rounded-[12px]" [attr.aria-label]="'More actions for ' + title(p)" aria-haspopup="menu" [attr.aria-expanded]="menu()?.row === p"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="compact-post-grid posts-compact-grid grid-cols-2 gap-3 p-3 sm:p-4">
+        @for (p of shown(); track p.id) {
+          <article class="mobile-card arrival rounded-[19px] p-3.5 sm:p-4"><div class="flex items-start gap-3"><ng-container *ngTemplateOutlet="thumb; context: { $implicit: p }" /><div class="min-w-0 flex-1"><button type="button" (click)="openDetails(p)" class="w-full text-left text-[12px] font-extrabold leading-5 text-[#2C496A]">{{ title(p) }}</button><div class="mt-1.5 flex items-center gap-1.5 text-[10px] font-semibold text-[#8097B0]"><ng-container *ngTemplateOutlet="platformIcon; context: { $implicit: p.platform }" /> {{ p.platform }}</div></div><button type="button" data-more (click)="openMenu($event, p)" class="more-action grid h-8 w-8 shrink-0 place-items-center rounded-[10px]" [attr.aria-label]="'More actions for ' + title(p)" aria-haspopup="menu" [attr.aria-expanded]="menu()?.row === p"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-dots"/></svg></button></div><div class="mt-4 flex flex-wrap items-center justify-between gap-2"><span [class]="statusClass(p.status)">{{ p.status }}</span><span class="text-[10px] font-bold text-[#8EA1BA]">{{ day(p.updatedAtUtc) }}</span></div>@if (page().date) {<div class="mt-3 border-t border-[#edf1f7] pt-2.5 text-[10px] text-[#8197B1]">@if (p.publishAt) {{{ dateLabel(p.status) }}: <span class="font-bold text-[#5D799B]">{{ when(p.publishAt) }}</span>} @else {No publishing date yet}</div>}</article>
+        }
+      </div>
+    } @else {
+      <div class="flex flex-col items-center justify-center gap-3 px-5 py-16 text-center"><span class="grid h-14 w-14 place-items-center rounded-[18px] bg-[#EDF3FF] text-[#6D91BF]"><svg class="h-7 w-7 fill-none stroke-current stroke-[1.5]"><use href="#i-file"/></svg></span>
+        @if (loading()) {
+          <p class="heading text-[16px] font-extrabold text-[#345576]">Loading posts…</p>
+        } @else if (initialStatus()) {
+          <p class="heading text-[16px] font-extrabold text-[#345576]">No {{ heading().toLowerCase() }} yet</p><p class="text-[12px] text-[#8B9EB4]">Posts will appear here when they reach this stage.</p>
+        } @else if (rows().length) {
+          <p class="heading text-[16px] font-extrabold text-[#345576]">No matching posts</p><p class="text-[12px] text-[#8B9EB4]">Try a different filter or search term.</p><button type="button" (click)="clear()" class="rounded-full border border-[#d9e6f4] bg-[#F6FAFF] px-4 py-2.5 text-[11px] font-extrabold text-[#5279A5]">Reset filters</button>
+        } @else {
+          <p class="heading text-[16px] font-extrabold text-[#345576]">No posts yet</p><p class="text-[12px] text-[#8B9EB4]">Your drafts, reviews and published posts will appear here.</p>
+          @if (workspace.canManageContent()) { <a routerLink="/ai-studio" class="rounded-full border border-[#d9e6f4] bg-[#F6FAFF] px-4 py-2.5 text-[11px] font-extrabold text-[#5279A5]">Create with AI</a> }
+        }
+      </div>
+    }
+    <div class="flex flex-wrap items-center justify-between gap-2 border-t border-[#E8EDF4] bg-white/45 px-5 py-3.5 text-[10px] font-semibold text-[#8A9FB8] sm:px-6"><span>Showing {{ shown().length }}{{ initialStatus() ? '' : ' of ' + rows().length }} {{ shown().length === 1 && initialStatus() ? 'post' : 'posts' }}</span><span class="inline-flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full bg-[#86BFA8]"></span> Times in {{ workspace.timeZone() }}</span></div>
+  </section>
+</main>
+
+<ng-template #thumb let-p>
+  <span [class]="'thumb ' + artOf(p)" aria-hidden="true">
+    @if (thumbUrl(p); as src) { <img [src]="src" alt="" /> } @else { <span>{{ mark(p) }}</span> }
+  </span>
+</ng-template>
+<ng-template #platformIcon let-platform>
+  <span [class]="'platform-icon ' + platform.toLowerCase()" role="img" [attr.aria-label]="platform">{{ platform === 'LinkedIn' ? 'in' : platform === 'Facebook' ? 'f' : '◎' }}</span>
+</ng-template>
+
+@if (menu(); as m) {
+  <div class="fixed z-[65] w-[168px] rounded-[17px] border border-white bg-[#FCFDFF] p-1.5 shadow-[0_15px_38px_rgba(48,71,106,.20)]" [style.left.px]="m.left" [style.top.px]="m.top" role="menu" aria-label="Post actions">
+    <button type="button" (click)="openDetails(m.row)" class="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-[11px] font-bold text-[#4D6788] hover:bg-[#EBF4FF]" role="menuitem"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#i-eye"/></svg> View details</button>
+    <a [routerLink]="['/composer', m.row.id]" class="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-[11px] font-bold text-[#4D6788] hover:bg-[#EBF4FF]" role="menuitem" [title]="m.row.status === 'Scheduled' ? 'Saving an edit cancels this schedule; the post needs approval again.' : ''"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#i-pencil"/></svg> Open in Composer</a>
+    @if (canChangeSchedule(m.row)) {
+      <button type="button" (click)="reschedule(m.row)" class="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-[11px] font-bold text-[#4D6788] hover:bg-[#EBF4FF]" role="menuitem"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#i-clock"/></svg> Change schedule</button>
+    }
+    @if (m.row.status === 'In Review' && workspace.isAdmin()) {
+      <a routerLink="/approvals" class="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-[11px] font-bold text-[#4D6788] hover:bg-[#EBF4FF]" role="menuitem"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#i-check"/></svg> Go to Approvals</a>
+    }
+    @if (workspace.canManageContent()) {
+      <button type="button" (click)="duplicate(m.row)" [disabled]="busy()" class="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-[11px] font-bold text-[#4D6788] hover:bg-[#EBF4FF]" role="menuitem"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#i-copy"/></svg> Duplicate</button>
+    }
+    @if (canChangeSchedule(m.row) || canDelete(m.row)) {
+      <div class="my-1 h-px bg-[#E8EFF7]"></div>
+      @if (canChangeSchedule(m.row)) {
+        <button type="button" (click)="confirm('cancel', m.row)" class="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-[11px] font-bold text-[#BD6574] hover:bg-[#FFF0F2]" role="menuitem"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#i-x"/></svg> Cancel schedule</button>
+      }
+      @if (canDelete(m.row)) {
+        <button type="button" (click)="confirm('delete', m.row)" class="flex w-full items-center gap-2.5 rounded-[11px] px-3 py-2.5 text-left text-[11px] font-bold text-[#BD6574] hover:bg-[#FFF0F2]" role="menuitem"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#i-trash"/></svg> Delete</button>
+      }
+    }
+  </div>
+}
+
+@if (details(); as d) {
+  <div class="overlay theme-scrim fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="detailsTitle" (click)="$event.target === $event.currentTarget ? details.set(null) : null">
+    <section class="fade-in w-full max-w-[580px] overflow-hidden rounded-[28px] border border-white/90 bg-[#FAFCFF] shadow-[0_26px_80px_rgba(32,54,84,.30)]">
+      <div class="flex items-center justify-between border-b border-[#E5ECF5] bg-[linear-gradient(112deg,#EBF6FF,#F2EFFB,#FFF2ED)] px-5 py-4 sm:px-6"><div class="min-w-0"><p class="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8399B4]">Content details</p><h2 id="detailsTitle" class="heading mt-1 truncate text-[19px] font-extrabold text-[#2B4867]">{{ title(d.row) }}</h2></div><button type="button" (click)="details.set(null)" class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 text-[#7087A4] hover:bg-white" aria-label="Close post details"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-x"/></svg></button></div>
+      <div class="max-h-[60vh] overflow-y-auto p-5 sm:p-6">
+        <div class="rounded-[19px] bg-[linear-gradient(116deg,#EAF5FF,#F3EDFA,#FFF2ED)] p-4"><div class="flex flex-wrap items-center justify-between gap-3"><span [class]="statusClass(d.row.status)">{{ d.row.status }}</span><span class="inline-flex items-center gap-2 rounded-full bg-white/75 px-3 py-1.5 text-[11px] font-bold text-[#5F799B]"><ng-container *ngTemplateOutlet="platformIcon; context: { $implicit: d.row.platform }" /> {{ d.row.platform }}</span></div><p class="heading mt-5 text-[18px] font-extrabold leading-snug text-[#2A4867]">{{ title(d.row) }}</p><p class="mt-3 whitespace-pre-line text-[13px] leading-6 text-[#536E8A]">{{ d.text ?? (d.row.hook ? d.row.bodyExcerpt : 'Loading…') }}</p></div>
+        @if (d.feedback) {
+          <div class="mt-4 rounded-[16px] border border-[#F5D6DB] bg-[#FFF4F5] p-4"><p class="text-[10px] font-extrabold uppercase tracking-[.13em] text-[#C66F7D]">Reviewer feedback</p><p class="mt-1.5 text-[13px] font-bold text-[#BD5066]">“{{ d.feedback }}”</p></div>
+        }
+        <div class="mt-4 grid gap-3" [class.grid-cols-2]="d.row.publishAt">@if (d.row.publishAt) {<div class="rounded-[15px] border border-[#E3EBF5] bg-white px-4 py-3"><p class="text-[10px] font-bold text-[#9AA9B9]">{{ dateLabel(d.row.status) }}</p><p class="mt-1 text-[11px] font-bold text-[#5A7897]">{{ when(d.row.publishAt) }}</p></div>}<div class="rounded-[15px] border border-[#E3EBF5] bg-white px-4 py-3"><p class="text-[10px] font-bold text-[#9AA9B9]">Updated</p><p class="mt-1 text-[11px] font-bold text-[#5A7897]">{{ day(d.row.updatedAtUtc) }}</p></div></div>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-2 border-t border-[#E7EDF5] bg-white px-5 py-4 sm:px-6"><button type="button" (click)="details.set(null)" class="rounded-full border border-[#dae5f2] bg-white px-5 py-2.5 text-[12px] font-extrabold text-[#57718F]">Close</button><a [routerLink]="['/composer', d.row.id]" class="rounded-full border border-[#dae5f2] bg-white px-5 py-2.5 text-[12px] font-extrabold text-[#57718F]">Open in Composer</a>@if (workspace.canManageContent()) {<button type="button" (click)="duplicate(d.row)" [disabled]="busy()" class="primary-btn rounded-full px-5 py-2.5 text-[12px] font-extrabold">Duplicate as draft</button>}</div>
+    </section>
+  </div>
+}
+
+
+@if (confirming(); as c) {
+  <div class="overlay theme-scrim fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" (click)="$event.target === $event.currentTarget ? confirming.set(null) : null"><section class="fade-in w-full max-w-[420px] rounded-[25px] border border-white bg-[#FBFCFF] p-6 shadow-[0_26px_80px_rgba(32,54,84,.30)]">
+    @if (c.kind === 'delete') {
+      <h2 id="confirmTitle" class="heading text-[20px] font-extrabold text-[#294766]">Delete this post?</h2><p class="mt-2 text-[12px] leading-6 text-[#8192A8]">This removes the draft from all lists. You can’t undo this action.</p>
+    } @else {
+      <h2 id="confirmTitle" class="heading text-[20px] font-extrabold text-[#294766]">Cancel this schedule?</h2><p class="mt-2 text-[12px] leading-6 text-[#8192A8]">The post has not been sent yet. It stays approved, so you can schedule it again from Approvals.</p>
+    }
+    <div class="mt-6 flex justify-end gap-2"><button type="button" (click)="confirming.set(null)" class="rounded-full border border-[#d9e5f2] bg-white px-4 py-2.5 text-[12px] font-extrabold text-[#607998]">{{ c.kind === 'delete' ? 'Cancel' : 'Keep schedule' }}</button><button type="button" (click)="confirmed()" [disabled]="busy()" class="rounded-full bg-[#B94F69] px-4 py-2.5 text-[12px] font-extrabold text-white hover:bg-[#A7435F]">{{ busy() ? 'Working…' : c.kind === 'delete' ? 'Delete post' : 'Cancel schedule' }}</button></div>
+  </section></div>
+}
+
+@if (toastText()) {
+  <div class="fixed bottom-5 left-1/2 z-[100] max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-full bg-[#1D3F62] px-5 py-3 text-center text-[12px] font-bold text-white shadow-[0_13px_35px_#18395775]" role="status" aria-live="polite">{{ toastText() }}</div>
+}
+<app-schedule-dialog [submit]="submitReschedule" />
+</div>

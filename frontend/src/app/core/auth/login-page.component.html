@@ -1,116 +1,70 @@
-<main class="shell">
+<div class="tw-page m-0 font-sans antialiased text-[#142D4B]">
+<div class="auth-canvas relative isolate min-h-[100svh] overflow-x-hidden px-4 py-5 sm:px-7 sm:py-7 lg:px-7 lg:py-5">
+ <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" class="absolute h-0 w-0 overflow-hidden"><symbol id="ic-spark" viewBox="0 0 24 24"><path d="m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5L12 2Z"/></symbol><symbol id="ic-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol><symbol id="ic-arrow-up" viewBox="0 0 24 24"><path d="M6 18 18 6M7 6h11v11"/></symbol><symbol id="ic-back" viewBox="0 0 24 24"><path d="M19 12H5m6 6-6-6 6-6"/></symbol><symbol id="ic-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></symbol><symbol id="ic-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="12" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol><symbol id="ic-building" viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h3a2 2 0 0 1 2 2v10M2 21h20M8 7h4M8 11h4M8 15h4"/></symbol><symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.7"/></symbol><symbol id="ic-eye-off" viewBox="0 0 24 24"><path d="M3 3 21 21M9.8 6.3c.7-.2 1.4-.3 2.2-.3 6.5 0 10 6 10 6a16 16 0 0 1-3.4 3.9M6.3 8C3.5 9.7 2 12 2 12s3.5 6 10 6c1.1 0 2.1-.2 3-.5"/><path d="M10 10a2.8 2.8 0 0 0 4 4"/></symbol><symbol id="ic-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol><symbol id="ic-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18"/></symbol><symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 22s8-4.2 8-10V5l-8-3-8 3v7c0 5.8 8 10 8 10Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol><symbol id="ic-x" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol><symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m3 17 6-6 4 4 3-3 5 5"/></symbol></svg>
+ <div class="pointer-events-none absolute -left-[16%] top-[14%] h-[450px] w-[450px] rounded-full bg-white/25 blur-[100px]"></div>
+ <div class="pointer-events-none absolute -right-[16%] bottom-[-15%] h-[600px] w-[600px] rounded-full bg-[#F7E8E3]/25 blur-[100px]"></div>
 
-  <!-- LEFT -->
-  <section class="panel" aria-label="Product overview">
-    <a class="brand" routerLink="/">
-      <span class="brand-mark" aria-hidden="true">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
-      </span>
-      <span class="brand-name">SocialMedia<span> Engine</span></span>
-    </a>
 
-    <div class="art" aria-hidden="true">
-      <div class="art-inner">
-        <div class="rail">
-          <i class="a"></i><i class="b"></i><i class="c"></i><i class="d"></i><i class="e"></i><i></i>
-        </div>
+ <div class="auth-topbar relative z-30 mx-auto flex w-full max-w-[1480px] items-center justify-center"><a routerLink="/" aria-label="Social Engine home" class="auth-brand relative flex w-fit items-center gap-2.5 no-underline">
+       <span class="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#142C4B] shadow-[0_8px_22px_rgba(37,63,93,.15)]"><svg width="24" height="24" viewBox="0 0 36 36" fill="none" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="4.5" fill="#E0F1FD"/><rect x="20" y="4" width="12" height="12" rx="4.5" fill="#A6D1EF"/><rect x="4" y="20" width="12" height="12" rx="4.5" fill="#B8D9F3"/><rect x="20" y="20" width="12" height="12" rx="4.5" fill="white"/></svg></span>
+       <span class="font-display text-[19px] font-extrabold tracking-[-.055em] text-[#142C4B]">social<span class="text-[#6C8FB8]">engine.</span></span>
+     </a></div>
+ <main class="auth-shell relative z-10 mx-auto grid w-full max-w-[1480px] items-center gap-5 lg:min-h-[calc(100svh-40px)] lg:grid-cols-2 lg:gap-5 xl:gap-8 2xl:gap-14" id="main">
 
-        <div class="sheet">
-          <div class="s-row">
-            <div class="tile">
-              <small>Posts published</small><strong>890</strong> <em>▲ 32%</em>
-              <svg class="spark" viewBox="0 0 120 22" fill="none" preserveAspectRatio="none">
-                <path d="M0 17 18 13 36 15 54 8 72 11 90 5 120 2" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="tile">
-              <small>Engagement</small><strong>106.9K</strong> <em>▲ 17%</em>
-              <svg class="spark" viewBox="0 0 120 22" fill="none" preserveAspectRatio="none">
-                <path d="M0 19 20 16 40 17 60 10 80 12 100 6 120 4" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-          </div>
-
-          <div class="chart">
-            <h5>Reach trend</h5>
-            <svg viewBox="0 0 300 62" fill="none" preserveAspectRatio="none" style="width:100%;height:58px">
-              <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stop-color="#2563eb" stop-opacity=".22"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
-              </linearGradient></defs>
-              <path d="M0 48 30 42 60 46 90 30 120 34 150 18 180 26 210 12 240 20 270 8 300 14 300 62 0 62Z" fill="url(#g)"/>
-              <path d="M0 48 30 42 60 46 90 30 120 34 150 18 180 26 210 12 240 20 270 8 300 14" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="210" cy="12" r="3.2" fill="#fff" stroke="#2563eb" stroke-width="2.2"/>
-            </svg>
-          </div>
-
-          <div class="list">
-            <h5>Top posts</h5>
-            <div class="li"><span>Product launch</span><span class="tag r">In review</span></div>
-            <div class="li"><span>Company updates</span><span class="tag g">Scheduled</span></div>
-            <div class="li"><span>Tips &amp; insights</span><span class="tag">Draft</span></div>
-          </div>
-        </div>
-
-        <span class="chip chip-new">New</span>
-        <span class="chip chip-ai"><b></b> AI Insights</span>
-        <span class="chip chip-ok"><b></b> Approved</span>
-      </div>
-    </div>
-
-    <div class="copy">
-      <h1>AI content, human approved.</h1>
-      <p>Generate platform-ready posts, review every version with your team, and publish to LinkedIn, Facebook and Instagram.</p>
-    </div>
-  </section>
-
-  <!-- RIGHT -->
-  <section class="form-panel">
-    <div class="topbar">
-      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
-      <div class="top-link">New to SocialMedia Engine? <a routerLink="/signup">Sign Up</a></div>
-    </div>
-
-    <div class="form-wrap">
-      <h2>Sign in</h2>
-
-      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <div class="field">
-          <label for="login-email">Email Address</label>
-          <div class="input">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>
-            <input id="login-email" formControlName="email" type="email" autocomplete="email" placeholder="you@company.com" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="login-password">Password</label>
-          <div class="input tog">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7"/></svg>
-            <input id="login-password" formControlName="password" [type]="showPassword() ? 'text' : 'password'" autocomplete="current-password" placeholder="Enter your password" />
-            <button class="toggle" type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12s3.6-6.5 9-6.5S21 12 21 12s-3.6 6.5-9 6.5S3 12 3 12Z"/><circle cx="12" cy="12" r="2.5"/><path d="m4 20 16-16" [style.display]="showPassword() ? 'block' : 'none'"/></svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="help-row">
-          <label class="remember"><input type="checkbox" name="remember" /> Remember me</label>
-          <a class="link" href="#">Forgot Password?</a>
-        </div>
-
-        <app-problem-banner [problem]="problem()" />
-
-        <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Sign in' }}</button>
-
-        <div class="divider"><span>or continue with</span></div>
-
-        <button class="sso-wide" type="button" (click)="auth.continueWithGoogle()">
-          <svg class="g" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.23-.2-1.78H12v3.42h5.52a4.76 4.76 0 0 1-2.05 3.04l-.03.12 2.98 2.31.2.02c1.84-1.7 2.98-4.2 2.98-7.13Z"/><path fill="#34A853" d="M12 22c2.69 0 4.94-.89 6.59-2.42l-3.14-2.43c-.84.57-1.95.97-3.45.97-2.58 0-4.77-1.74-5.56-4.15l-.11.01-3.1 2.4-.04.1A9.96 9.96 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.44 13.97A5.96 5.96 0 0 1 6.12 12c0-.69.12-1.36.31-1.97l-.01-.13-3.14-2.44-.1.05A10.02 10.02 0 0 0 2 12c0 1.61.38 3.13 1.06 4.48l3.38-2.51Z"/><path fill="#EA4335" d="M12 5.88c1.87 0 3.13.81 3.84 1.47l2.82-2.75C16.94 3 14.69 2 12 2a9.96 9.96 0 0 0-8.82 5.52l3.25 2.51C7.23 7.62 9.42 5.88 12 5.88Z"/></svg>
-          Continue with Google
-        </button>
-
-      </form>
-    </div>
-  </section>
-</main>
-
+ <div class="auth-visual relative hidden min-w-0 w-full flex-col justify-center lg:flex" aria-label="Illustrative preview of AI-generated image posts, approvals and planning">
+   <div class="pointer-events-none absolute -left-10 top-[-20px] h-[550px] w-[650px] rounded-full bg-white/20 blur-[95px]"></div>
+   <div class="auth-intro relative z-10 max-w-[590px]">
+     <span class="card-enter inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/62 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[.16em] text-[#667A99] shadow-[0_8px_24px_rgba(69,99,146,.05)] backdrop-blur-md"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-spark"/></svg> YOUR CONTENT WORKSPACE</span>
+     <h1 class="card-enter-delay mt-4 font-display text-[clamp(2.25rem,3.4vw,3.375rem)] font-extrabold leading-[1.12] tracking-[-.065em] text-[#142D4B]">Your creative<br/><span class="text-[#6679A7]">flow awaits.</span></h1>
+     <p class="card-enter-last mt-3 max-w-[450px] text-[14px] font-medium leading-6 text-[#5B718C]">Pick up where your ideas left off.</p>
+   </div>
+   <div class="auth-art-holder relative mt-4 w-full">
+    <div class="auth-art-stage relative h-[365px] w-[650px]">
+     <div class="rotate-ring pointer-events-none absolute left-[50px] top-[-62px] h-[445px] w-[445px] rounded-full border border-dashed border-[#9FB7D4]/65"></div>
+     <div class="pointer-events-none absolute left-[95px] top-[-26px] h-[350px] w-[350px] rounded-full border border-white/65"></div>
+     <div class="pointer-events-none absolute -left-2 top-0 h-full w-full opacity-35 auth-grid"></div>
+     <div class="float-main absolute left-[84px] top-[6px] z-20 w-[390px] rounded-[25px] border border-white/90 bg-white/95 p-[13px] shadow-[0_30px_78px_rgba(46,86,128,.16)]">
+       <div class="flex items-center justify-between px-1 pb-3">
+         <div class="flex items-center gap-2.5"><span class="grid h-8 w-8 place-items-center rounded-xl bg-[#EDF4FB] text-[#6188B1]"><svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-image"/></svg></span><span><span class="block text-[11px] font-extrabold text-[#172D48]">Post studio</span><span class="block text-[9px] font-semibold text-[#97A8BA]">AI image generation</span></span></div>
+         <span class="rounded-full bg-[#EDF4FB] px-2.5 py-1.5 text-[9px] font-extrabold text-[#6282A7]">Draft v02</span>
+       </div>
+       <div class="post-art relative h-[199px] overflow-hidden rounded-[16px]">
+         <div class="post-grid absolute inset-0 opacity-65"></div><div class="orb absolute -right-[27px] bottom-[-65px] h-[205px] w-[205px] rounded-full"></div>
+         <div class="absolute right-[23px] top-[17px] h-[105px] w-[105px] rounded-full border-[12px] border-white/60"></div>
+         <div class="absolute left-[22px] top-[18px] text-[8px] font-extrabold tracking-[.2em] text-[#7892B2]">SOCIAL / STUDIO — 01</div>
+         <div class="absolute bottom-[24px] left-[20px] font-display text-[31px] font-extrabold leading-[1.03] tracking-[-.08em] text-[#173755]">CREATE MORE.<br/><span class="text-[#6F86B1]">WITH CLARITY.</span></div>
+         <div class="absolute bottom-[10px] left-[20px] text-[7px] font-extrabold tracking-[.16em] text-[#7593AF]">AI-GENERATED IMAGE POST</div>
+       </div>
+       <div class="flex items-center justify-between px-1 pb-1 pt-3"><div class="flex items-center gap-1.5"><span class="rounded-lg bg-[#EDF4FB] px-2 py-1 text-[9px] font-extrabold text-[#6688A9]">LinkedIn</span><span class="rounded-lg bg-[#F3F5F9] px-2 py-1 text-[9px] font-extrabold text-[#8F9CAF]">Instagram</span></div><span class="text-[9px] font-semibold text-[#97AABB]">Image + caption</span></div>
+     </div>
+     <div class="float-a absolute left-[15px] top-[24px] z-30 w-[203px] rounded-[17px] border border-white/85 bg-white/96 p-3 shadow-[0_22px_56px_rgba(57,91,129,.13)]">
+       <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 place-items-center rounded-[11px] bg-[#EAF2FB] text-[#6088AE]"><svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-spark"/></svg></span><div><div class="text-[11px] font-extrabold text-[#203B58]">Brand knowledge</div><div class="mt-0.5 text-[9px] font-medium text-[#8FA2B6]">Connected to AI</div></div></div>
+       <div class="mt-2.5 flex gap-1.5"><span class="rounded-md bg-[#EFF5FA] px-2 py-1 text-[8px] font-bold text-[#728CA7]">Tone · Clear</span><span class="rounded-md bg-[#F1F1F9] px-2 py-1 text-[8px] font-bold text-[#8582AA]">On brand</span></div>
+     </div>
+     <div class="float-b absolute right-[-8px] top-[123px] z-30 w-[194px] rounded-[17px] border border-white/90 bg-white/97 p-3 shadow-[0_20px_55px_rgba(57,91,129,.14)]">
+       <div class="flex items-center gap-3"><span class="grid h-10 w-10 place-items-center rounded-full bg-[#EAF4EF] text-[#5A9778]"><svg class="h-[19px] w-[19px] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-check"/></svg></span><div><div class="text-[12px] font-extrabold text-[#203B58]">Approved</div><div class="mt-0.5 text-[9px] font-semibold text-[#8A9EAF]">Exact version · v02</div></div></div>
+       <div class="mt-2.5 border-t border-[#EEF2F6] pt-2 text-[9px] font-semibold text-[#7890A7]">Human-reviewed content</div>
+     </div>
+     <div class="float-a absolute bottom-[-21px] left-[22px] z-30 w-[236px] rounded-[18px] border border-white/90 bg-white/97 p-3.5 shadow-[0_22px_57px_rgba(57,91,129,.14)]" style="animation-delay:-2s">
+       <div class="flex items-center justify-between"><div class="flex items-center gap-2"><svg class="h-[16px] w-[16px] text-[#7996B6] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-calendar"/></svg><span class="text-[11px] font-extrabold text-[#203B58]">Content planner</span></div><span class="text-[9px] font-semibold text-[#95A9BC]">October</span></div>
+       <div class="mt-3 grid grid-cols-5 gap-1.5"><span class="rounded-md bg-[#F0F4F9] text-[#93A8BA] py-1.5 text-center text-[10px] font-extrabold">12</span><span class="rounded-md bg-[#F0F4F9] text-[#93A8BA] py-1.5 text-center text-[10px] font-extrabold">13</span><span class="rounded-md bg-[#F0F4F9] text-[#93A8BA] py-1.5 text-center text-[10px] font-extrabold">14</span><span class="rounded-md bg-[#B8D5ED] text-[#365E87] py-1.5 text-center text-[10px] font-extrabold">15</span><span class="rounded-md bg-[#F0F4F9] text-[#93A8BA] py-1.5 text-center text-[10px] font-extrabold">16</span></div>
+     </div>
+     <div class="pointer-events-none absolute right-[20px] top-[-25px] grid h-[44px] w-[44px] place-items-center rounded-[16px] border border-white/80 bg-white/55 text-[#6B9BC6] shadow-[0_8px_35px_rgba(74,103,144,.09)]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-spark"/></svg></div>
+   </div>
+   </div>
+   <p class="auth-caption relative z-10 mt-3 text-[11px] font-semibold tracking-[.005em] text-[#738BA4]">✦ &nbsp; Create with AI &nbsp; · &nbsp; Review with confidence &nbsp; · &nbsp; Publish on your terms</p>
+ </div>
+   <section class="auth-form-card login-form-card card-enter-delay order-first mx-auto w-full max-w-[520px] rounded-[26px] border border-white/90 bg-white/88 px-6 py-6 shadow-[0_25px_75px_rgba(49,77,109,.12)] backdrop-blur-2xl sm:px-8 sm:py-7 lg:order-last lg:w-[90%] xl:w-[70%] 2xl:w-[70%]" aria-labelledby="formHeading">
+     <div class="flex items-center justify-between gap-3"><span class="inline-flex items-center gap-2 rounded-full border border-[#DDE7F2] bg-[#F3F7FC] px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.14em] text-[#6F86A3]"><svg class="h-[12px] w-[12px] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-spark"/></svg> GOOD TO SEE YOU AGAIN</span><a routerLink="/" class="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold text-[#7890A8] transition hover:text-[#183452]" aria-label="Back to website"><svg class="h-[12px] w-[12px] fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#ic-back"/></svg><span class="hidden sm:inline">Website</span><span class="sm:hidden">Home</span></a></div>
+     <h2 id="formHeading" class="mt-3.5 font-display text-[25px] font-extrabold leading-[1.17] tracking-[-.055em] text-[#142C4B] sm:text-[28px]">Welcome back<span class="text-[#6E88AC]">.</span></h2>
+     <p class="mt-1.5 text-[12px] font-medium leading-[1.6] text-[#7288A0]">Sign in and get back to creating.</p>
+     <form id="authForm" #formEl [formGroup]="form" (ngSubmit)="submit(formEl)" class="mt-4 space-y-3" novalidate><div class="space-y-1.5"><label for="email" class="block text-[12px] font-extrabold tracking-[.005em] text-[#263E59]">Email address</label><div class="relative group"><svg class="pointer-events-none absolute left-[17px] top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#93A7BE] transition-colors group-focus-within:text-[#628AB6] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-mail"/></svg><input id="email" formControlName="email" type="email" placeholder="you@company.com" autocomplete="email" required  class="h-[44px] w-full rounded-[12px] border border-[#DBE6F1] bg-[#F7FAFE] py-3 pl-[48px] pr-4 text-[13px] font-semibold text-[#1A3451] placeholder:font-medium placeholder:text-[#9AACC0] outline-none transition-all duration-200 hover:border-[#BCCEDF] focus:border-[#99B9D7] focus:bg-white focus:ring-[4px] focus:ring-[#BCD7EF]/35" /></div></div><div class="space-y-1.5"><label for="password" class="block text-[12px] font-extrabold tracking-[.005em] text-[#263E59]">Password</label><div class="relative group"><svg class="pointer-events-none absolute left-[17px] top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#93A7BE] transition-colors group-focus-within:text-[#628AB6] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-lock"/></svg><input id="password" formControlName="password" [type]="showPassword() ? 'text' : 'password'" placeholder="Enter your password" autocomplete="current-password" required  class="h-[44px] w-full rounded-[12px] border border-[#DBE6F1] bg-[#F7FAFE] py-3 pl-[48px] pr-[56px] text-[13px] font-semibold text-[#1A3451] placeholder:font-medium placeholder:text-[#9AACC0] outline-none transition-all duration-200 hover:border-[#BCCEDF] focus:border-[#99B9D7] focus:bg-white focus:ring-[4px] focus:ring-[#BCD7EF]/35" /><button type="button" (click)="showPassword.set(!showPassword())" class="password-toggle absolute inset-y-0 right-3 grid w-10 place-items-center rounded-lg text-[#91A3B8] transition-colors hover:text-[#395B80] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#7CA7D1]" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showPassword()"><svg class="h-[18px] w-[18px] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use [attr.href]="showPassword() ? '#ic-eye-off' : '#ic-eye'"/></svg></button></div></div><div class="flex items-center justify-between gap-3 text-[11px] sm:text-[12px]"><label for="remember" class="inline-flex cursor-pointer items-center gap-2.5 font-semibold text-[#5B718B]"><input id="remember" type="checkbox" class="h-[15px] w-[15px] cursor-pointer rounded border-[#B6C8DA] accent-[#152F50]" />Remember me</label><button id="forgotPassword" type="button" (click)="openReset(closeModal)" class="font-extrabold text-[#446994] underline-offset-4 transition hover:text-[#16385F] hover:underline">Forgot password?</button></div><app-problem-banner [problem]="problem()" /><button type="submit" [disabled]="busy()" class="shimmer relative mt-1 inline-flex h-[45px] w-full items-center justify-center gap-2.5 overflow-hidden rounded-[12px] bg-[#142C4B] px-6 text-[13px] font-extrabold text-white shadow-[0_13px_25px_rgba(28,60,97,.13)] transition duration-200 hover:-translate-y-[2px] hover:bg-[#223E60] hover:shadow-[0_16px_32px_rgba(28,60,97,.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#446D9D]">{{ busy() ? 'Signing in…' : 'Sign in to workspace' }} <svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-arrow-up"/></svg></button></form>
+     <div class="social-divider relative my-[14px] flex items-center gap-3 text-center text-[10px] font-semibold text-[#A0AEC0]"><span class="h-px flex-1 bg-[#E2EAF3]"></span><span>or continue with</span><span class="h-px flex-1 bg-[#E2EAF3]"></span></div>
+     <button type="button" id="googleButton" (click)="auth.continueWithGoogle()" class="flex h-[44px] w-full items-center justify-center gap-3 rounded-[12px] border border-[#DBE5EF] bg-[#F8FAFD] text-[12px] font-extrabold text-[#233C59] transition duration-200 hover:-translate-y-[1px] hover:border-[#B6CCDD] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#719CC7]"><svg width="19" height="19" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.4 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.25 5.48-4.75 7.18l7.73 6C44.43 38.03 46.98 31.81 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.59A14.41 14.41 0 0 1 9.75 24c0-1.6.27-3.14.76-4.59l-7.98-6.2A23.86 23.86 0 0 0 0 24c0 3.88.93 7.55 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.92-2.13 15.9-5.79l-7.73-6c-2.14 1.45-4.88 2.3-8.17 2.3-6.27 0-11.58-4.22-13.47-9.91l-7.98 6.2C6.51 42.62 14.62 48 24 48z"/></svg> Continue with Google</button>
+     <p class="auth-switch mt-3 text-center text-[11px] font-semibold text-[#8296AC]">New to Social Engine? <a routerLink="/signup" class="ml-1 font-extrabold text-[#365E88] underline decoration-[#B8CADF] underline-offset-[3px] transition hover:text-[#142C4B]">Create an account</a></p>
+   </section>
+ </main>
+ <div class="pointer-events-none absolute bottom-[5%] right-[-10%] hidden h-[300px] w-[300px] rounded-full border border-white/30 lg:block"></div>
+</div>
+<div id="modal" [class.hidden]="!resetOpen()" [class.flex]="resetOpen()" (click)="$event.target === $event.currentTarget ? resetOpen.set(false) : null" class="theme-scrim fixed inset-0 z-[250] items-center justify-center px-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="w-full max-w-[430px] rounded-[26px] border border-white bg-white p-7 shadow-[0_25px_90px_rgba(21,43,69,.23)]"><div class="flex items-start justify-between gap-4"><div><span class="text-[10px] font-extrabold uppercase tracking-[.15em] text-[#7893B2]">Social Engine</span><h3 id="modalTitle" class="mt-2 font-display text-[23px] font-extrabold tracking-[-.055em] text-[#142C4B]">Reset your password</h3></div><button #closeModal id="closeModal" type="button" (click)="resetOpen.set(false)" class="grid h-9 w-9 place-items-center rounded-full bg-[#F2F6FB] text-[#58728E] hover:bg-[#E7EFF8]" aria-label="Close dialog"><svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round" aria-hidden="true"><use href="#ic-x"/></svg></button></div><p id="modalText" class="mt-3 text-[13px] font-medium leading-7 text-[#647B94]">A password reset flow belongs here. Connect your authentication provider to send secure reset links.</p><button id="modalOkay" type="button" (click)="resetOpen.set(false)" class="mt-6 h-[44px] w-full rounded-xl bg-[#142C4B] text-[12px] font-bold text-white transition hover:bg-[#25466B]">Got it</button></div></div>
+</div>

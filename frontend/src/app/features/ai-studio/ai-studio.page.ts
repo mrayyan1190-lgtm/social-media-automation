@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, ViewEncapsulation, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,6 +7,7 @@ import { ApiProblem, toApiProblem } from '../../core/http/api-problem';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
+import { DateTimePickerComponent } from '../../shared/components/date-time-picker.component';
 import { ContentLength, EmojiMode, HashtagMode, SOCIAL_PLATFORMS, SocialPlatform } from '../../shared/models/platform.model';
 import { BLOCKED_HINT, ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
@@ -18,12 +19,8 @@ import { PostApiService } from '../content/services/post-api.service';
 import { BRAND_TONES, BrandProfile, BrandTone } from '../settings/models/brand-profile.model';
 import { BrandProfileApiService } from '../settings/services/brand-profile-api.service';
 import { SocialAccountApiService } from '../social-accounts/services/social-account-api.service';
-import { ScheduleDialogComponent } from '../publications/components/schedule-dialog.component';
-import { LocalSchedule } from '../publications/models/publication.model';
 import { formatInZone } from '../publications/models/time-zones';
 import { PublicationApiService } from '../publications/services/publication-api.service';
-
-const EXAMPLE = 'Create launch posts for our new AI reporting dashboard. Focus on helping small businesses save reporting time and encourage people to book a demo.';
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 /** Matches the server's limit for reference images analysed in one generation. */
@@ -35,22 +32,15 @@ const STAGES = {
   GENERATING_IMAGE: 'Generating image…',
 } as const;
 
-/** Quick additions to the extra instruction; clicking again removes them. */
-const PRESETS = [
-  { label: 'Product launch', icon: 'spark' },
-  { label: 'Professional LinkedIn tone', icon: 'user' },
-  { label: 'Customer pain point', icon: 'bulb' },
-  { label: 'Engaging hook', icon: 'chat' },
-  { label: 'Short promotional post', icon: 'doc' },
-  { label: 'Thought leadership', icon: 'chart' },
+/** One-click ideas under the prompt box (they fill the prompt; nothing is sent until the arrow is clicked). */
+const SUGGESTIONS = [
+  { icon: 'wand', label: 'Introduce a new product', prompt: 'Announce our latest product launch with a clear call to action', bg: '#E4F1FF', fg: '#538BC9' },
+  { icon: 'message', label: 'Solve a customer challenge', prompt: 'Share a customer challenge and how our team helps solve it', bg: '#EEE9FE', fg: '#8879C4' },
+  { icon: 'spark', label: 'Share an industry insight', prompt: 'Write an insightful social post about the future of our industry', bg: '#FDEBE9', fg: '#CE8697' },
 ] as const;
 
-/** One-click ideas under the prompt box (they fill the prompt; nothing is sent until Generate). */
-const SUGGESTIONS = [
-  { icon: 'spark', text: 'Announce our latest product launch with a clear call to action' },
-  { icon: 'bulb', text: 'Share a common customer pain point and how we solve it' },
-  { icon: 'chart', text: 'Write a thought-leadership post about where our industry is heading' },
-] as const;
+/** The design's length names for the API's lengths. */
+const LENGTHS: { value: ContentLength; label: string }[] = [{ value: 'SHORT', label: 'Short' }, { value: 'MEDIUM', label: 'Balanced' }, { value: 'LONG', label: 'Detailed' }];
 
 /** Server timestamps may lack a zone suffix; they are UTC. */
 const utcMs = (utc: string) => Date.parse(/(Z|[+-]\d{2}:\d{2})$/i.test(utc) ? utc : `${utc}Z`);
@@ -93,13 +83,11 @@ function contentOf(v: PostVersion, change: Partial<PostContent>): PostContent {
  */
 @Component({
   selector: 'app-ai-studio-page',
-  imports: [FormsModule, RouterLink, NgTemplateOutlet, ProblemBannerComponent, ScheduleDialogComponent],
-  // Close open popovers when clicking anywhere else; Escape closes the preview.
-  host: { '(document:click)': 'closeMenu($event)', '(document:keydown.escape)': 'preview.set(null)' },
+  imports: [FormsModule, RouterLink, NgTemplateOutlet, ProblemBannerComponent, DateTimePickerComponent],
+  // Close open popovers when clicking anywhere else; Escape closes menus and dialogs.
+  host: { '(document:click)': 'closeMenu($event)', '(document:keydown.escape)': 'closeAll()' },
   templateUrl: './ai-studio.page.html',
   styleUrl: './ai-studio.page.css',
-  // A standalone design: Shadow DOM keeps the app's global element and class styles (e.g. Composer's .composer) out.
-  encapsulation: ViewEncapsulation.ShadowDom,
 })
 export class AiStudioPage {
   private readonly ai = inject(AiApiService);
@@ -109,9 +97,12 @@ export class AiStudioPage {
   private readonly accountsApi = inject(SocialAccountApiService);
   private readonly reviewsApi = inject(ReviewApiService);
   private readonly publications = inject(PublicationApiService);
-  private readonly dialog = viewChild.required(ScheduleDialogComponent);
-  /** The approved post the open schedule dialog is for. */
-  private scheduling: Post | null = null;
+  /** The approved post the open "Plan your post" dialog is for. */
+  protected readonly scheduling = signal<Post | null>(null);
+  /** The dialog's datetime-local value, in the workspace time zone. */
+  protected scheduleAt = '';
+  protected readonly scheduleProblem = signal<ApiProblem | null>(null);
+  protected readonly scheduleBusy = signal(false);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly host = inject(ElementRef<HTMLElement>);
@@ -122,19 +113,23 @@ export class AiStudioPage {
   readonly requestId = input<string>(undefined, { alias: 'request' });
   /** Query parameter: an idea typed on the Creator home, used as the prompt. */
   readonly initialPrompt = input<string>(undefined, { alias: 'prompt' });
+  /** Query parameters from the Admin home "Let's make a post" dialog: the platform and tone picked there. */
+  readonly initialPlatform = input<string>(undefined, { alias: 'platform' });
+  readonly initialTone = input<string>(undefined, { alias: 'tone' });
 
   protected readonly platforms = SOCIAL_PLATFORMS;
   protected readonly tones = BRAND_TONES;
-  protected readonly example = EXAMPLE;
-  protected readonly presets = PRESETS;
+  protected readonly lengths = LENGTHS;
   protected readonly suggestions = SUGGESTIONS;
-  /** Small popovers in the prompt box: the + menu and the output-type menu. */
+  /** Small popovers in the prompt box: the + menu and the platform menu. */
   protected readonly plusOpen = signal(false);
   protected readonly platOpen = signal(false);
-  /** "All platforms": one post written to fit LinkedIn, Facebook and Instagram alike. */
+  /** "All platforms": one idea, a separate version for each of LinkedIn, Facebook and Instagram. */
   protected readonly allPlatforms = signal(false);
-  /** The running generation was "All platforms": it ends in one shared draft, so loading shows one row. */
-  protected readonly unifiedRun = signal(false);
+  /** Captions expanded with "Show more". */
+  protected readonly expanded = signal<ReadonlySet<string>>(new Set());
+  /** "Brand tone · Balanced" per generation, for the cards (the API does not return it, so only for this visit). */
+  private readonly settingsLabels = new Map<string, string>();
   /** Earlier prompts of this chat, oldest first; each new prompt is answered below them, like a chat. */
   protected readonly history = signal<Turn[]>([]);
   /** No drafts or generation yet: the centred hero layout. */
@@ -161,9 +156,8 @@ export class AiStudioPage {
     return STAGES[r.stage];
   });
   protected readonly uploading = signal(false);
-  protected readonly promptSaved = signal(false);
-  protected readonly brandOpen = signal(false);
-  protected readonly advOpen = signal(false);
+  /** The "Fine-tune your post" tray. */
+  protected readonly settingsOpen = signal(false);
   protected readonly busy = signal(false);
   protected readonly problem = signal<ApiProblem | null>(null);
   protected readonly request = signal<AiGenerationRequest | null>(null);
@@ -177,12 +171,12 @@ export class AiStudioPage {
     return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
   });
   protected readonly results = signal<Result[]>([]);
+  /** Drafts shown in this chat (every turn). */
+  protected readonly draftCount = computed(() => this.results().length + this.history().reduce((n, t) => n + t.results.length, 0));
   protected readonly generating = computed(() => this.request()?.status === 'PENDING' || this.request()?.status === 'PROCESSING');
-  protected readonly activeChips = signal<string[]>([]);
   /** The result shown in the Post Preview modal. */
   protected readonly preview = signal<Result | null>(null);
   protected prompt = '';
-  protected extra = '';
   protected tone: BrandTone | '' = '';
   protected length: ContentLength = 'MEDIUM';
   protected hashtags: HashtagMode = 'AUTO';
@@ -194,9 +188,15 @@ export class AiStudioPage {
       const orgId = this.workspace.orgId();
       if (!orgId) return;
       this.prompt = untracked(this.initialPrompt) || this.readSavedPrompt(orgId);
+      const platform = SOCIAL_PLATFORMS.find((p) => p === untracked(this.initialPlatform));
+      if (platform) this.selected.set([platform]);
+      const tone = BRAND_TONES.find((t) => t === untracked(this.initialTone));
+      if (tone) this.tone = tone;
       void firstValueFrom(this.brandApi.get(orgId)).then((b) => this.brand.set(b), () => this.brand.set(null)).finally(() => this.brandLoaded.set(true));
       void firstValueFrom(this.ai.capabilities(orgId)).then((c) => {
         this.caps.set(c);
+        // Image-first: an image post is the default whenever images can be made.
+        if (c.imageGeneration) this.withImage.set(true);
         this.visionModel.set(c.visionModels[0] ?? '');
         this.imageModel.set(c.imageModels[0] ?? '');
       }, () => undefined);
@@ -218,8 +218,47 @@ export class AiStudioPage {
     return !this.busy() && !this.generating() && !this.uploading() && !!this.asked() && !!this.selected().length && !!this.brand();
   }
 
-  protected retry(): void {
-    void this.generate(this.asked());
+  /** Regenerate a turn: the same prompt, written again with the current options. */
+  protected retry(text = this.asked()): void {
+    if (text) void this.generate(text);
+  }
+
+  /** New session: an empty studio. The drafts made so far stay saved in Drafts. */
+  protected reset(): void {
+    if (this.busy() || this.generating()) return;
+    this.history.set([]);
+    this.request.set(null);
+    this.results.set([]);
+    this.asked.set('');
+    this.prompt = '';
+    this.images.set([]);
+    this.closeAll();
+    void this.router.navigate([], { queryParams: { request: null }, queryParamsHandling: 'merge', replaceUrl: true });
+  }
+
+  protected closeAll(): void {
+    this.plusOpen.set(false);
+    this.platOpen.set(false);
+    this.preview.set(null);
+    this.scheduling.set(null);
+  }
+
+  protected toggleExpanded(postId: string): void {
+    this.expanded.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(postId)) next.add(postId);
+      return next;
+    });
+  }
+
+  protected settingsLabel(request: AiGenerationRequest | null): string {
+    return (request && this.settingsLabels.get(request.id)) ?? '';
+  }
+
+  /** The prompt box grows with its text, up to the design's limit. */
+  protected autosize(area: HTMLTextAreaElement): void {
+    area.style.height = '32px';
+    area.style.height = `${Math.min(74, Math.max(32, area.scrollHeight))}px`;
   }
 
   /** Short display name of a Hugging Face model id. */
@@ -232,34 +271,15 @@ export class AiStudioPage {
     if (!this.imageOptionAvailable()) this.withImage.set(false);
   }
 
-  protected settingsHint(): string {
-    return [this.tone || 'Use Brand Tone', this.length.charAt(0) + this.length.slice(1).toLowerCase(),
-      this.hashtags === 'AUTO' ? 'Auto hashtags' : 'No hashtags', this.emojis === 'AUTO' ? 'Auto emojis' : 'No emojis'].join(' · ');
+  private settingsHint(): string {
+    return `${this.tone || 'Brand tone'} · ${LENGTHS.find((l) => l.value === this.length)!.label}`;
   }
 
-  /** All platforms selects every platform for one shared post; picking a single platform leaves that mode. */
-  protected chooseAll(): void {
-    this.allPlatforms.set(true);
-    this.selected.set([...SOCIAL_PLATFORMS]);
+  /** One platform, or "All platforms": a separate version for each. */
+  protected choosePlatform(platform: SocialPlatform | 'All'): void {
+    this.allPlatforms.set(platform === 'All');
+    this.selected.set(platform === 'All' ? [...SOCIAL_PLATFORMS] : [platform]);
     this.platOpen.set(false);
-  }
-
-  /** At least one platform stays selected. */
-  protected toggle(platform: SocialPlatform): void {
-    if (this.allPlatforms()) {
-      this.allPlatforms.set(false);
-      return this.selected.set([platform]);
-    }
-    const all = this.selected();
-    if (all.includes(platform) && all.length === 1) return this.toast.error('Pick at least one platform');
-    this.selected.set(all.includes(platform) ? all.filter((p) => p !== platform) : [...all, platform]);
-  }
-
-  protected toggleChip(label: string): void {
-    const parts = this.extra.split(' · ').map((p) => p.trim()).filter(Boolean);
-    const next = parts.includes(label) ? parts.filter((p) => p !== label) : [...parts, label];
-    this.extra = next.join(' · ');
-    this.activeChips.set(next.filter((p) => this.presets.some((c) => c.label === p)));
   }
 
   /** An "All platforms" answer: several platforms asked, one shared draft made. */
@@ -285,9 +305,7 @@ export class AiStudioPage {
   }
 
   protected closeMenu(event: Event): void {
-    // Inside Shadow DOM a document listener sees the host as the target; the composed path has the real element.
-    const inside = (cls: string) => event.composedPath().some((n) => n instanceof Element && n.classList.contains(cls));
-    if (!inside('pop-wrap')) {
+    if (!(event.target as Element).closest?.('#composer')) {
       this.plusOpen.set(false);
       this.platOpen.set(false);
     }
@@ -307,6 +325,17 @@ export class AiStudioPage {
 
   protected useSuggestion(text: string): void {
     this.prompt = text;
+    setTimeout(() => {
+      const area = this.host.nativeElement.querySelector('#postPrompt') as HTMLTextAreaElement | null;
+      if (!area) return;
+      this.autosize(area);
+      area.focus();
+    });
+  }
+
+  /** "01" style version numbers, as in the design. */
+  protected pad(n: number): string {
+    return String(n).padStart(2, '0');
   }
 
   protected setOutput(withImage: boolean): void {
@@ -334,21 +363,6 @@ export class AiStudioPage {
     if ((code === 'AI_PROVIDER_REJECTED' || code === 'AI_PROVIDER_UNAVAILABLE') && this.images().length)
       return 'The vision model could not read the images. Try another vision model in Advanced Options, or try again later.';
     return r?.failureMessage ? `The posts could not be generated: ${r.failureMessage}` : 'The posts could not be generated. Please try again.';
-  }
-
-  /** Keeps the prompt in this browser only (it is not a post until generated). */
-  protected savePrompt(): void {
-    const orgId = this.workspace.orgId();
-    if (!orgId) return;
-    if (!this.prompt.trim()) return this.toast.error('Nothing to save yet');
-    try {
-      localStorage.setItem(`ai-studio-prompt:${orgId}`, this.prompt);
-    } catch {
-      return this.toast.error('Could not save the prompt in this browser');
-    }
-    this.promptSaved.set(true);
-    this.toast.success('Prompt saved');
-    setTimeout(() => this.promptSaved.set(false), 2000);
   }
 
   protected async upload(event: Event): Promise<void> {
@@ -394,17 +408,19 @@ export class AiStudioPage {
         withImage,
         imageModel: withImage && !imageIds.length && this.caps().imageModels.length ? this.imageModel() || null : null,
         imageCount: withImage && !imageIds.length ? this.imageCount() : 1,
-        unified: this.allPlatforms(),
+        // "All platforms" in this design is one idea in three versions (one post per platform).
+        unified: false,
       }));
       // The previous answer stays on screen above the new one.
       const previous = this.request();
       if (previous) this.history.update((turns) => [...turns, { asked: this.asked(), request: previous, results: this.results() }]);
       this.results.set([]);
-      this.unifiedRun.set(this.allPlatforms());
+      this.settingsLabels.set(queued.id, this.settingsHint());
       this.request.set(queued);
       this.asked.set(text);
       rememberAsked(queued.id, text);
       if (text === this.fullPrompt()) this.prompt = '';
+      this.images.set([]);
       // Keeps the whole chat reachable with Back after opening a draft in Composer.
       const ids = [...this.history().map((t) => t.request.id), queued.id].join(',');
       void this.router.navigate([], { queryParams: { request: ids }, queryParamsHandling: 'merge', replaceUrl: true });
@@ -460,12 +476,6 @@ export class AiStudioPage {
     }
   }
 
-  /** AI drafts are stored as soon as they are generated; this confirms it and keeps them in Drafts. */
-  protected saveDraft(result: Result): void {
-    this.patch(result.post.id, { saved: true });
-    this.toast.success(`${result.post.platform} draft saved in Drafts`);
-  }
-
   /**
    * Admin, one action: a draft is submitted and approved by the Admin (the server still records a human approval of this
    * exact version, or refuses and the review page shows why), then the schedule dialog opens right here. The job is
@@ -492,30 +502,44 @@ export class AiStudioPage {
     try {
       const post = await firstValueFrom(this.postsApi.get(orgId, result.post.id));
       this.patch(post.id, { post });
-      this.scheduling = post;
-      this.dialog().open('Schedule post', 'Schedule', this.workspace.timeZone());
+      // Tomorrow, on the hour, in the workspace time zone (the dialog's starting value).
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: this.workspace.timeZone(), year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' })
+        .formatToParts(Date.now() + 864e5);
+      const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '00';
+      this.scheduleAt = `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:00`;
+      this.scheduleProblem.set(null);
+      this.scheduling.set(post);
     } catch (error) {
       this.toast.error(toApiProblem(error).detail);
     }
   }
 
-  /** Called by the schedule dialog; returns a problem to show there, or null when the job was saved. */
-  protected readonly submitSchedule = async (when: LocalSchedule): Promise<ApiProblem | null> => {
+  /**
+   * "Plan your post": the local date and time in the workspace time zone go to the server, which resolves the UTC instant
+   * and validates it; the job is created through the normal publication pipeline.
+   */
+  protected async saveSchedule(): Promise<void> {
     const orgId = this.workspace.orgId();
-    const post = this.scheduling;
-    if (!orgId || !post) return null;
+    const post = this.scheduling();
+    if (!orgId || !post || !this.scheduleAt) return;
+    const [localDate, time] = this.scheduleAt.split('T');
+    this.scheduleBusy.set(true);
+    this.scheduleProblem.set(null);
     try {
-      const saved = await firstValueFrom(this.publications.schedule(orgId, post.id, post.currentVersionId, when, post.rowVersion));
+      const saved = await firstValueFrom(this.publications.schedule(orgId, post.id, post.currentVersionId,
+        { localDate, localTime: `${time}:00`, timeZone: this.workspace.timeZone(), utcOffsetMinutes: null }, post.rowVersion));
       this.toast.success(`Scheduled for ${formatInZone(saved.publishAtUtc, this.workspace.timeZone())}.`);
       this.patch(post.id, { post: await firstValueFrom(this.postsApi.get(orgId, post.id)) });
-      return null;
+      this.scheduling.set(null);
     } catch (error) {
-      return toApiProblem(error);
+      this.scheduleProblem.set(toApiProblem(error));
+    } finally {
+      this.scheduleBusy.set(false);
     }
-  };
+  }
 
   private fullPrompt(): string {
-    return [this.prompt.trim(), this.extra.trim()].filter(Boolean).join('\n\n');
+    return this.prompt.trim();
   }
 
   private readSavedPrompt(orgId: string): string {
@@ -559,8 +583,7 @@ export class AiStudioPage {
 
   /** Brings the newest prompt into view, as a chat does. */
   private scrollToLatest(): void {
-    setTimeout(() => (this.host.nativeElement.shadowRoot ?? this.host.nativeElement)
-      .querySelector('.turn-latest')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    setTimeout(() => this.host.nativeElement.querySelector('.turn-latest')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
   /**

@@ -1,74 +1,38 @@
-<header>
-  <div class="bar-in">
-    <a class="brand" routerLink="/">
-      <span class="brand-mark" aria-hidden="true">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
-      </span>
-      <span class="brand-name">SocialMedia<span> Engine</span></span>
-    </a>
-
-    <div class="bar-right">
-      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
-      <app-onboarding-menu />
-    </div>
-  </div>
-  <div class="progress" role="progressbar" aria-valuenow="2" aria-valuemin="1" aria-valuemax="3" aria-label="Step 2 of 3"><i></i></div>
-</header>
-
-<main class="page">
-  <div class="step">
-
-    <div class="intro">
-      <div class="eyebrow">Step 2 of 3</div>
-      <h1>Tell us about your brand</h1>
-      <p>We use this to write content that sounds like you and speaks to the right people.</p>
-    </div>
-
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="field">
-        <label for="business">Business Description <span class="req">*</span></label>
-        <div class="input area">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V7.2a1 1 0 0 1 .62-.93l6-2.4A1 1 0 0 1 12 4.8V20"/><path d="M12 9.5l6.4 2.3a1 1 0 0 1 .6.94V20"/><path d="M3 20h18"/></svg>
-          <textarea id="business" formControlName="businessDescription" placeholder="What does your business do?"></textarea>
+<app-onboarding-layout [step]="2">
+  <section class="step-screen step-fade" data-right-step="2" aria-label="Your brand">
+    <form id="formStep2" #formEl [formGroup]="form" (ngSubmit)="submit(formEl)" novalidate class="desktop-compact-panel card-glass rounded-[23px] px-5 py-5 sm:px-6 sm:py-6">
+      <div class="space-y-3">
+        <div>
+          <label for="businessDescription" class="mb-1.5 block text-[13px] font-bold text-[#344c6a]">Business description <span class="text-[#a96877]">*</span></label>
+          <textarea id="businessDescription" formControlName="businessDescription" rows="2" minlength="3" maxlength="600" required placeholder="What does your business do?" class="input-surface min-h-[58px] w-full resize-y rounded-[12px] px-3.5 py-2 text-[14px] font-medium leading-5"></textarea>
         </div>
-        @if (form.controls.businessDescription.touched && form.controls.businessDescription.invalid) { <span class="field-error">Business description is required.</span> }
-      </div>
-
-      <div class="field">
-        <label for="audience">Target Audience <span class="req">*</span></label>
-        <div class="input area">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 19a6.2 6.2 0 0 1 12.4 0"/><path d="M16.5 5.3a3.2 3.2 0 0 1 0 5.6M18 13.6a6.2 6.2 0 0 1 3.2 5.4"/></svg>
-          <textarea id="audience" formControlName="targetAudience" placeholder="Who are your customers?"></textarea>
+        <div>
+          <label for="targetAudience" class="mb-1.5 block text-[13px] font-bold text-[#344c6a]">Target audience <span class="text-[#a96877]">*</span></label>
+          <textarea id="targetAudience" formControlName="targetAudience" rows="2" minlength="3" maxlength="500" required placeholder="Who do you want to reach?" class="input-surface min-h-[58px] w-full resize-y rounded-[12px] px-3.5 py-2 text-[14px] font-medium leading-5"></textarea>
         </div>
-        @if (form.controls.targetAudience.touched && form.controls.targetAudience.invalid) { <span class="field-error">Target audience is required.</span> }
-      </div>
-
-      <div class="field">
-        <label for="tone">Brand Tone <span class="req">*</span></label>
-        <div class="input">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.3 9l5.7.4-4.4 3.7 1.4 5.6L12 15.7l-5 3 1.4-5.6L4 9.4 9.7 9 12 3.5Z"/></svg>
-          <select id="tone" formControlName="brandTone">
-            @for (t of tones; track t) { <option [value]="t">{{ t }}</option> }
-          </select>
-          <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        <div>
+          <label for="brandTone" class="mb-1.5 block text-[13px] font-bold text-[#344c6a]">Brand tone <span class="text-[#a96877]">*</span></label>
+          <div class="relative">
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 fill-none stroke-[#93a8bf] stroke-[1.7]" aria-hidden="true"><path d="m12 2 2.9 6.1 6.7.9-4.8 4.8 1.2 6.8-6-3.2-6 3.2 1.2-6.8L2.4 9l6.7-.9L12 2Z" stroke-linejoin="round"/></svg>
+            <select id="brandTone" formControlName="brandTone" required class="input-surface h-[46px] w-full appearance-none rounded-[12px] pl-11 pr-10 text-[14px] font-medium">
+              @for (t of tones; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 fill-none stroke-[#91a5bb] stroke-2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+        <div>
+          <label for="website" class="mb-1.5 flex items-center gap-2 text-[13px] font-bold text-[#344c6a]">Website <span class="rounded-md bg-white/75 px-2 py-0.5 text-[10px] font-semibold text-[#8195ad]">Optional</span></label>
+          <div class="relative">
+            <svg viewBox="0 0 24 24" class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 fill-none stroke-[#93a8bf] stroke-[1.8]" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7.2.4l2.2-2.2a5 5 0 0 0-7.1-7.1l-2.1 2.1M14 10a5 5 0 0 0-7.2-.4l-2.2 2.2a5 5 0 0 0 7.1 7.1l2.1-2.1" stroke-linecap="round"/></svg>
+            <input id="website" formControlName="website" (input)="$any($event.target).setCustomValidity('')" type="url" inputmode="url" autocomplete="url" placeholder="https://yourwebsite.com" class="input-surface h-[46px] w-full rounded-[12px] pl-11 pr-4 text-[14px] font-medium" />
+          </div>
         </div>
       </div>
-
-      <div class="field">
-        <label for="website">Website</label>
-        <div class="opt">Optional</div>
-        <div class="input">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.2 13.8a4 4 0 0 0 5.66 0l2.4-2.4a4 4 0 0 0-5.66-5.66l-1.1 1.1"/><path d="M13.8 10.2a4 4 0 0 0-5.66 0l-2.4 2.4a4 4 0 1 0 5.66 5.66l1.1-1.1"/></svg>
-          <input id="website" formControlName="website" type="url" inputmode="url" placeholder="https://yourwebsite.com" />
-        </div>
-        @if (form.controls.website.hasError('httpUrl')) { <span class="field-error">Enter a full address such as https://example.com.</span> }
-      </div>
-
       <app-problem-banner [problem]="problem()" />
-
-      <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Saving…' : 'Continue' }}</button>
-
+      <div class="mt-4 flex items-center gap-2.5">
+        <button type="button" [routerLink]="backRoute" class="inline-flex h-[46px] shrink-0 items-center gap-1.5 rounded-[13px] border border-[#d6e1ed] bg-white/70 px-5 text-[13px] font-bold text-[#657b95] transition hover:bg-white" data-back="1"><svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-2" aria-hidden="true"><path d="M20 12H4m6 6-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg> Back</button>
+        <button type="submit" [disabled]="busy()" class="soft-btn inline-flex h-[46px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-[#183354] px-4 text-[14px] font-bold text-white shadow-[0_9px_23px_rgba(24,51,84,.13)]">{{ busy() ? 'Saving…' : 'Continue' }} <svg viewBox="0 0 24 24" class="h-[17px] w-[17px] fill-none stroke-current stroke-2" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
     </form>
-
-  </div>
-</main>
+  </section>
+</app-onboarding-layout>

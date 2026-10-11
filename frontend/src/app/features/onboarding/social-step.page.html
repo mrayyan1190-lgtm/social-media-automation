@@ -1,40 +1,17 @@
-<header>
-  <div class="bar-in">
-    <a class="brand" routerLink="/">
-      <span class="brand-mark" aria-hidden="true">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 7.5 12 12 3 7.5 12 3Z" fill="#fff"/><path d="M3 12.3 12 16.8l9-4.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>
-      </span>
-      <span class="brand-name">SocialMedia<span> Engine</span></span>
-    </a>
-
-    <div class="bar-right">
-      <button class="lang" type="button" aria-label="Language"><span class="cc">GB</span> EN <span class="car">▾</span></button>
-      <app-onboarding-menu />
-    </div>
-  </div>
-  <div class="progress" role="progressbar" aria-valuenow="3" aria-valuemin="1" aria-valuemax="3" aria-label="Step 3 of 3"><i></i></div>
-</header>
-
-<main class="page">
-  <div class="step">
-
-    <div class="intro">
-      <div class="eyebrow">Step 3 of 3</div>
-      <h1>Connect your social accounts</h1>
-      <p>Connect at least one account to continue. You can add the others any time from settings.</p>
-    </div>
-
-    <form novalidate>
-      @if (oauthResult(); as message) {
-        @if (!anyConnected()) { <p class="error" role="alert">{{ message }}</p> }
-      }
+<app-onboarding-layout [step]="3">
+  <section class="step-screen step-fade" data-right-step="3" aria-label="Connect social channels">
+    <div class="desktop-compact-panel card-glass rounded-[23px] px-5 py-5 sm:px-6 sm:py-6">
       @if (orgId) {
         <app-social-connections [orgId]="orgId" [compact]="true" (connectedChange)="anyConnected.set($event)" />
       }
-
-      <button class="primary" type="button" (click)="finish()" [disabled]="!anyConnected() || busy()">Continue to Home</button>
-
-    </form>
-
-  </div>
-</main>
+      <!-- The server's result of a provider sign-in that linked nothing publishable (e.g. no Pages on the login). -->
+      @if (oauthResult(); as message) {
+        @if (!anyConnected()) { <p id="connectionHelp" role="alert" class="mt-3 text-center text-[11px] font-medium leading-5 text-[#879aaf]">{{ message }}</p> }
+      }
+      <div class="mt-4 flex items-center gap-2.5">
+        <button type="button" [routerLink]="backRoute" class="inline-flex h-[46px] shrink-0 items-center gap-1.5 rounded-[13px] border border-[#d6e1ed] bg-white/70 px-5 text-[13px] font-bold text-[#657b95] transition hover:bg-white" data-back="2"><svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-2" aria-hidden="true"><path d="M20 12H4m6 6-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>Back</button>
+        <button type="button" id="finishButton" (click)="finish()" [disabled]="!anyConnected() || busy()" class="soft-btn inline-flex h-[46px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-[#183354] px-3 text-[14px] font-bold text-white shadow-[0_9px_23px_rgba(24,51,84,.13)] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none">Continue to Home <svg viewBox="0 0 24 24" class="h-[17px] w-[17px] fill-none stroke-current stroke-2" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+  </section>
+</app-onboarding-layout>

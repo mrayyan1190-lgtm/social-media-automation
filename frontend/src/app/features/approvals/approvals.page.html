@@ -1,74 +1,150 @@
-<div class="ap">
-  <nav class="ap-tabs" aria-label="Approvals">
-    @if (workspace.canReview()) {
-      <button type="button" [class.active]="tab() === 'pending'" (click)="tab.set('pending')">Pending my review @if (count('pending')) { <span class="cnt">{{ count('pending') }}</span> }</button>
+<div class="approvals-page tw-page">
+<div class="ambient a" aria-hidden="true"></div><div class="ambient b" aria-hidden="true"></div><div class="ambient c" aria-hidden="true"></div>
+<svg aria-hidden="true" class="absolute h-0 w-0 overflow-hidden" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4Z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 5h16l2 13H2L4 5ZM2 13h6l2 3h4l2-3h6"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11a3 3 0 0 0-4-4L4 16v4Z"/><path d="m13 7 4 4"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.7" cy="10.7" r="6.7"/><path d="m16 16 5 5"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
+</svg>
+<main class="relative mx-auto max-w-[1450px] px-4 pb-14 pt-7 sm:px-6 lg:px-9 lg:pt-8">
+  <header class="mb-5 flex flex-wrap items-center justify-between gap-4 lg:mb-6">
+    <div class="flex items-center gap-3.5"><span class="grid h-[51px] w-[51px] shrink-0 place-items-center rounded-[18px] bg-[#1B3B5F] text-white shadow-[0_13px_26px_#284d7733]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.55]"><use href="#i-shield"/></svg></span><div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7389AA]">YOUR CONTENT WORKSPACE</p><h1 class="heading-font text-[29px] font-extrabold leading-[1.15] tracking-[-.065em] text-[#193552] sm:text-[35px]">Approvals<span class="text-[#9D8CC6]">.</span></h1></div></div>
+    <span class="inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/65 px-4 py-2.5 text-[11px] font-bold text-[#607D9D] shadow-[0_6px_15px_#6e88ab17]"><svg class="h-4 w-4 fill-none stroke-[#7799BC] stroke-2"><use href="#i-shield"/></svg> Every decision stays human</span>
+  </header>
+
+  <nav class="state-tabs mb-5 flex items-center lg:mb-6" role="tablist" aria-label="Approval states" (keydown)="arrow($event)">
+    @for (t of tabs(); track t.id) {
+      <button [id]="'tab-' + t.id" type="button" [attr.data-active]="tab() === t.id" role="tab" [attr.aria-selected]="tab() === t.id" aria-controls="postList"
+        [tabIndex]="tab() === t.id ? 0 : -1" class="state-tab" (click)="activate(t.id)"><span>{{ t.label }}</span><span class="tab-count">{{ count(t.id) }}</span></button>
     }
-    <button type="button" [class.active]="tab() === 'mine'" (click)="tab.set('mine')">Submitted by me @if (count('mine')) { <span class="cnt">{{ count('mine') }}</span> }</button>
-    <button type="button" [class.active]="tab() === 'changes'" (click)="tab.set('changes')">Changes requested @if (count('changes')) { <span class="cnt">{{ count('changes') }}</span> }</button>
-    <button type="button" [class.active]="tab() === 'approved'" (click)="tab.set('approved')">Approved @if (readyGroups().length) { <span class="cnt">{{ readyGroups().length }}</span> }</button>
   </nav>
 
-  <app-problem-banner [problem]="problem()" />
-
-  @if (loading()) {
-    <div class="ap-card"><div class="ap-empty"><span class="txt">Loading…</span></div></div>
-  } @else if (tab() === 'approved') {
-    <!-- Approved and still the post's current version: schedule or publish it here. -->
-    <div class="ap-stack">
-      @for (g of readyGroups(); track g.items[0].review.id) {
-        @let item = g.items[0];
-        <section class="ap-card ap-acard">
-          <div class="ap-acard-head">
-            <span class="ap-plats">@for (x of g.items; track x.post.id) { <app-platform-icon [platform]="x.post.platform" /> }</span>
-            <div class="ap-txt">
-              <a class="ap-title" [routerLink]="['/approvals', item.review.id]" [title]="item.review.excerpt">{{ item.review.excerpt }}</a>
-              <div class="ap-meta">
-                {{ item.review.submittedByName }} <span class="sep">·</span> {{ time(item.review.decidedAtUtc ?? item.review.submittedAtUtc) }}
+  <div class="w-full">
+    <section class="glass min-w-0 rounded-[28px] p-3.5 sm:p-5" aria-labelledby="queueTitle">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3 px-1 pt-0.5">
+        <div><h2 id="queueTitle" class="heading-font text-[19px] font-extrabold tracking-[-.04em] text-[#23415F]">{{ current().label }}</h2><p class="mt-1 text-[11px] font-medium text-[#91A1B7]">{{ current().sub }}</p></div>
+        <label class="flex h-10 w-full items-center gap-2 rounded-full border border-[#E0E9F3] bg-[#F8FAFF] px-3.5 text-[#89A1BB] sm:w-[217px]"><svg class="h-[16px] w-[16px] shrink-0 fill-none stroke-current stroke-[1.8]"><use href="#i-search"/></svg><span class="sr-only">Search approval posts</span><input type="search" autocomplete="off" placeholder="Search posts" [value]="search()" (input)="search.set($any($event.target).value)" class="w-full min-w-0 bg-transparent text-[12px] text-[#325578] outline-none placeholder:text-[#99ACC3]"/></label>
+      </div>
+      @if (problem(); as p) {
+        <p class="quote-note mb-3 rounded-[13px] px-3.5 py-2.5 text-[12px] font-bold leading-5 text-[#B65165]" role="alert">{{ p.detail }}</p>
+      }
+      <div id="postList" class="flex flex-col gap-3" role="tabpanel" [attr.aria-labelledby]="'tab-' + tab()">
+        @if (loading()) {
+          <div class="flex min-h-[210px] flex-col items-center justify-center rounded-[20px] border border-dashed border-[#d8e5f4] bg-[#F9FBFF]/85 px-4 py-7 text-center"><p class="text-[11px] leading-5 text-[#8B9FB7]">Loading approvals…</p></div>
+        } @else {
+          @for (r of rows(); track r.key) {
+            <article [class]="'approval-row ' + r.tone">
+              <div [attr.data-art]="artOf(r)" class="mini-poster h-20 w-20 shrink-0 rounded-[15px]"><span class="orb"></span><div class="absolute inset-0 z-[2] flex flex-col justify-between p-2.5"><p class="font-extrabold tracking-[.12em] text-[#5E7396] text-[6px]">SOCIAL / POST</p><p class="heading-font whitespace-pre-line font-extrabold leading-[.98] tracking-[-.06em] text-[#244466] text-[12px]">{{ miniTitle(r) }}</p></div>
+                @if (thumb(r); as src) { <img class="absolute inset-0 z-[3] h-full w-full object-cover" [src]="src" alt="" /> }
               </div>
-            </div>
-            <span class="ap-chip ap-approved"><span class="dot"></span>Approved</span>
-          </div>
-          <app-publication-panel [posts]="g.posts" />
-        </section>
-      } @empty {
-        <div class="ap-card">
-          <div class="ap-empty">
-            <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
-            <span class="txt">No approved posts waiting to be scheduled or published.</span>
-          </div>
-        </div>
-      }
-    </div>
-  } @else {
-    <div class="ap-card">
-      @for (rs of shown(); track rs[0].id) {
-        @let r = rs[0];
-        <div class="ap-row">
-          <span class="ap-plats">@for (x of rs; track x.id) { <app-platform-icon [platform]="x.platform" /> }</span>
-          <div class="ap-txt">
-            <a class="ap-title" [routerLink]="['/approvals', r.id]" [title]="r.excerpt">{{ r.excerpt }}</a>
-            <div class="ap-meta">
-              @if (tab() !== 'pending') { {{ r.submittedByName }} <span class="sep">·</span> }
-              {{ time(r.submittedAtUtc) }}
-              @if (r.assignedReviewerName) { <span class="sep">·</span> Reviewer: {{ r.assignedReviewerName }} }
-            </div>
-            @if (r.decisionComment) { <div class="ap-quote">“{{ r.decisionComment }}”</div> }
-          </div>
-          <span [class]="'ap-chip ' + statusText[r.status].tone"><span class="dot"></span>{{ statusText[r.status].label }}</span>
-          @if (tab() === 'pending') {
-            <a class="ap-btn" [routerLink]="['/approvals', r.id]">Review</a>
-          } @else if (r.status === 'CHANGES_REQUESTED' && workspace.canManageContent()) {
-            <a class="ap-btn ghost" [routerLink]="['/composer', r.postId]">Edit</a>
-          } @else {
-            <a class="ap-btn ghost" [routerLink]="['/approvals', r.id]">Open</a>
+              <button (click)="open('open', r)" class="min-w-0 text-left" type="button" [attr.aria-label]="'Open ' + r.review.excerpt"><h3 class="heading-font line-clamp-2 text-[13px] font-extrabold leading-[1.45] tracking-[-.02em] text-[#294462] sm:text-[14px]">{{ r.review.excerpt }}</h3><p class="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-medium text-[#8C9CB3]">@for (x of r.reviews; track x.id) {<span [class]="'plat grid h-4 w-4 place-items-center rounded-[5px] font-extrabold leading-none text-white ' + x.platform.toLowerCase()" role="img" [attr.aria-label]="x.platform">{{ x.platform === 'Facebook' ? 'f' : x.platform === 'LinkedIn' ? 'in' : 'ig' }}</span>}<span>{{ r.review.submittedByName }}</span><span>·</span><span>{{ when(r) }}</span></p>@if (r.review.decisionComment && r.review.status === 'CHANGES_REQUESTED') {<div class="quote-note mt-3 max-w-[660px] rounded-[13px] px-3.5 py-2.5 text-left"><p class="text-[9px] font-extrabold uppercase tracking-[.14em] text-[#BC7380]">Reviewer’s message</p><p class="mt-1 text-[12px] font-bold leading-5 text-[#B65165]">“{{ r.review.decisionComment }}”</p></div>}</button>
+              <div class="row-actions flex shrink-0 flex-col items-end justify-center gap-2 sm:items-end"><div><span [class]="'status-pill ' + r.tone">{{ r.label }}</span></div><div class="flex flex-wrap items-center justify-end gap-1.5">
+                @if (tab() === 'pending') {
+                  <button type="button" (click)="open('review', r)" class="action-button inline-flex h-9 items-center gap-1.5 rounded-full bg-[#274A75] px-4 text-[11px] font-extrabold text-white shadow-[0_5px_12px_#4769a926]">Review <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+                } @else if (tab() === 'approved') {
+                  @if (r.tone === 'approved' && workspace.isAdmin()) {
+                    <button type="button" (click)="open('schedule', r)" class="action-button inline-flex h-9 items-center gap-1 rounded-full bg-[#224B78] px-3.5 text-[11px] font-extrabold text-white"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-calendar"/></svg> Schedule</button><button type="button" (click)="open('publish', r)" class="action-button inline-flex h-9 items-center gap-1 rounded-full border border-[#DDE8F3] bg-white px-3.5 text-[11px] font-extrabold text-[#436487]">Publish now</button>
+                  } @else if (r.note) {
+                    <span class="rounded-full bg-[#EDF7F4] px-3 py-2 text-[10px] font-bold text-[#548C75]">{{ r.note }}</span>
+                  }
+                } @else if (r.review.status === 'CHANGES_REQUESTED' && workspace.canManageContent()) {
+                  <button type="button" (click)="edit(r)" class="action-button inline-flex h-9 items-center gap-1.5 rounded-full bg-[#C97885] px-4 text-[11px] font-extrabold text-white"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-pencil"/></svg> Edit post</button>
+                } @else {
+                  <button type="button" (click)="open('open', r)" class="action-button inline-flex h-9 items-center gap-1.5 rounded-full border border-[#DAE4F2] bg-[#F7FAFE] px-4 text-[11px] font-extrabold text-[#527397]">Open <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+                }
+              </div></div>
+            </article>
+          } @empty {
+            <div class="flex min-h-[210px] flex-col items-center justify-center rounded-[20px] border border-dashed border-[#d8e5f4] bg-[#F9FBFF]/85 px-4 py-7 text-center"><span class="mb-3 grid h-12 w-12 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#E2F1FF,#EEE7FD)] text-[#748FB9]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-inbox"/></svg></span><h3 class="heading-font text-[15px] font-extrabold text-[#395A7A]">Nothing to show here</h3><p class="mt-1.5 max-w-[290px] text-[11px] leading-5 text-[#8B9FB7]">Posts will appear here when they reach this stage.</p></div>
           }
-        </div>
-      } @empty {
-        <div class="ap-empty">
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>
-          <span class="txt">{{ emptyText() }}</span>
-        </div>
-      }
+        }
+      </div>
+      <div class="mt-4 flex items-center gap-2 rounded-[16px] bg-[linear-gradient(100deg,#EAF4FF,#F2EFFB,#FBF0ED)] px-4 py-3"><svg class="h-[17px] w-[17px] shrink-0 fill-none stroke-[#7B92B5] stroke-[1.8]"><use href="#i-shield"/></svg><p class="text-[11px] font-medium text-[#7087A6]">Posts move forward only after a person approves the exact draft.</p></div>
+    </section>
+  </div>
+</main>
+
+@if (modal(); as m) {
+  @let r = m.row;
+  <div class="modal-scrim theme-scrim fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle" (click)="$event.target === $event.currentTarget ? closeModal() : null">
+    <div class="fade-in w-full overflow-hidden rounded-[27px] border border-white/90 bg-[#FAFCFF] p-5 shadow-[0_28px_90px_#18345360] sm:p-7" [class.max-w-[400px]]="m.type === 'schedule'" [class.max-w-[515px]]="m.type !== 'schedule'">
+      <div class="mb-4 flex items-start justify-between gap-2"><div><p class="text-[10px] font-extrabold uppercase tracking-[.17em] text-[#849bb5]">WORKFLOW ACTION</p><h2 id="modalTitle" class="heading-font mt-1 text-[21px] font-extrabold tracking-[-.05em] text-[#244366]">{{ titles[m.type] }}</h2></div><button type="button" (click)="closeModal()" class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#EEF3FC] text-[#5C7290]" aria-label="Close"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-x"/></svg></button></div>
+      <div class="max-h-[72vh] overflow-y-auto">
+        @if (m.type === 'schedule') {
+          <p class="mb-3 truncate text-[11px] font-bold text-[#7890AC]" [title]="r.review.excerpt">{{ platforms(r) }} · {{ r.review.excerpt }}</p>
+        } @else {
+          <div class="mb-4 rounded-[15px] bg-[linear-gradient(112deg,#EAF4FF,#F2EFFA,#FDF1EC)] p-4"><p class="text-[10px] font-bold text-[#7890AC]">{{ platforms(r) }} · {{ when(r) }}</p><h3 class="heading-font mt-1 text-[14px] font-extrabold text-[#294769]">{{ r.review.excerpt }}</h3></div>
+        }
+        @if (m.type === 'review' || m.type === 'open') {
+          <!-- Exactly what was submitted: the version under review, never newer edits. -->
+          @if (detail(); as d) {
+            <p class="whitespace-pre-line rounded-[13px] bg-[#F5F8FD] p-3.5 text-[12px] leading-6 text-[#4A6685]">{{ text(d) }}</p>
+            @if (d.version.destinationUrl) { <p class="mt-2 truncate text-[11px] font-bold text-[#527397]">{{ d.version.destinationUrl }}</p> }
+            @if (d.version.images.length) {
+              <div class="mt-3 flex flex-wrap gap-2">
+                @for (img of d.version.images; track img.mediaAssetId; let i = $index) {
+                  <a [href]="imageUrl(img.mediaAssetId)" target="_blank" rel="noopener" [title]="img.altText || 'Image ' + (i + 1)"><img class="h-20 w-20 rounded-[12px] object-cover" [src]="imageUrl(img.mediaAssetId)" [alt]="img.altText || 'Post image ' + (i + 1)" /></a>
+                }
+              </div>
+            }
+            @if (r.review.decisionComment) {
+              <div class="quote-note mt-3 rounded-[13px] p-3"><p class="text-[10px] font-extrabold uppercase tracking-[.12em] text-[#C27C86]">REVIEWER’S NOTE</p><p class="mt-1 text-[13px] font-extrabold text-[#BA5D6B]">“{{ r.review.decisionComment }}”</p></div>
+            }
+            @if (m.type === 'review') {
+              @if (d.canDecide) {
+                <p class="mb-4 mt-4 text-[12px] leading-6 text-[#6C819C]">Review the current content, then approve it or request a change.</p>
+                @if (showFeedback()) {
+                  <label for="feedback" class="mb-1.5 block text-[11px] font-extrabold text-[#57718F]">What should the creator change?</label><textarea id="feedback" rows="3" maxlength="2000" placeholder="Give clear feedback..." [value]="feedback()" (input)="feedback.set($any($event.target).value)" class="w-full resize-none rounded-[15px] border border-[#E7D6DC] bg-[#FFF8F8] px-3.5 py-3 text-[12px] leading-6 text-[#314F71] focus:outline-none"></textarea>
+                }
+              } @else {
+                <p class="mt-4 flex items-start gap-3 rounded-[14px] bg-[#FFF8ED] p-3.5 text-[12px] leading-6 text-[#6A7F9A]">{{ d.cannotDecideReason }}</p>
+              }
+            }
+          } @else if (!modalProblem()) {
+            <p class="rounded-[13px] bg-[#F5F8FD] p-3.5 text-[12px] leading-6 text-[#4A6685]">Loading post…</p>
+          }
+        } @else if (m.type === 'schedule') {
+          <app-date-time-picker id="scheduleAt" [inline]="true" [(value)]="scheduleAt" /><p class="mt-2 text-[10px] text-[#899CB5]">Times in {{ workspace.timeZone() }}</p>
+        } @else {
+          <div class="flex items-start gap-3 rounded-[14px] bg-[#FFF8ED] p-3.5"><span class="text-[19px]">✦</span><p class="text-[12px] leading-6 text-[#6A7F9A]">This sends the approved post to {{ platforms(r) }} within moments. Accounts in Demo Mode only record a simulation; nothing is sent to the platform.</p></div>
+        }
+        @if (modalProblem(); as p) {
+          <p class="quote-note mt-3 rounded-[13px] px-3.5 py-2.5 text-[12px] font-bold leading-5 text-[#B65165]" role="alert">{{ p.detail }}</p>
+        }
+      </div>
+      <div class="modal-actions mt-5 flex flex-wrap justify-end gap-2">
+        <button type="button" (click)="closeModal()" class="action-button h-10 rounded-full border border-[#DFE7F1] bg-white px-4 text-[11px] font-extrabold text-[#5B7392]">{{ m.type === 'open' ? 'Close' : 'Cancel' }}</button>
+        @switch (m.type) {
+          @case ('review') {
+            @if (detail()?.canDecide) {
+              @if (showFeedback()) {
+                <button type="button" [disabled]="busy()" (click)="requestChanges()" class="action-button inline-flex h-10 items-center gap-2 rounded-full px-5 text-[11px] font-extrabold text-white bg-[#C57483]">{{ busy() ? 'Sending…' : 'Send feedback' }} <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+              } @else {
+                <button type="button" [disabled]="busy()" (click)="showFeedback.set(true)" class="action-button h-10 rounded-full border border-[#F4CBD1] bg-[#FFF0F1] px-4 text-[11px] font-extrabold text-[#C06A76]">Request changes</button>
+                <button type="button" [disabled]="busy()" (click)="approve()" class="action-button inline-flex h-10 items-center gap-2 rounded-full px-5 text-[11px] font-extrabold text-white bg-[#3C9B7B]">{{ busy() ? 'Approving…' : 'Approve' }} <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+              }
+            }
+          }
+          @case ('open') {
+            @if (r.review.status === 'CHANGES_REQUESTED' && workspace.canManageContent()) {
+              <button type="button" (click)="edit(r)" class="action-button inline-flex h-10 items-center gap-2 rounded-full px-5 text-[11px] font-extrabold text-white bg-[#224A75]">Edit post <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+            }
+          }
+          @case ('schedule') {
+            <button type="button" [disabled]="busy()" (click)="schedule()" class="action-button inline-flex h-10 items-center gap-2 rounded-full px-5 text-[11px] font-extrabold text-white bg-[#224A75]">{{ busy() ? 'Saving…' : 'Save schedule' }} <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          }
+          @case ('publish') {
+            <button type="button" [disabled]="busy()" (click)="publishNow()" class="action-button inline-flex h-10 items-center gap-2 rounded-full px-5 text-[11px] font-extrabold text-white bg-[#224A75]">{{ busy() ? 'Working…' : 'Publish now' }} <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+          }
+        }
+      </div>
     </div>
-  }
+  </div>
+}
+@if (toastText()) {
+  <div class="fixed bottom-5 left-1/2 z-[100] w-max max-w-[calc(100vw-24px)] -translate-x-1/2 rounded-full bg-[#1E3D60] px-5 py-3 text-center text-[12px] font-bold text-white shadow-[0_18px_30px_#193a5260]" role="status" aria-live="polite">{{ toastText() }}</div>
+}
 </div>

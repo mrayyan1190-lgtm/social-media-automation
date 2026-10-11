@@ -1,11 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../../core/http/api-problem';
-import { ToastService } from '../../../../core/services/toast.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { ProblemBannerComponent } from '../../../../shared/components/problem-banner.component';
+import { ThemeOption, ThemeSelectComponent } from '../../../../shared/components/theme-select.component';
 import { toList } from '../../../../shared/utilities/list-text';
 import { httpUrlValidator } from '../../../../shared/validators/http-url.validator';
 import { BRAND_TONES, BrandProfile, BrandProfileInput, BrandTone } from '../../models/brand-profile.model';
@@ -13,21 +12,19 @@ import { BrandProfileApiService } from '../../services/brand-profile-api.service
 
 @Component({
   selector: 'app-brand-settings-page',
-  imports: [ReactiveFormsModule, ProblemBannerComponent],
+  imports: [ReactiveFormsModule, ThemeSelectComponent],
   templateUrl: './brand-settings.page.html',
   styleUrl: './brand-settings.page.css',
 })
 export class BrandSettingsPage {
   private readonly api = inject(BrandProfileApiService);
   protected readonly workspace = inject(WorkspaceService);
-  private readonly toast = inject(ToastService);
 
-  protected readonly toneOptions = BRAND_TONES;
+  protected readonly toneOptions: ThemeOption[] = BRAND_TONES.map((t) => ({ value: t, label: t }));
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
-  /** Briefly true after a save: the button turns green. */
-  protected readonly saved = signal(false);
-  protected readonly advOpen = signal(false);
+  protected readonly toastText = signal<string | null>(null);
+  private toastTimer?: ReturnType<typeof setTimeout>;
   protected readonly problem = signal<ApiProblem | null>(null);
   /** Null until a profile exists; sent as If-Match on every update. */
   protected readonly current = signal<BrandProfile | null>(null);
@@ -40,7 +37,13 @@ export class BrandSettingsPage {
     prohibitedTerms: [''],
   });
 
+  /** Words to avoid as chips under the field. */
+  private readonly avoidText = signal('');
+  protected readonly avoidList = computed(() => toList(this.avoidText()));
+
   constructor() {
+    this.form.controls.prohibitedTerms.valueChanges.subscribe((v) => this.avoidText.set(v));
+    inject(DestroyRef).onDestroy(() => clearTimeout(this.toastTimer));
     effect(() => {
       const orgId = this.workspace.orgId();
       if (orgId) {
@@ -68,17 +71,34 @@ export class BrandSettingsPage {
     }
   }
 
+  protected setTone(tone: string): void {
+    if (!this.workspace.canManageBrand()) return;
+    this.form.controls.brandTone.setValue(tone as BrandTone);
+    this.form.markAsDirty();
+  }
+
+  /** Drops unsaved edits: back to the profile as last loaded (or an empty form). */
+  protected reset(): void {
+    const profile = this.current();
+    if (profile) this.apply(profile);
+    else this.form.reset();
+    this.toast('Unsaved changes reset');
+  }
+
+  private toast(message: string): void {
+    clearTimeout(this.toastTimer);
+    this.toastText.set(message);
+    this.toastTimer = setTimeout(() => this.toastText.set(null), 2600);
+  }
+
   async save(): Promise<void> {
     const orgId = this.workspace.orgId();
     if (!orgId || this.form.invalid) return;
     this.saving.set(true);
-    this.saved.set(false);
     this.problem.set(null);
     try {
       this.apply(await firstValueFrom(this.api.save(orgId, this.toInput(), this.current()?.rowVersion ?? null)));
-      this.saved.set(true);
-      this.toast.success('Brand profile saved');
-      setTimeout(() => this.saved.set(false), 2000);
+      this.toast('Brand profile saved');
     } catch (error) {
       this.problem.set(toApiProblem(error));
     } finally {
