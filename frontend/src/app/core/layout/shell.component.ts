@@ -297,7 +297,7 @@ export class ShellComponent {
    * what to fix, what is waiting, what was accepted and what went out; publishing problems are the Admin's to fix.
    */
   protected readonly publisher: SubItem[] = [
-    { label: 'Planner', link: '/planner' },
+    { label: 'Calendar', link: '/planner' },
     { label: 'All Posts', link: '/planner', query: { view: 'list' } },
     { label: 'Approvals', link: '/approvals', count: () => this.counts().approvals, tone: 'warn', show: () => this.workspace.isAdmin() },
     { label: 'Drafts', link: '/planner', query: { status: 'Draft' }, count: () => this.counts().drafts },

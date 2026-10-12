@@ -17,6 +17,7 @@ import { LocalSchedule } from '../publications/models/publication.model';
 import { dayKeyInZone, formatInZone } from '../publications/models/time-zones';
 import { PublicationApiService } from '../publications/services/publication-api.service';
 import { art } from '../home/home.utils';
+import { ThemeSelectComponent } from '../../shared/components/theme-select.component';
 
 type Row = PlannerRow;
 
@@ -49,7 +50,7 @@ const fmt = (key: string, options: Intl.DateTimeFormatOptions) => new Intl.DateT
  */
 @Component({
   selector: 'app-planner-page',
-  imports: [FormsModule, NgTemplateOutlet, RouterLink, PostsListComponent, ScheduleDialogComponent],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, PostsListComponent, ScheduleDialogComponent, ThemeSelectComponent],
   templateUrl: './planner.page.html',
   styleUrl: './planner.page.css',
   host: { '(document:keydown.escape)': 'escape()', '(window:resize)': 'measure()' },
@@ -77,7 +78,6 @@ export class PlannerPage {
   protected readonly rows = signal<Row[]>([]);
   /** 'list' is the content library (Publisher shortcuts); the Planner itself switches calendar / month list. */
   protected readonly layout = signal<'calendar' | 'list'>('calendar');
-  protected readonly mode = signal<'calendar' | 'list'>('calendar');
 
   protected readonly platform = signal('');
   protected readonly status = signal('');

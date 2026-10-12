@@ -8,7 +8,6 @@
 <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
 <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
 <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2L12 2Z"/></symbol>
-<symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M3 6h1M3 12h1M3 18h1"/></symbol>
 <symbol id="i-close" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
 <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M4 20l4.5-1 10.5-10.5a2.8 2.8 0 0 0-4-4L4.5 15 4 20Z"/></symbol>
@@ -18,14 +17,14 @@
   <div class="page-head mb-5 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3.5">
       <div class="grid h-[47px] w-[47px] shrink-0 place-items-center rounded-[16px] bg-[#193755] text-white shadow-[0_9px_21px_#263b6270]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.6]"><use href="#i-calendar"/></svg></div>
-      <div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7185A7]">Content workspace</p><h1 class="heading-font text-[26px] font-extrabold leading-tight text-[#193451] sm:text-[30px]">Planner<span class="text-[#8A87BE]">.</span></h1></div>
+      <div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7185A7]">Content workspace</p><h1 class="heading-font text-[26px] font-extrabold leading-tight text-[#193451] sm:text-[30px]">Calendar<span class="text-[#8A87BE]">.</span></h1></div>
     </div>
     @if (workspace.canManageContent()) {
       <a routerLink="/ai-studio" class="soft-button inline-flex h-[42px] items-center gap-2 rounded-full bg-[#1B395B] px-5 text-[12px] font-extrabold text-white shadow-[0_11px_22px_#3a5c8833] hover:bg-[#2A547D]"><svg class="h-[17px] w-[17px] fill-current" aria-hidden="true"><use href="#i-spark"/></svg> Create with AI</a>
     }
   </div>
 
-  <section class="toolbar glass mb-3 rounded-[23px] p-3 sm:p-[15px]" aria-label="Planner controls">
+  <section class="toolbar glass mb-3 rounded-[23px] p-3 sm:p-[15px]" aria-label="Calendar controls">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-2 sm:gap-3">
         <div class="flex items-center gap-1 rounded-full bg-[#EDF3FC]/90 p-1">
@@ -37,23 +36,17 @@
       </div>
       <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
         <div class="relative min-w-[125px] flex-1 sm:flex-none">
-          <label for="platformFilter" class="sr-only">Filter by social network</label>
-          <select id="platformFilter" [ngModel]="platform()" (ngModelChange)="platform.set($event)" class="h-10 w-full rounded-full border border-[#DDE6F2] bg-[#F9FBFE] py-2 pl-4 pr-9 text-[11px] font-bold text-[#4B688A] focus:ring-2 focus:ring-[#A6BFE9] sm:w-[143px]">
+          <app-theme-select id="platformFilter" label="Filter by social network" [ngModel]="platform()" (ngModelChange)="platform.set($event)" class="w-full sm:w-[150px]">
             <option value="">All platforms</option>
             @for (p of platforms; track p) { <option [value]="p">{{ p }}</option> }
-          </select>
+          </app-theme-select>
         </div>
         <div class="relative min-w-[120px] flex-1 sm:flex-none">
-          <label for="statusFilter" class="sr-only">Filter by post status</label>
-          <select id="statusFilter" [ngModel]="status()" (ngModelChange)="status.set($event)" class="h-10 w-full rounded-full border border-[#DDE6F2] bg-[#F9FBFE] py-2 pl-4 pr-9 text-[11px] font-bold text-[#4B688A] focus:ring-2 focus:ring-[#A6BFE9] sm:w-[137px]">
+          <app-theme-select id="statusFilter" label="Filter by post status" [ngModel]="status()" (ngModelChange)="status.set($event)" class="w-full sm:w-[170px]">
             <option value="">All statuses</option>
             @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
             <option value="Approved,Scheduled">Approved &amp; scheduled</option>
-          </select>
-        </div>
-        <div class="ml-auto inline-flex h-10 items-center gap-1 rounded-full bg-[#EDF2FB] p-1" role="group" aria-label="Planner view">
-          <button type="button" (click)="mode.set('calendar')" [class.active]="mode() === 'calendar'" [attr.aria-pressed]="mode() === 'calendar'" class="seg-button flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold text-[#7286A3]"><svg class="h-[14px] w-[14px] fill-none stroke-current stroke-2"><use href="#i-calendar"/></svg> Calendar</button>
-          <button type="button" (click)="mode.set('list')" [class.active]="mode() === 'list'" [attr.aria-pressed]="mode() === 'list'" class="seg-button flex h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-extrabold text-[#7286A3]"><svg class="h-[14px] w-[14px] fill-none stroke-current stroke-2"><use href="#i-list"/></svg> List</button>
+          </app-theme-select>
         </div>
       </div>
     </div>
@@ -63,7 +56,6 @@
     <p class="problem mb-3 rounded-[16px] px-4 py-3 text-[12px] font-bold leading-5" role="alert">{{ p.detail }}</p>
   }
 
-  @if (mode() === 'calendar') {
     <section class="glass overflow-hidden rounded-[26px]">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#E4EAF3] bg-[linear-gradient(105deg,#F2F8FF_0%,#F5F2FC_54%,#FFF7F4_100%)] px-4 py-3 sm:px-5">
         <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 place-items-center rounded-[12px] bg-white/80 text-[#5D8CC1]"><svg class="h-[18px] w-[18px] fill-none stroke-current stroke-[1.8]"><use href="#i-calendar"/></svg></span><div><p class="text-[12px] font-extrabold text-[#344D70]">Content calendar</p><p class="text-[10px] font-medium text-[#8B9EBA]">Image posts across your social channels</p></div></div>
@@ -123,15 +115,6 @@
         <span class="text-[10px] font-semibold text-[#A0AEC0]">Drafts and reviews show on their last update</span>
       </div>
     </section>
-  } @else {
-    <section class="glass overflow-hidden rounded-[26px]">
-      <div class="flex items-center justify-between border-b border-[#E6ECF5] bg-[linear-gradient(110deg,#F2F8FF,#F6F0FD,#FFF5F0)] px-5 py-4"><div><h3 class="text-[14px] font-extrabold text-[#304C6D]">{{ monthTitle() }}</h3><p class="mt-1 text-[10px] text-[#8C9EBA]">Your month, in one easy-to-scan list</p></div><span class="chip">{{ monthPosts().length }} post{{ monthPosts().length === 1 ? '' : 's' }}</span></div>
-      <div class="flex flex-col gap-2 p-3 sm:p-5">
-        @for (p of monthPosts(); track p.id) { <ng-container *ngTemplateOutlet="entry; context: { $implicit: p }" /> }
-        @empty { <div class="flex min-h-[280px] flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-[#DFE9F4] bg-[#F9FBFE] p-5"><div class="grid h-12 w-12 place-items-center rounded-[16px] bg-[#EAF1FF] text-[#7C9AC4]"><svg class="h-6 w-6 fill-none stroke-current stroke-2"><use href="#i-calendar"/></svg></div><p class="text-[14px] font-extrabold text-[#496787]">{{ loading() ? 'Loading posts…' : 'No posts match these filters' }}</p>@if (!loading()) {<p class="text-center text-[11px] text-[#8DA0B5]">Try another month or change the filters.</p>}</div> }
-      </div>
-    </section>
-  }
 </main>
 
 <ng-template #tiny let-platform>
