@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { ActivityLogItem, AiLogItem, AuditLogItem, InternalApiService, PublishingLogItem, SignInLogItem, SystemLogItem, tone, when, words } from '../internal-api.service';
+import { ThemeSelectComponent } from '../../../shared/components/theme-select.component';
 
 type Tab = 'all' | 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
 
@@ -14,7 +15,7 @@ type Tab = 'all' | 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
  */
 @Component({
   selector: 'app-internal-logs-page',
-  imports: [FormsModule, RouterLink, ProblemBannerComponent],
+  imports: [ThemeSelectComponent, FormsModule, RouterLink, ProblemBannerComponent],
   template: `
     <div class="page-header"><div><h1>Logs</h1><p class="muted">Newest first. Click a correlation id to follow one operation across every log.</p></div></div>
     <nav class="tabs">
@@ -26,22 +27,22 @@ type Tab = 'all' | 'audit' | 'signins' | 'ai' | 'publishing' | 'system';
       <label class="date">To <input type="date" [(ngModel)]="to" (ngModelChange)="load()" /></label>
       <input class="corr" placeholder="Correlation ID" [(ngModel)]="correlationId" (keyup.enter)="load()" aria-label="Correlation ID" />
       @if (tab() === 'all') {
-        <select [(ngModel)]="outcome" (ngModelChange)="load()" aria-label="Outcome">
+        <app-theme-select [(ngModel)]="outcome" (ngModelChange)="load()" label="Outcome">
           <option value="">Everything</option><option value="errors">Errors &amp; warnings</option><option value="success">Successes</option>
-        </select>
+        </app-theme-select>
       }
       @if (tab() === 'signins') {
-        <select [(ngModel)]="result" (ngModelChange)="load()" aria-label="Result"><option value="">All results</option><option value="success">Success</option><option value="failed">Failed</option></select>
+        <app-theme-select [(ngModel)]="result" (ngModelChange)="load()" label="Result"><option value="">All results</option><option value="success">Success</option><option value="failed">Failed</option></app-theme-select>
         <input placeholder="IP address" [(ngModel)]="ip" (keyup.enter)="load()" aria-label="IP address" />
       }
       @if (tab() === 'system') {
-        <select [(ngModel)]="level" (ngModelChange)="load()" aria-label="Severity">
+        <app-theme-select [(ngModel)]="level" (ngModelChange)="load()" label="Severity">
           <option value="">All severities</option><option value="INFO">Info</option><option value="WARNING">Warning</option><option value="ERROR">Error</option><option value="CRITICAL">Critical</option>
-        </select>
-        <select [(ngModel)]="service" (ngModelChange)="load()" aria-label="Service">
+        </app-theme-select>
+        <app-theme-select [(ngModel)]="service" (ngModelChange)="load()" label="Service">
           <option value="">All services</option>
           @for (s of services; track s) { <option [value]="s">{{ s }}</option> }
-        </select>
+        </app-theme-select>
       }
       <button type="button" (click)="load()">Apply</button>
       @if (search || from || to || correlationId || result || ip || level || service || outcome) { <button type="button" class="link" (click)="clear()">Clear</button> }

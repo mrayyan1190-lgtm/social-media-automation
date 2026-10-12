@@ -1,5 +1,4 @@
-import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
@@ -8,15 +7,14 @@ import { AppNotification, NotificationApiService } from '../../core/services/not
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ProblemBannerComponent } from '../../shared/components/problem-banner.component';
 import { customerStatus } from '../../shared/models/states';
-import { SOCIAL_PLATFORMS, SocialPlatform } from '../../shared/models/platform.model';
+import { SOCIAL_PLATFORMS } from '../../shared/models/platform.model';
 import { ReviewSummary } from '../approvals/models/review.model';
 import { ReviewApiService } from '../approvals/services/review-api.service';
 import { PostListItem } from '../content/models/post.model';
 import { MediaApiService } from '../content/services/media-api.service';
 import { PostApiService } from '../content/services/post-api.service';
 import { formatInZone } from '../publications/models/time-zones';
-import { BRAND_TONES } from '../settings/models/brand-profile.model';
-import { utcMs } from './home.utils';
+import { ringFill, utcMs } from './home.utils';
 
 type FlowStatus = 'draft' | 'revision' | 'review' | 'approved' | 'published';
 
@@ -28,8 +26,6 @@ const FLOW: { key: FlowStatus; label: string; color: string; planner: string }[]
   { key: 'approved', label: 'Approved', color: '#9B85DC', planner: 'Scheduled' },
   { key: 'published', label: 'Published', color: '#5BB88E', planner: 'Published' },
 ];
-/** Donut circumference (r = 72). */
-const RING = 2 * Math.PI * 72;
 
 /**
  * Creator home: the AI studio entry, the creator's own content flow, drafts to continue, changes requested by a reviewer,
@@ -37,10 +33,9 @@ const RING = 2 * Math.PI * 72;
  */
 @Component({
   selector: 'app-home-page',
-  imports: [ProblemBannerComponent, RouterLink, FormsModule],
+  imports: [ProblemBannerComponent, RouterLink],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
-  host: { '(document:keydown.escape)': 'createOpen.set(false)' },
 })
 export class HomePage {
   private readonly postsApi = inject(PostApiService);
@@ -56,14 +51,8 @@ export class HomePage {
   protected readonly reviews = signal<ReviewSummary[]>([]);
   protected readonly notifications = signal<AppNotification[]>([]);
 
-  protected readonly createOpen = signal(false);
   protected readonly flowLegend = FLOW;
-  protected readonly tones = BRAND_TONES;
   protected readonly platforms = SOCIAL_PLATFORMS;
-  protected idea = '';
-  protected platform: SocialPlatform = 'LinkedIn';
-  protected tone = BRAND_TONES[0] as string;
-  private readonly ideaInput = viewChild<ElementRef<HTMLTextAreaElement>>('ideaInput');
 
   private readonly zone = computed(() => this.workspace.timeZone());
   /** Creator home works on the signed-in person's own posts only. */
@@ -89,16 +78,8 @@ export class HomePage {
       if (s) counts[s]++;
     }
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    // One arc per status, with a small gap between arcs (as in the design).
-    let offset = 0;
-    const arcs = FLOW.filter((f) => counts[f.key]).map((f) => {
-      const seg = (RING * counts[f.key]) / total;
-      const gap = Math.min(7, seg * 0.1);
-      const arc = { key: f.key, color: f.color, dash: `${Math.max(seg - gap, 1)} ${RING}`, offset: -offset };
-      offset += seg;
-      return arc;
-    });
-    return { counts, total, arcs };
+    // The same smooth ring as the Admin home's publishing overview, in this legend's colours.
+    return { counts, total, fill: ringFill(FLOW.map((f): [number, string] => [counts[f.key], f.color])) };
   });
 
   // ---- Continue creating / changes requested / upcoming ---------------------------------------------
@@ -153,19 +134,9 @@ export class HomePage {
     return this.mediaApi.previewUrl(this.workspace.orgId()!, mediaId);
   }
 
-  protected openCreate(): void {
-    this.createOpen.set(true);
-    setTimeout(() => this.ideaInput()?.nativeElement.focus());
-  }
-
-  /** The idea, platform and tone go to AI Studio, which generates the post and saves it as a draft. */
-  protected generate(formEl: HTMLFormElement): void {
-    if (!formEl.reportValidity()) return;
-    void this.router.navigate([this.ws('/ai-studio')], { queryParams: { prompt: this.idea.trim(), platform: this.platform, tone: this.tone } });
-  }
-
-  protected scrollTo(target: HTMLElement): void {
-    target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+  /** Start creating / Create with AI: straight to AI Studio. */
+  protected startCreating(): void {
+    void this.router.navigate([this.ws('/ai-studio')]);
   }
 
   protected ago(utc: string): string {

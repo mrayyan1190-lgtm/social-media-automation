@@ -10,8 +10,8 @@ public static class AiVersions
     public const string Snapshot = "snapshot-v3";
     public const string ContentSchema = "content-v2";
     public const string EvaluationSchema = "evaluation-v2";
-    public const string GenerationPrompt = "generation-v5";
-    public const string RewritePrompt = "rewrite-v3";
+    public const string GenerationPrompt = "generation-v6";
+    public const string RewritePrompt = "rewrite-v5";
     public const string EvaluationPrompt = "evaluation-v3";
     public const string ImagePrompt = "image-v2";
     /// <summary>An image prompt written by the LLM during generation, wrapped with the fixed safety rules.</summary>
@@ -88,6 +88,8 @@ public sealed class GeneratedContent
     public string? ImagePrompt { get; set; }
     /// <summary>How many images the user's words ask for (1-4); clamped by the parser.</summary>
     public int? ImageCount { get; set; }
+    /// <summary>Rewrites only: "add" (append to the current images) or "replace" (the default).</summary>
+    public string? ImageMode { get; set; }
 }
 
 public sealed class GeneratedVariant

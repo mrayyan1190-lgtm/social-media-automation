@@ -3,7 +3,7 @@ import { IsActiveMatchOptions, NavigationEnd, Router, RouterLink, RouterLinkActi
 import { filter, firstValueFrom } from 'rxjs';
 import { PostApiService } from '../../features/content/services/post-api.service';
 import { DashboardApiService } from '../../features/dashboard/dashboard-api.service';
-import { PROBLEM_DELIVERY, UPCOMING_DELIVERY, customerStatus } from '../../shared/models/states';
+import { PROBLEM_DELIVERY, UPCOMING_DELIVERY } from '../../shared/models/states';
 import { AuthService } from '../auth/auth.service';
 import { NotificationApiService } from '../services/notification-api.service';
 import { WorkspaceService } from '../services/workspace.service';
@@ -285,7 +285,7 @@ export class ShellComponent {
 
   protected readonly exact = EXACT;
   /** Publisher counts (refreshed on navigation): the whole workspace for Admins, the person's own posts for everyone else. */
-  private readonly counts = signal({ approvals: 0, drafts: 0, scheduled: 0, published: 0, failed: 0, changes: 0, inReview: 0, approved: 0 });
+  private readonly counts = signal({ approvals: 0, drafts: 0, scheduled: 0, published: 0, failed: 0, changes: 0, inReview: 0 });
 
   protected readonly main: NavItem[] = [
     { label: 'Home', icon: 'home', tone: 'sky', link: '/home' },
@@ -304,9 +304,7 @@ export class ShellComponent {
     { label: 'Changes requested', link: '/planner', query: { status: 'Changes Requested' }, count: () => this.counts().changes, tone: 'warn',
       show: () => !this.workspace.isAdmin() },
     { label: 'In review', link: '/planner', query: { status: 'In Review' }, count: () => this.counts().inReview, show: () => !this.workspace.isAdmin() },
-    { label: 'Scheduled', link: '/planner', query: { status: 'Scheduled' }, count: () => this.counts().scheduled, show: () => this.workspace.isAdmin() },
-    { label: 'Approved & scheduled', link: '/planner', query: { status: APPROVED_AND_SCHEDULED }, count: () => this.counts().approved,
-      show: () => !this.workspace.isAdmin() },
+    { label: 'Scheduled', link: '/planner', query: { status: 'Scheduled' }, count: () => this.counts().scheduled },
     { label: 'Published', link: '/planner', query: { status: 'Published' }, count: () => this.counts().published },
     { label: 'Failed', link: '/planner', query: { status: 'Failed' }, count: () => this.counts().failed, tone: 'rose', show: () => this.workspace.isAdmin() },
   ];
@@ -333,7 +331,7 @@ export class ShellComponent {
       const section = path[2];
       const inPublisher = section === 'planner' || section === 'approvals';
       this.inPublisher.set(inPublisher);
-      this.wide.set(['home', 'composer', 'ai-studio', 'planner', 'brand', 'settings', 'notifications', 'members'].includes(section) || (section === 'approvals' && !path[3]));
+      this.wide.set(['home', 'composer', 'ai-studio', 'planner', 'brand', 'settings', 'notifications', 'members', 'approvals'].includes(section));
       if (inPublisher) this.publisherOpen.set(true);
       this.navOpen.set(false);
       void this.refresh();
@@ -401,7 +399,6 @@ export class ShellComponent {
           failed: latest(PROBLEM_DELIVERY),
           changes: mine.filter((p) => p.editorialState === 'CHANGES_REQUESTED').length,
           inReview: mine.filter((p) => p.editorialState === 'IN_REVIEW').length,
-          approved: mine.filter((p) => ['Approved', 'Scheduled'].includes(customerStatus(p.editorialState, p.latestDeliveryState))).length,
         });
       } catch {
         // ignore
@@ -418,7 +415,7 @@ export class ShellComponent {
         // Same as the Planner's Published filter, which includes demo (simulated) sends.
         published: sum(['PUBLISHED', 'SIMULATED']),
         failed: sum(PROBLEM_DELIVERY),
-        changes: 0, inReview: 0, approved: 0,
+        changes: 0, inReview: 0,
       });
     } catch {
       // ignore
@@ -435,4 +432,3 @@ function readRail(): boolean {
 }
 
 /** Planner status filter covering both stages after approval (one Creator menu item). */
-const APPROVED_AND_SCHEDULED = 'Approved,Scheduled';

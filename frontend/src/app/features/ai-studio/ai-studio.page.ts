@@ -124,8 +124,13 @@ export class AiStudioPage {
   /** Small popovers in the prompt box: the + menu and the platform menu. */
   protected readonly plusOpen = signal(false);
   protected readonly platOpen = signal(false);
-  /** "All platforms": one idea, a separate version for each of LinkedIn, Facebook and Instagram. */
+  /**
+   * "All platforms" mode: one shared post for every platform (Composer then copies it to the platforms picked there).
+   * Its own choice, not "every platform ticked": ticking all three gives a separate version for each.
+   */
   protected readonly allPlatforms = signal(false);
+  /** The running generation was "All platforms": it ends in one shared draft, so loading shows one card. */
+  protected readonly unifiedRun = signal(false);
   /** Captions expanded with "Show more". */
   protected readonly expanded = signal<ReadonlySet<string>>(new Set());
   /** "Brand tone · Balanced" per generation, for the cards (the API does not return it, so only for this visit). */
@@ -257,8 +262,9 @@ export class AiStudioPage {
 
   /** The prompt box grows with its text, up to the design's limit. */
   protected autosize(area: HTMLTextAreaElement): void {
-    area.style.height = '32px';
-    area.style.height = `${Math.min(74, Math.max(32, area.scrollHeight))}px`;
+    // Grows with the text up to the CSS max-height, then scrolls; min-height keeps the empty size.
+    area.style.height = 'auto';
+    area.style.height = `${area.scrollHeight}px`;
   }
 
   /** Short display name of a Hugging Face model id. */
@@ -275,11 +281,25 @@ export class AiStudioPage {
     return `${this.tone || 'Brand tone'} · ${LENGTHS.find((l) => l.value === this.length)!.label}`;
   }
 
-  /** One platform, or "All platforms": a separate version for each. */
+  /**
+   * One or more platforms (a separate version, and card, for each; all three ticked is still three versions). "All
+   * platforms" is the shared-post mode and closes the menu; a platform toggles in and out (the menu stays open), never
+   * leaving none; from "All platforms", a platform picks just that one.
+   */
   protected choosePlatform(platform: SocialPlatform | 'All'): void {
-    this.allPlatforms.set(platform === 'All');
-    this.selected.set(platform === 'All' ? [...SOCIAL_PLATFORMS] : [platform]);
-    this.platOpen.set(false);
+    if (platform === 'All') {
+      this.allPlatforms.set(true);
+      this.selected.set([...SOCIAL_PLATFORMS]);
+      this.platOpen.set(false);
+      return;
+    }
+    const current = this.selected();
+    if (this.allPlatforms()) {
+      this.allPlatforms.set(false);
+      this.selected.set([platform]);
+    }
+    else if (!current.includes(platform)) this.selected.set(SOCIAL_PLATFORMS.filter((p) => p === platform || current.includes(p)));
+    else if (current.length > 1) this.selected.set(current.filter((p) => p !== platform));
   }
 
   /** An "All platforms" answer: several platforms asked, one shared draft made. */
@@ -331,6 +351,11 @@ export class AiStudioPage {
       this.autosize(area);
       area.focus();
     });
+  }
+
+  /** Pasted prompts often carry Markdown **bold**: odd parts are the bold runs (shown as text, never as HTML). */
+  protected boldParts(text: string): string[] {
+    return text.split(/\*\*(.+?)\*\*/s);
   }
 
   /** "01" style version numbers, as in the design. */
@@ -408,8 +433,8 @@ export class AiStudioPage {
         withImage,
         imageModel: withImage && !imageIds.length && this.caps().imageModels.length ? this.imageModel() || null : null,
         imageCount: withImage && !imageIds.length ? this.imageCount() : 1,
-        // "All platforms" in this design is one idea in three versions (one post per platform).
-        unified: false,
+        // "All platforms": one shared draft; Composer sends a copy to each platform picked. Two platforms: a version each.
+        unified: this.allPlatforms(),
       }));
       // The previous answer stays on screen above the new one.
       const previous = this.request();
@@ -417,9 +442,13 @@ export class AiStudioPage {
       this.results.set([]);
       this.settingsLabels.set(queued.id, this.settingsHint());
       this.request.set(queued);
+      this.unifiedRun.set(this.allPlatforms());
       this.asked.set(text);
       rememberAsked(queued.id, text);
-      if (text === this.fullPrompt()) this.prompt = '';
+      if (text === this.fullPrompt()) {
+        this.prompt = '';
+        document.getElementById('postPrompt')?.style.removeProperty('height'); // back to the empty size
+      }
       this.images.set([]);
       // Keeps the whole chat reachable with Back after opening a draft in Composer.
       const ids = [...this.history().map((t) => t.request.id), queued.id].join(',');

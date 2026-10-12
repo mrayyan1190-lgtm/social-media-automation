@@ -14,7 +14,7 @@
 <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 5 4 4M4 20l4.5-1 10.5-10.5a2.8 2.8 0 0 0-4-4L4.5 15 4 20Z"/></symbol>
 <symbol id="i-inbox" viewBox="0 0 24 24"><path d="m4 5 2-2h12l2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5ZM4 13h5l2 3h2l2-3h5"/></symbol>
 </svg>
-<main class="relative mx-auto max-w-[1550px] px-4 pb-7 pt-7 sm:px-7 lg:pt-8 xl:px-10">
+<main class="relative mx-auto w-full max-w-[1510px] px-3 sm:px-6 lg:px-7 pb-7 pt-7 lg:pt-8">
   <div class="page-head mb-5 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3.5">
       <div class="grid h-[47px] w-[47px] shrink-0 place-items-center rounded-[16px] bg-[#193755] text-white shadow-[0_9px_21px_#263b6270]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.6]"><use href="#i-calendar"/></svg></div>
@@ -138,7 +138,7 @@
   @switch (platform) {
     @case ('LinkedIn') { <span class="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] bg-[#2073BC] text-[8px] font-extrabold text-white" role="img" aria-label="LinkedIn">in</span> }
     @case ('Facebook') { <span class="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] bg-[#327DDD] text-[10px] font-extrabold text-white" role="img" aria-label="Facebook">f</span> }
-    @default { <span class="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] bg-[#BD83B8] text-[11px] text-white" role="img" aria-label="Instagram">&#9678;</span> }
+    @default { <span class="grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] bg-[#BD83B8] text-white" role="img" aria-label="Instagram"><svg viewBox="0 0 24 24" class="h-[11px] w-[11px]" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="5"/><circle cx="12" cy="12" r="3.9"/><circle cx="17.4" cy="6.9" r="1" fill="currentColor" stroke="none"/></svg></span> }
   }
 </ng-template>
 <ng-template #poster let-p let-mini="mini">
@@ -159,7 +159,7 @@
 </ng-template>
 
 <!-- Post / day details drawer (always rendered so it can slide). -->
-@if (drawer()) { <div class="modal-backdrop theme-scrim fixed inset-0 z-[80]" (click)="drawer.set(null)"></div> }
+@if (drawer()) { <div class="drawer-backdrop fixed inset-0 z-[80]" (click)="drawer.set(null)"></div> }
 <aside [class.translate-x-full]="!drawer()" class="fixed inset-y-0 right-0 z-[90] flex w-full max-w-[440px] flex-col bg-[#FBFCFF] shadow-[-22px_0_70px_#142e4750] transition-transform duration-300" role="dialog" [attr.aria-label]="drawer()?.kind === 'day' ? 'Day overview' : 'Post details'" aria-modal="true" [attr.aria-hidden]="!drawer()" [attr.inert]="drawer() ? null : ''">
   <div class="flex items-center justify-between border-b border-[#E8EDF5] px-5 py-4"><div><p class="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8298B2]">Content preview</p><h2 class="heading-font mt-1 text-[22px] font-extrabold text-[#203B59]">{{ drawer()?.kind === 'day' ? 'Day overview' : 'Post details' }}</h2></div><button type="button" (click)="drawer.set(null)" class="grid h-10 w-10 place-items-center rounded-full bg-[#EEF3FB] text-[#69809F] hover:bg-[#E0ECF8]" aria-label="Close details"><svg class="h-5 w-5 fill-none stroke-current stroke-2"><use href="#i-close"/></svg></button></div>
   @switch (drawer()?.kind) {

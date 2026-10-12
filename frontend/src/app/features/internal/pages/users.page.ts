@@ -6,22 +6,23 @@ import { InternalAuthService } from '../../../core/auth/internal-auth.service';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { InternalApiService, UserDetail, UserListItem, WorkspaceListItem, ago, tone, when, words } from '../internal-api.service';
+import { ThemeSelectComponent } from '../../../shared/components/theme-select.component';
 
 /** All accounts. Never shows passwords, hashes, tokens or security stamps (the API never returns them). */
 @Component({
   selector: 'app-internal-users-page',
-  imports: [FormsModule, RouterLink, ProblemBannerComponent],
+  imports: [ThemeSelectComponent, FormsModule, RouterLink, ProblemBannerComponent],
   template: `
     <div class="page-header"><div><h1>Users</h1><p class="muted">Every account across workspaces.</p></div></div>
     <div class="filter-bar">
       <label class="search"><input type="search" placeholder="Search name or email" [(ngModel)]="search" (ngModelChange)="load()" aria-label="Search" /></label>
-      <select [(ngModel)]="status" (ngModelChange)="load()" aria-label="Status">
+      <app-theme-select [(ngModel)]="status" (ngModelChange)="load()" label="Status">
         <option value="">All accounts</option><option value="active">Active</option><option value="disabled">Disabled</option>
-      </select>
-      <select [(ngModel)]="workspaceId" (ngModelChange)="load()" aria-label="Workspace">
+      </app-theme-select>
+      <app-theme-select [(ngModel)]="workspaceId" (ngModelChange)="load()" label="Workspace">
         <option value="">All workspaces</option>
         @for (w of workspaces(); track w.id) { <option [value]="w.id">{{ w.name }}</option> }
-      </select>
+      </app-theme-select>
       <label class="date">Created from <input type="date" [(ngModel)]="createdFrom" (ngModelChange)="load()" /></label>
       <span class="count-note">{{ rows().length }} {{ rows().length === 1 ? 'account' : 'accounts' }}</span>
     </div>

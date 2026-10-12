@@ -17,7 +17,7 @@ const LANGUAGES = [
 ];
 
 /**
- * Settings: workspace name, default content language, time zone, the distinct-reviewer policy and the social accounts.
+ * Settings: workspace name, default content language, time zone and the social accounts.
  * Admins edit; others read. Provider sign-in returns here (via /social-accounts) with ?status=connected|failed.
  */
 @Component({
@@ -48,6 +48,7 @@ export class WorkspaceSettingsPage {
     industry: [''],
     defaultLanguage: ['en', [Validators.required, Validators.pattern(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)]],
     timeZoneId: ['UTC'],
+    // Not shown: the distinct-reviewer policy is kept as saved (no longer edited from Settings).
     requireDistinctReviewer: [true],
   });
 
@@ -76,13 +77,6 @@ export class WorkspaceSettingsPage {
     if (!organization) return;
     this.apply(organization);
     this.toast('Unsaved changes reset');
-  }
-
-  protected toggleReviewer(): void {
-    const control = this.form.controls.requireDistinctReviewer;
-    if (control.disabled) return;
-    control.setValue(!control.value);
-    control.markAsDirty();
   }
 
   async load(): Promise<void> {

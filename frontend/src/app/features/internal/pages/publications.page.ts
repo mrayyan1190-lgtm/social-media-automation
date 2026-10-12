@@ -6,6 +6,7 @@ import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { InternalApiService, Publication, PublicationDetail, ReconciliationCheck, WorkspaceListItem, tone, when, words } from '../internal-api.service';
 import { NoticeComponent } from '../../../shared/components/notice.component';
+import { ThemeSelectComponent } from '../../../shared/components/theme-select.component';
 
 const STATES = [
   { value: 'PUBLISHED', label: 'Published' },
@@ -18,7 +19,7 @@ const STATES = [
 /** All publications (or, in reconciliation mode, only unresolved uncertain outcomes). */
 @Component({
   selector: 'app-internal-publications-page',
-  imports: [FormsModule, RouterLink, ProblemBannerComponent],
+  imports: [ThemeSelectComponent, FormsModule, RouterLink, ProblemBannerComponent],
   template: `
     <div class="page-header">
       <div>
@@ -31,13 +32,13 @@ const STATES = [
     </div>
     @if (!reconciliation()) {
       <div class="filter-bar">
-        <select [(ngModel)]="workspaceId" (ngModelChange)="load()" aria-label="Workspace">
+        <app-theme-select [(ngModel)]="workspaceId" (ngModelChange)="load()" label="Workspace">
           <option value="">All workspaces</option>
           @for (w of workspaces(); track w.id) { <option [value]="w.id">{{ w.name }}</option> }
-        </select>
-        <select [(ngModel)]="platform" (ngModelChange)="load()" aria-label="Platform">
+        </app-theme-select>
+        <app-theme-select [(ngModel)]="platform" (ngModelChange)="load()" label="Platform">
           <option value="">All platforms</option><option>LinkedIn</option><option>Facebook</option><option>Instagram</option>
-        </select>
+        </app-theme-select>
         <label class="date">From <input type="date" [(ngModel)]="from" (ngModelChange)="load()" /></label>
         <label class="date">To <input type="date" [(ngModel)]="to" (ngModelChange)="load()" /></label>
       </div>

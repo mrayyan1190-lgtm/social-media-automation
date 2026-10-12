@@ -9,7 +9,7 @@
 <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
 </svg>
-<main class="relative mx-auto max-w-[1450px] px-4 pb-14 pt-7 sm:px-6 lg:px-9 lg:pt-8">
+<main class="relative mx-auto w-full max-w-[1510px] px-3 sm:px-6 lg:px-7 pb-14 pt-7 lg:pt-8">
   <header class="mb-5 flex flex-wrap items-center justify-between gap-4 lg:mb-6">
     <div class="flex items-center gap-3.5"><span class="grid h-[51px] w-[51px] shrink-0 place-items-center rounded-[18px] bg-[#1B3B5F] text-white shadow-[0_13px_26px_#284d7733]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.55]"><use href="#i-shield"/></svg></span><div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7389AA]">YOUR CONTENT WORKSPACE</p><h1 class="heading-font text-[29px] font-extrabold leading-[1.15] tracking-[-.065em] text-[#193552] sm:text-[35px]">Approvals<span class="text-[#9D8CC6]">.</span></h1></div></div>
     <span class="inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/65 px-4 py-2.5 text-[11px] font-bold text-[#607D9D] shadow-[0_6px_15px_#6e88ab17]"><svg class="h-4 w-4 fill-none stroke-[#7799BC] stroke-2"><use href="#i-shield"/></svg> Every decision stays human</span>
@@ -108,8 +108,6 @@
           }
         } @else if (m.type === 'schedule') {
           <app-date-time-picker id="scheduleAt" [inline]="true" [(value)]="scheduleAt" /><p class="mt-2 text-[10px] text-[#899CB5]">Times in {{ workspace.timeZone() }}</p>
-        } @else {
-          <div class="flex items-start gap-3 rounded-[14px] bg-[#FFF8ED] p-3.5"><span class="text-[19px]">✦</span><p class="text-[12px] leading-6 text-[#6A7F9A]">This sends the approved post to {{ platforms(r) }} within moments. Accounts in Demo Mode only record a simulation; nothing is sent to the platform.</p></div>
         }
         @if (modalProblem(); as p) {
           <p class="quote-note mt-3 rounded-[13px] px-3.5 py-2.5 text-[12px] font-bold leading-5 text-[#B65165]" role="alert">{{ p.detail }}</p>

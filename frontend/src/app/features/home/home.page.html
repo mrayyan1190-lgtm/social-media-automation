@@ -17,7 +17,7 @@
   </svg>
   <div class="page-gradient"></div>
 
-  <main class="relative mx-auto max-w-[1480px] px-4 pb-12 pt-5 sm:px-6 sm:pt-7 lg:px-8 xl:px-10">
+  <main class="relative mx-auto w-full max-w-[1510px] px-3 sm:px-6 lg:px-7 pb-12 pt-5 sm:pt-7">
     <app-problem-banner [problem]="problem()" />
     <!-- Page heading only: no global navbar. -->
     <header class="enter mb-4 flex flex-wrap items-center justify-between gap-3 sm:mb-5">
@@ -27,7 +27,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span class="hidden items-center gap-1.5 rounded-full border border-white/90 bg-white/65 px-3 py-2 text-[11px] font-bold text-[#788AA5] shadow-sm sm:inline-flex"><span class="status-dot bg-[#7B8ED3]"></span> Creator view</span>
-        <button type="button" (click)="openCreate()" class="focus-ring pill-button inline-flex h-10 items-center gap-2 rounded-full bg-[#273E7B] px-4 text-[12px] font-extrabold text-white shadow-[0_10px_23px_rgba(36,57,99,.2)] hover:bg-[#384AA2]"><svg class="h-4 w-4 fill-current"><use href="#i-sparkle"/></svg>Create with AI</button>
+        <button type="button" (click)="startCreating()" class="focus-ring pill-button inline-flex h-10 items-center gap-2 rounded-full bg-[#273E7B] px-4 text-[12px] font-extrabold text-white shadow-[0_10px_23px_rgba(36,57,99,.2)] hover:bg-[#384AA2]"><svg class="h-4 w-4 fill-current"><use href="#i-sparkle"/></svg>Create with AI</button>
       </div>
     </header>
 
@@ -40,8 +40,7 @@
           <h2 class="font-display mt-4 text-[clamp(28px,3vw,42px)] font-extrabold leading-[1.12] tracking-[-.073em] text-[#1D3657]">Make room for<br/><span class="text-[#6F72AD]">better ideas.</span></h2>
           <p class="mt-3 max-w-[280px] text-[12px] font-medium leading-[1.7] text-[#5D7394] sm:text-[13px]">Create image posts, shape your message, and send the final draft for review.</p>
           <div class="mt-5 flex flex-wrap items-center gap-2">
-            <button type="button" (click)="openCreate()" class="focus-ring pill-button inline-flex h-10 items-center gap-2 rounded-full bg-[#1C365A] px-4 text-[11px] font-extrabold text-white shadow-[0_12px_20px_rgba(35,62,108,.19)] hover:bg-[#354982]"><svg class="h-3.5 w-3.5 fill-current"><use href="#i-sparkle"/></svg> Start creating <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#i-arrow"/></svg></button>
-            <button type="button" id="seeWorkflow" (click)="scrollTo(workflowCard)" class="focus-ring rounded-full border border-white/85 bg-white/70 px-3.5 py-2.5 text-[10px] font-extrabold text-[#546D91] hover:bg-white">See workflow</button>
+            <button type="button" (click)="startCreating()" class="focus-ring pill-button inline-flex h-10 items-center gap-2 rounded-full bg-[#1C365A] px-4 text-[11px] font-extrabold text-white shadow-[0_12px_20px_rgba(35,62,108,.19)] hover:bg-[#354982]"><svg class="h-3.5 w-3.5 fill-current"><use href="#i-sparkle"/></svg> Start creating <svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#i-arrow"/></svg></button>
           </div>
         </div>
         <div class="hero-graphics pointer-events-none absolute inset-0" aria-hidden="true">
@@ -57,11 +56,11 @@
         </div>
       </article>
 
-      <article #workflowCard id="workflowCard" class="panel workflow-panel accent-line enter enter-later rounded-[27px] p-5 sm:p-6 lg:col-span-5">
+      <article id="workflowCard" class="panel workflow-panel accent-line enter enter-later rounded-[27px] p-5 sm:p-6 lg:col-span-5">
         <div class="flex items-start justify-between gap-3"><div><h2 class="font-display text-[18px] font-extrabold tracking-[-.045em] text-[#203958]">Your content flow</h2><p class="mt-1 text-[11px] font-semibold text-[#93A1B8]">Everything you're working on</p></div><span class="rounded-full border border-[#E3DFFA] bg-white/85 px-2.5 py-1.5 text-[9px] font-extrabold text-[#8A80BE]">LIVE OVERVIEW</span></div>
         <div class="mt-3 flex items-center justify-around gap-3 sm:gap-5">
           <div class="stat-donut relative h-[170px] w-[170px] shrink-0 sm:h-[174px] sm:w-[174px]">
-            <svg viewBox="0 0 200 200" class="h-full w-full overflow-visible" role="img" aria-label="Donut chart of your posts by review status" id="statusDonut"><defs><linearGradient id="ringTrackGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#D6DCF5"/><stop offset="55%" stop-color="#E6E1FA"/><stop offset="100%" stop-color="#F2DDE8"/></linearGradient></defs><circle cx="100" cy="100" r="72" fill="none" stroke="#FFFFFF" stroke-width="23"/><circle cx="100" cy="100" r="72" fill="none" stroke="url(#ringTrackGradient)" stroke-width="16"/><g id="statusArcs" transform="rotate(-90 100 100)">@for (arc of flow().arcs; track arc.key) {<circle cx="100" cy="100" r="72" fill="none" [attr.stroke]="arc.color" stroke-width="16" stroke-linecap="round" [attr.stroke-dasharray]="arc.dash" [attr.stroke-dashoffset]="arc.offset"/>}</g></svg>
+            <div id="statusDonut" class="donut-fill absolute inset-[5.8%] rounded-full" role="img" aria-label="Donut chart of your posts by review status" [style.background]="flow().fill"></div>
             <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><strong id="totalCount" class="font-display text-[39px] font-extrabold leading-none tracking-[-.07em] text-[#243B61]">{{ flow().total }}</strong><span class="mt-1 text-[10px] font-semibold text-[#91A0B5]">total posts</span></div>
           </div>
           <div class="status-legend min-w-[145px] flex-1 space-y-2.5" id="statusLegend">
@@ -80,7 +79,7 @@
         <div class="flex items-center justify-between gap-3"><div class="flex items-center gap-2.5"><span class="grid h-10 w-10 place-items-center rounded-[13px] bg-[#DDEDFD] text-[#538CC8]"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.8]"><use href="#i-file"/></svg></span><div><h3 class="font-display text-[17px] font-extrabold tracking-[-.045em] text-[#223A59]">Continue creating</h3><p class="text-[11px] text-[#8B9CB6]">Pick up where your creativity left off</p></div></div><span id="draftBadge" class="shrink-0 rounded-full bg-[#E3E9FC] px-3 py-1.5 text-[10px] font-extrabold text-[#676FC0]">{{ drafts().length }} {{ drafts().length === 1 ? 'draft' : 'drafts' }}</span></div>
         @if (!drafts().length) {
           <div id="draftEmpty" class="mt-3 grid min-h-[174px] grid-cols-1 items-center gap-3 rounded-[17px] border border-[#DBE8F8] bg-white/56 px-4 py-3 sm:grid-cols-[1fr_150px] sm:px-5">
-            <div><p class="font-display text-[17px] font-extrabold leading-[1.3] tracking-[-.045em] text-[#365275]">Every great post begins with an idea.</p><p class="mt-1.5 max-w-[310px] text-[11px] leading-[1.6] text-[#8A9DB8]">No saved drafts yet. Start with a topic, and shape it into something worth sharing.</p><button type="button" (click)="openCreate()" class="focus-ring pill-button mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#243D67] px-4 py-2.5 text-[10px] font-extrabold text-white hover:bg-[#3B55A2]"><svg class="h-3 w-3 fill-none stroke-current stroke-2"><use href="#i-plus"/></svg> Make a draft <svg class="ml-0.5 h-3 w-3 fill-none stroke-current stroke-2"><use href="#i-arrow"/></svg></button></div>
+            <div><p class="font-display text-[17px] font-extrabold leading-[1.3] tracking-[-.045em] text-[#365275]">Every great post begins with an idea.</p><p class="mt-1.5 max-w-[310px] text-[11px] leading-[1.6] text-[#8A9DB8]">No saved drafts yet. Start with a topic, and shape it into something worth sharing.</p><button type="button" (click)="startCreating()" class="focus-ring pill-button mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#243D67] px-4 py-2.5 text-[10px] font-extrabold text-white hover:bg-[#3B55A2]"><svg class="h-3 w-3 fill-none stroke-current stroke-2"><use href="#i-plus"/></svg> Make a draft <svg class="ml-0.5 h-3 w-3 fill-none stroke-current stroke-2"><use href="#i-arrow"/></svg></button></div>
             <div class="relative mx-auto hidden h-[145px] w-[145px] sm:block" aria-hidden="true"><div class="absolute left-0 top-6 h-[103px] w-[96px] -rotate-[14deg] rounded-[16px] border border-white bg-[#C8DAF7] shadow-[0_10px_22px_rgba(65,91,134,.16)]"></div><div class="absolute left-10 top-0 h-[115px] w-[102px] rotate-[10deg] rounded-[16px] border-[5px] border-white bg-[linear-gradient(145deg,#B1DDF1,#CAC8F0,#E9CDE6)] shadow-[0_13px_24px_rgba(65,91,134,.2)]"><div class="absolute inset-2 rounded-[10px] border border-white/40"></div><span class="font-display absolute bottom-4 left-2 text-[13px] font-extrabold leading-none tracking-[-.06em] text-[#37577B]">DREAM.<br/>MAKE.</span></div><span class="absolute bottom-1 left-0 grid h-9 w-9 place-items-center rounded-xl border border-white bg-white text-[#827FD1] shadow-md"><svg class="h-4 w-4 fill-current"><use href="#i-sparkle"/></svg></span></div>
           </div>
         } @else {
@@ -138,20 +137,4 @@
     </section>
   </main>
 
-  @if (createOpen()) {
-  <div id="createModal" class="modal-veil theme-scrim fixed inset-0 z-[100] grid place-items-center overflow-y-auto p-3 sm:p-4" (click)="$event.target === $event.currentTarget ? createOpen.set(false) : null">
-    <div class="w-full max-w-[730px] overflow-hidden rounded-[25px] border border-white bg-white shadow-[0_30px_95px_rgba(24,43,80,.25)]" role="dialog" aria-modal="true" aria-labelledby="createHeading">
-      <div class="flex items-center justify-between bg-[linear-gradient(108deg,#D5EAFB_0%,#E8E4F9_57%,#F3DFDA_100%)] px-5 py-4 sm:px-6 sm:py-5"><div><span class="text-[9px] font-extrabold tracking-[.15em] text-[#8185AF]">AI-ASSISTED POST STUDIO</span><h2 id="createHeading" class="font-display mt-1 text-[22px] font-extrabold tracking-[-.055em] text-[#243B61]">Turn an idea into a post</h2></div><button type="button" (click)="createOpen.set(false)" class="focus-ring grid h-9 w-9 place-items-center rounded-full bg-white/75 text-[#6882A2]" aria-label="Close"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#i-close"/></svg></button></div>
-      <div class="grid gap-4 p-5 sm:grid-cols-2 sm:gap-5 sm:p-6">
-        <form id="createForm" #createForm (submit)="$event.preventDefault(); generate(createForm)" class="space-y-3.5">
-          <div><label for="topicField" class="mb-1.5 block text-[12px] font-extrabold text-[#415F7F]">What's your post about?</label><textarea #ideaInput id="topicField" name="idea" [(ngModel)]="idea" required maxlength="350" rows="4" placeholder="e.g. How our team uses AI to reduce repetitive work" class="focus-ring w-full resize-none rounded-[13px] border border-[#D8E3F2] bg-[#F8FAFE] px-3.5 py-3 text-[12px] leading-6 text-[#385575] outline-none placeholder:text-[#A1B1C7]"></textarea></div>
-          <div class="grid grid-cols-2 gap-3"><div><label for="platformField" class="mb-1.5 block text-[11px] font-bold text-[#627D9A]">Platform</label><select id="platformField" name="platform" [(ngModel)]="platform" class="focus-ring h-10 w-full rounded-xl border border-[#DAE3F0] bg-white px-2 text-[11px] font-semibold text-[#385574]">@for (p of platforms; track p) {<option [value]="p">{{ p }}</option>}</select></div><div><label for="toneField" class="mb-1.5 block text-[11px] font-bold text-[#627D9A]">Tone</label><select id="toneField" name="tone" [(ngModel)]="tone" class="focus-ring h-10 w-full rounded-xl border border-[#DAE3F0] bg-white px-2 text-[11px] font-semibold text-[#385574]">@for (t of tones; track t) {<option [value]="t">{{ t }}</option>}</select></div></div>
-          <button class="focus-ring pill-button flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#283E7A] text-[12px] font-extrabold text-white" type="submit"><svg class="h-4 w-4 fill-current"><use href="#i-sparkle"/></svg> Generate with AI</button>
-          <p class="text-[10px] leading-[1.6] text-[#9BAABD]">AI Studio writes your post and saves it as a draft you can edit before review.</p>
-        </form>
-        <div class="rounded-[17px] border border-[#E6E9F5] bg-[#F6F8FD] p-3.5"><div class="mb-2 flex items-center justify-between gap-2"><span class="text-[11px] font-extrabold text-[#4F6A89]">Your post preview</span><span id="previewPill" class="rounded-full bg-white px-2 py-1 text-[9px] font-bold text-[#8A9BB2]">AI Studio</span></div><div class="art-board relative flex h-[174px] flex-col justify-end overflow-hidden rounded-[12px] px-4 py-4"><div class="art-grid absolute inset-0 opacity-60"></div><p class="font-display relative z-10 text-[27px] font-extrabold leading-[1] tracking-[-.065em] text-[#2B5276]">IDEAS.<br/><span class="text-[#8181BB]">IN MOTION.</span></p></div><p id="sampleCaption" class="mt-3 min-h-[58px] text-[11px] leading-[1.6] text-[#637C9B]">Describe an idea and select “Generate with AI”.</p></div>
-      </div>
-    </div>
-  </div>
-  }
 </div>

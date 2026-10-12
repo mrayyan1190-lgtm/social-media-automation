@@ -5,17 +5,18 @@ import { firstValueFrom } from 'rxjs';
 import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { AuditLogItem, InternalApiService, WorkspaceDetail, WorkspaceListItem, ago, tone, when, words } from '../internal-api.service';
+import { ThemeSelectComponent } from '../../../shared/components/theme-select.component';
 
 @Component({
   selector: 'app-internal-workspaces-page',
-  imports: [FormsModule, RouterLink, ProblemBannerComponent],
+  imports: [ThemeSelectComponent, FormsModule, RouterLink, ProblemBannerComponent],
   template: `
     <div class="page-header"><div><h1>Workspaces</h1><p class="muted">Customer tenants. Operators can suspend a workspace, never edit its content.</p></div></div>
     <div class="filter-bar">
       <label class="search"><input type="search" placeholder="Search workspaces" [(ngModel)]="search" (ngModelChange)="load()" aria-label="Search" /></label>
-      <select [(ngModel)]="status" (ngModelChange)="load()" aria-label="Status">
+      <app-theme-select [(ngModel)]="status" (ngModelChange)="load()" label="Status">
         <option value="">All statuses</option><option value="Active">Active</option><option value="Suspended">Suspended</option>
-      </select>
+      </app-theme-select>
       <label class="date">Created from <input type="date" [(ngModel)]="createdFrom" (ngModelChange)="load()" /></label>
       <span class="count-note">{{ rows().length }} {{ rows().length === 1 ? 'workspace' : 'workspaces' }}</span>
     </div>

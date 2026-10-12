@@ -151,7 +151,7 @@ interface Kpi { label: string; value: number; icon: string; link: string; query?
   styles: `
     :host { display: flex; flex-direction: column; min-height: 0; }
     /* KPI cards (the design's metric tiles): icon and change at the top, value and sparkline at the bottom. */
-    .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
     .kpi { position: relative; overflow: hidden; min-height: 112px; padding: 14px 15px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;
       color: inherit; text-decoration: none; border: 1px solid #dce6f3; border-radius: 18px; background: linear-gradient(145deg, #fff 4%, #f1f7ff 130%);
       box-shadow: 0 12px 28px #5a75921b; transition: transform .2s, box-shadow .2s; }
@@ -238,13 +238,16 @@ interface Kpi { label: string; value: number; icon: string; link: string; query?
     .all-ok.muted::before { content: ''; width: 48px; height: 48px; border: 0; border-radius: 15px; background: linear-gradient(140deg, #e5f3ff, #f0ebfa, #fff0ed); }
 
     @media (max-width: 1190px) {
-      .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      /* Five cards as 3 + 2, both rows full width. */
+      .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      .kpi { grid-column: span 2; }
+      .kpi:nth-child(n+4) { grid-column: span 3; }
       .dash-main { grid-template-columns: minmax(0, 1.25fr) minmax(0, .85fr); }
       .dash-bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 900px) { .dash-main { grid-template-columns: 1fr; grid-template-rows: 300px auto auto; } }
-    @media (max-width: 700px) { .kpis, .dash-bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi { min-height: 101px; } .kpi .v { font-size: 22px; } }
-    @media (max-width: 350px) { .kpis, .dash-bottom { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .kpis, .dash-bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi, .kpi:nth-child(n+4) { grid-column: auto; min-height: 101px; } .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; } .kpi .v { font-size: 22px; } }
+    @media (max-width: 350px) { .kpis, .dash-bottom { grid-template-columns: 1fr; } .kpi:last-child:nth-child(odd) { grid-column: auto; } }
   `,
 })
 export class OverviewPage implements OnInit {
@@ -299,8 +302,6 @@ export class OverviewPage implements OnInit {
       { label: 'AI Requests Today', value: d.summary.aiRequestsToday, icon: ICON.ai, link: '/internal/queues', trend: delta(aiSeries), trendTitle: vsYesterday, series: aiSeries },
       { label: 'Published Today', value: d.summary.publishedToday, icon: ICON.published, link: '/internal/publications', query: { status: 'PUBLISHED' }, trend: delta(published), trendTitle: vsYesterday, series: published },
       { label: 'Failed Today', value: d.summary.failedPublicationsToday, icon: ICON.failed, link: '/internal/publications', query: { status: 'FAILED' }, danger: d.summary.failedPublicationsToday > 0, trend: delta(failed), trendTitle: vsYesterday, series: failed },
-      // No history is kept for reconciliation, so this card has no trend.
-      { label: 'Needs Reconciliation', value: d.summary.reconciliationRequired, icon: ICON.reconcile, link: '/internal/reconciliation', danger: d.summary.reconciliationRequired > 0, trend: null, trendTitle: '', series: [] },
     ];
   });
 
@@ -401,5 +402,4 @@ const ICON = {
   ai: 'M12 3l1.7 4.6L18 9.2l-4.3 1.6L12 15.5l-1.7-4.7L6 9.2l4.3-1.6L12 3z',
   published: 'M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z',
   failed: 'M12 8v5M12 16.5h.01M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0',
-  reconcile: 'M8 3v3M16 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z',
 };

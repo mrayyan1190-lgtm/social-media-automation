@@ -46,3 +46,23 @@ export function art(id: string): number {
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) | 0;
   return Math.abs(h) % 6;
 }
+
+/**
+ * The overview ring (also the Creator home's content-flow ring): one continuous gradient through the legend colours. Each colour peaks at the middle of its share
+ * (sized by its count) and fades straight into the next, with no solid bands, also across the top where the last meets the first.
+ */
+export function ringFill(counts: [number, string][]): string {
+  const parts = counts.filter(([n]) => n > 0);
+  const sum = parts.reduce((t, [n]) => t + n, 0);
+  if (!sum) return '#EAEAF4';
+  if (parts.length === 1) return parts[0][1];
+  const stops: string[] = [];
+  let start = 0;
+  for (const [n, color] of parts) {
+    const width = (n / sum) * 100;
+    stops.push(`${color} ${(start + width / 2).toFixed(2)}%`);
+    start += width;
+  }
+  const seam = `color-mix(in srgb, ${parts[parts.length - 1][1]}, ${parts[0][1]})`;
+  return `conic-gradient(${seam} 0%, ${stops.join(', ')}, ${seam} 100%)`;
+}

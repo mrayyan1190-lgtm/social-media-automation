@@ -5,6 +5,7 @@ import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { AiConfiguration, HEALTH_LABELS, InternalApiService, tone, when } from '../internal-api.service';
 import { NoticeComponent } from '../../../shared/components/notice.component';
+import { ThemeSelectComponent } from '../../../shared/components/theme-select.component';
 
 /**
  * The system LLM used by every workspace. The API key is write-only: after saving, the page only shows that a key is
@@ -12,7 +13,7 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
  */
 @Component({
   selector: 'app-internal-ai-page',
-  imports: [NoticeComponent, FormsModule, ProblemBannerComponent],
+  imports: [ThemeSelectComponent, NoticeComponent, FormsModule, ProblemBannerComponent],
   template: `
     <div class="page-header"><div><h1>AI / LLM</h1><p class="muted">The hosted model all workspaces use for generation, rewrites and evaluation.</p></div></div>
     <app-problem-banner [problem]="problem()" />
@@ -28,10 +29,10 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
         <form class="card form-grid" (ngSubmit)="save()">
           <div class="card-head"><h2><span class="head-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="4.5" width="15" height="15" rx="4"/><path d="M9 1.5v3M15 1.5v3M9 19.5v3M15 19.5v3M1.5 9h3M1.5 15h3M19.5 9h3M19.5 15h3M9 13l3-5 3 5-3 3-3-3Z"/></svg></span>Text Generation</h2><span [class]="'badge delivery ' + tone(cfg.status.health)">{{ labels[cfg.status.health] }}</span></div>
           <label>Provider *
-            <select name="provider" [(ngModel)]="provider" required>
+            <app-theme-select name="provider" [(ngModel)]="provider" required>
               <option value="OpenAI">OpenAI</option><option value="Groq">Groq</option><option value="HuggingFace">Hugging Face</option>
               <option value="OpenAICompatible">OpenAI-compatible endpoint</option>
-            </select>
+            </app-theme-select>
           </label>
           @if (provider === 'OpenAICompatible') {
             <label>Base URL * <input name="baseUrl" type="url" [(ngModel)]="baseUrl" placeholder="https://…/v1" /></label>
@@ -65,10 +66,6 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
 
           <div>
             <div class="statline"><span>Configuration</span><span [class]="'badge delivery ' + tone(cfg.status.configured)">{{ labels[cfg.status.configured] }}</span></div>
-            <div class="statline"><span>Requests Today</span><strong>{{ cfg.status.requestsToday }}</strong></div>
-            <div class="statline"><span>Failed Today</span><strong [class.text-danger]="cfg.status.failedToday > 0">{{ cfg.status.failedToday }}</strong></div>
-            <div class="statline"><span>Last Successful Request</span><span>{{ when(cfg.status.lastSuccessAtUtc) }}</span></div>
-            <div class="statline"><span>Last Failure</span><span [class.problem-text]="!!cfg.status.lastFailure">{{ cfg.status.lastFailure ? cfg.status.lastFailure + ' · ' + when(cfg.status.lastFailureAtUtc) : '—' }}</span></div>
           </div>
           @if (test(); as t) {
             <app-notice [message]="t.message" [tone]="t.succeeded && t.modelAvailable ? 'success' : 'error'" />
@@ -83,9 +80,9 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
           <div class="card-head"><h2><span class="head-ic purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2Z"/></svg></span>Image Generation</h2><span [class]="'badge delivery ' + tone(img.status.health)">{{ labels[img.status.health] }}</span></div>
           <p class="hint">Creates images for posts. Each image becomes a new post version and is reviewed by a person before it can be scheduled.</p>
           <label>Provider *
-            <select name="imgProvider" [ngModel]="imgProvider" (ngModelChange)="chooseImgProvider($event)">
+            <app-theme-select name="imgProvider" [ngModel]="imgProvider" (ngModelChange)="chooseImgProvider($event)">
               <option value="HuggingFace">Hugging Face</option><option value="StabilityAI">Stability AI</option><option value="CloudflareWorkersAI">Cloudflare Workers AI</option><option value="OpenAI">OpenAI</option><option value="OpenAICompatible">OpenAI-compatible endpoint</option>
-            </select>
+            </app-theme-select>
           </label>
           @if (imgProvider === 'OpenAICompatible') {
             <label>Base URL * <input name="imgBaseUrl" type="url" [(ngModel)]="imgBaseUrl" placeholder="https://…/v1" /></label>
@@ -98,24 +95,24 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
           <div class="two-inputs">
             @if (imgProvider === 'HuggingFace') {
               <label>Image Model *
-                <select name="imgModel" [(ngModel)]="imgModel">
+                <app-theme-select name="imgModel" [(ngModel)]="imgModel">
                   @for (m of hfModels; track m.id) { <option [value]="m.id">{{ m.id }}</option> }
                   @if (!isHfModel(imgModel)) { <option [value]="imgModel">{{ imgModel }} (custom)</option> }
-                </select>
+                </app-theme-select>
                 <span class="hint">{{ hfHint() }}</span>
               </label>
             } @else if (imgProvider === 'CloudflareWorkersAI') {
               <label>Image Model *
-                <select name="imgModel" [(ngModel)]="imgModel">
+                <app-theme-select name="imgModel" [(ngModel)]="imgModel">
                   @for (m of cloudflareModels; track m.id) { <option [value]="m.id">{{ m.label }}</option> }
-                </select>
+                </app-theme-select>
                 <span class="hint">Returns a 1024x1024 JPEG, accepted by every platform. The size setting does not apply.</span>
               </label>
             } @else if (imgProvider === 'StabilityAI') {
               <label>Image Model *
-                <select name="imgModel" [(ngModel)]="imgModel">
+                <app-theme-select name="imgModel" [(ngModel)]="imgModel">
                   @for (m of stabilityModels; track m.id) { <option [value]="m.id">{{ m.label }}</option> }
-                </select>
+                </app-theme-select>
                 <span class="hint">Returns JPEG at about 1.5 megapixels. Stable Image Core costs 3 credits per image.</span>
               </label>
             } @else {
@@ -124,9 +121,9 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
               </label>
             }
             <label>Image Size *
-              <select name="imgSize" [(ngModel)]="imgSize">
+              <app-theme-select name="imgSize" [(ngModel)]="imgSize">
                 @for (s of img.sizes; track s) { <option [value]="s">{{ s }}{{ s === '1024x1024' ? ' (square)' : ' (landscape)' }}</option> }
-              </select>
+              </app-theme-select>
             </label>
           </div>
 
@@ -153,10 +150,6 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
 
           <div>
             <div class="statline"><span>Configuration</span><span [class]="'badge delivery ' + tone(img.status.configured)">{{ labels[img.status.configured] }}</span></div>
-            <div class="statline"><span>API Key</span><span>{{ img.ownApiKey ? 'Separate image key' : cfg.apiKeyConfigured ? 'Uses the AI / LLM key' : 'None' }}</span></div>
-            <div class="statline"><span>Images Today</span><strong>{{ img.status.requestsToday }}</strong></div>
-            <div class="statline"><span>Failed Today</span><strong [class.text-danger]="img.status.failedToday > 0">{{ img.status.failedToday }}</strong></div>
-            <div class="statline"><span>Last Failure</span><span [class.problem-text]="!!img.status.lastFailure">{{ img.status.lastFailure ? img.status.lastFailure + ' · ' + when(img.status.lastFailureAtUtc) : '—' }}</span></div>
           </div>
           @if (imgTest(); as t) { <app-notice [message]="t.message" [tone]="t.succeeded && t.modelAvailable ? 'success' : 'error'" /> }
           <div class="actions">
@@ -169,9 +162,9 @@ import { NoticeComponent } from '../../../shared/components/notice.component';
           <div class="card-head"><h2><span class="head-ic peach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>Image Understanding (Vision)</h2><span [class]="'badge delivery ' + (vis.usable ? 'success' : 'neutral')">{{ vis.usable ? 'Configured' : vis.enabled ? 'Not Configured' : 'Disabled' }}</span></div>
           <p class="hint">Reads images users upload in Create with AI and Composer, so posts can be written about them. Uses the Hugging Face token saved above; users can pick another of these models in Advanced Options.</p>
           <label>Default Vision Model *
-            <select name="visModel" [(ngModel)]="visModel">
+            <app-theme-select name="visModel" [(ngModel)]="visModel">
               @for (m of vis.models; track m) { <option [value]="m">{{ m }}</option> }
-            </select>
+            </app-theme-select>
             <span class="hint">{{ visionHints[visModel] || '' }}</span>
           </label>
           <div class="secret-field">

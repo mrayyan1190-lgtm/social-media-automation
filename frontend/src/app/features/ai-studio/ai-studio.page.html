@@ -31,14 +31,14 @@
       @case ('LinkedIn') { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[#146BB8] font-display text-[12px] font-extrabold text-white">in</span> }
       @case ('Facebook') { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[#3079D8] font-display text-[12px] font-extrabold text-white">f</span> }
       @case ('All') { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#477DAF,#9478C6,#E09EAE)] font-display text-[12px] font-extrabold text-white">✳</span> }
-      @default { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#B965B1,#EC8CA3)] font-display text-[12px] font-extrabold text-white">◎</span> }
+      @default { <span class="inline-grid h-6 w-6 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#B965B1,#EC8CA3)] text-white"><svg viewBox="0 0 24 24" class="h-[15px] w-[15px]" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="5"/><circle cx="12" cy="12" r="3.9"/><circle cx="17.4" cy="6.9" r="1" fill="currentColor" stroke="none"/></svg></span> }
     }
   </ng-template>
 
-  <div id="app" class="relative mx-auto flex min-h-[calc(100dvh-90px)] w-full max-w-[1540px] flex-col">
+  <div id="app" class="relative mx-auto flex min-h-[calc(100dvh-90px)] lg:min-h-[100dvh] w-full max-w-[1510px] flex-col">
     <app-problem-banner [problem]="problem()" />
     <!-- A small contextual heading, not a duplicate application navbar. -->
-    <header class="relative z-20 flex h-[74px] shrink-0 items-center justify-between px-5 sm:px-9 lg:px-14">
+    <header class="relative z-20 flex h-[74px] shrink-0 items-center justify-between px-3 sm:px-6 lg:px-7">
       <div class="flex items-center gap-3">
         <span class="grid h-10 w-10 place-items-center rounded-[14px] bg-[#1A3555] shadow-[0_9px_23px_rgba(26,53,85,.17)]"><svg class="h-[19px] w-[19px] fill-none stroke-[#EAF4FF] stroke-[1.5]"><use href="#ic-spark"/></svg></span>
         <div class="leading-tight"><h1 class="font-display text-[16px] font-extrabold tracking-[-.055em] sm:text-[18px]">AI Studio<span class="text-[#8198B4]">.</span></h1><p class="hidden text-[10px] font-semibold tracking-[.02em] text-[#7F91AA] sm:block">Your creative workspace</p></div>
@@ -76,7 +76,7 @@
       </section>
       } @else {
       <!-- Conversation state -->
-      <section id="threadSection" class="mx-auto flex w-full max-w-[1130px] flex-1 flex-col px-4 pb-3 sm:px-7">
+      <section id="threadSection" class="mx-auto flex w-full max-w-[1510px] flex-1 flex-col px-3 pb-3 sm:px-6 lg:px-7">
         <div class="flex items-center justify-between gap-4 border-b border-[#C5D5EA]/50 pb-3 pt-2 sm:pt-4"><div><p class="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#8A9BB5]">CREATIVE WORKSPACE</p><h2 class="mt-0.5 font-display text-[18px] font-extrabold tracking-[-.045em] sm:text-[22px]">Your post drafts <span id="draftCount" class="ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white/75 px-1.5 text-[11px] text-[#7990B0]">{{ draftCount() }}</span></h2></div><button id="resetThread" type="button" (click)="reset()" [disabled]="busy() || generating()" class="flex h-9 items-center gap-1.5 rounded-full border border-white bg-white/85 px-3.5 text-[11px] font-extrabold text-[#5F7997] shadow-sm transition hover:bg-white sm:hidden"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-2"><use href="#ic-plus"/></svg> New</button><span class="hidden rounded-full bg-[#E3F2ED] px-3 py-1.5 text-[10px] font-bold text-[#568873] sm:inline-flex">● Review before publishing</span></div>
         <div id="threadList" class="min-h-[290px] flex-1 space-y-8 py-7 sm:space-y-9">
           @for (t of history(); track t.request.id) {
@@ -87,7 +87,7 @@
             <ng-container *ngTemplateOutlet="groupTpl; context: { $implicit: request(), asked: asked(), results: results(), latest: true }" />
           }
         </div>
-        <div class="sticky bottom-0 z-20 -mx-2 mt-auto bg-[linear-gradient(180deg,#EDF1FF00_0%,#EDEFF7DF_20%,#EDEFF8_95%)] px-2 pb-3 pt-8 sm:pb-5" id="threadComposerMount"><ng-container *ngTemplateOutlet="composerTpl" /></div>
+        <div class="sticky bottom-0 z-20 -mx-2 mt-auto bg-[linear-gradient(180deg,#EDF1FF00_0%,#EDEFF7DF_20%,#EDEFF8_95%)] px-2 pb-3 pt-5 sm:pb-4" id="threadComposerMount"><ng-container *ngTemplateOutlet="composerTpl" /></div>
       </section>
       }
     </main>
@@ -96,7 +96,7 @@
   <!-- One prompt and its answer: the request bubble, the AI Studio line and one card per draft. -->
   <ng-template #groupTpl let-req let-asked="asked" let-list="results" let-latest="latest">
     <div class="answer space-y-3">
-      @if (asked) { <div class="ask ml-auto max-w-[720px] rounded-[22px] rounded-tr-[8px] border border-[#E0EAF8] bg-[#EAF3FF] px-4 py-3.5 text-[12px] font-semibold leading-6 text-[#395A7B] shadow-[0_5px_16px_#819ec520] sm:px-5 sm:text-[13px]">{{ asked }}</div> }
+      @if (asked) { <div class="ask ml-auto max-w-[720px] rounded-[22px] rounded-tr-[8px] border border-[#E0EAF8] bg-[#EAF3FF] px-4 py-3.5 text-[12px] font-semibold leading-6 text-[#395A7B] shadow-[0_5px_16px_#819ec520] sm:px-5 sm:text-[13px]">@for (part of boldParts(asked); track $index) { @if ($odd) { <strong class="font-extrabold text-[#24476d]">{{ part }}</strong> } @else { {{ part }} } }</div> }
       @let running = latest && generating();
       <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
         <div class="flex items-center gap-2.5"><span class="grid h-8 w-8 place-items-center rounded-xl bg-[#243F68] text-white"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-spark"/></svg></span><div><p class="font-display text-[12px] font-extrabold text-[#29415D] sm:text-[13px]">AI Studio <span class="ml-2 rounded-full bg-white/70 px-2.5 py-1 font-sans text-[10px] font-bold text-[#8197AD]">{{ running ? 'Working' : req.status === 'FAILED' ? 'Not generated' : 'Saved draft' }}</span></p><p class="text-[10px] font-medium text-[#92A1B7]">
@@ -109,10 +109,10 @@
         }
       </div>
       @if (running) {
-        <div class="grid gap-3" [class]="req.platforms.length > 1 ? 'lg:grid-cols-2' : ''">
-          @for (p of req.platforms; track p) {
+        <div class="grid gap-3">
+          @for (p of unifiedRun() ? req.platforms.slice(0, 1) : req.platforms; track p) {
             <article class="view-shadow overflow-hidden rounded-[25px] border border-white/95 bg-white/95 p-3 sm:p-3.5" aria-busy="true">
-              <div class="flex items-center gap-2.5 border-b border-[#EBF0F6] pb-2.5"><ng-container *ngTemplateOutlet="badge; context: { $implicit: p }" /><span class="text-[12px] font-extrabold text-[#294461]">{{ p }} post</span><span class="spin ml-auto h-4 w-4 rounded-full border-2 border-[#D8E3F1] border-t-[#4F81BA]"></span></div>
+              <div class="flex items-center gap-2.5 border-b border-[#EBF0F6] pb-2.5"><ng-container *ngTemplateOutlet="badge; context: { $implicit: unifiedRun() ? 'All' : p }" /><span class="text-[12px] font-extrabold text-[#294461]">{{ unifiedRun() ? 'All platforms' : p }} post</span><span class="spin ml-auto h-4 w-4 rounded-full border-2 border-[#D8E3F1] border-t-[#4F81BA]"></span></div>
               <div class="mt-3 grid grid-cols-[100px_minmax(0,1fr)] gap-3 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-5"><div class="skeleton h-[116px] rounded-[16px] sm:h-[130px]"></div><div class="space-y-3 py-1"><div class="skeleton h-3 w-[40%] rounded-full"></div><div class="skeleton h-3 rounded-full"></div><div class="skeleton h-3 w-[85%] rounded-full"></div><div class="skeleton h-3 w-[60%] rounded-full"></div></div></div>
             </article>
           }
@@ -121,7 +121,7 @@
         <p class="rounded-[18px] border border-[#F3D9D5] bg-[#FFF5F3] px-4 py-3 text-[12px] font-semibold leading-6 text-[#A2645F]" role="alert">{{ failureText(req) }}</p>
       } @else {
         @if (req.warning) { <p class="rounded-[18px] border border-[#F2E2C8] bg-[#FFF9EF] px-4 py-3 text-[12px] font-semibold leading-6 text-[#9A7A45]" role="status">{{ req.warning }} You can add an image in Composer.</p> }
-        <div class="grid gap-3" [class]="list.length > 1 ? 'lg:grid-cols-2' : ''">
+        <div class="grid gap-3">
           @for (r of list; track r.post.id) {
             @let v = r.post.currentVersion;
             @let c = chip(r);
@@ -141,7 +141,10 @@
               <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#EBF0F6] pt-2.5"><button type="button" (click)="preview.set(r)" class="inline-flex items-center gap-1.5 rounded-full bg-[#EDF4FD] px-3 py-2 text-[11px] font-bold text-[#4675A6] transition hover:bg-[#DFEDFD]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-eye"/></svg> Preview</button><div class="flex flex-wrap items-center gap-1 sm:gap-2">
                 <button type="button" (click)="copy(r.post)" title="Copy caption" aria-label="Copy caption" class="grid h-8 w-8 place-items-center rounded-full text-[#7D91AC] hover:bg-[#EDF4FC] hover:text-[#477DB5]"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-copy"/></svg></button>
                 <a [routerLink]="['/composer', r.post.id]" class="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-[#6F85A1] transition hover:bg-[#F2F5FC]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-pen"/></svg> Edit</a>
-                @if (workspace.isAdmin()) {
+                @if (shared(req) && r.post.editorialState === 'DRAFT') {
+                  <!-- One shared draft: Composer is where the platforms are picked, then it is submitted / approved and scheduled on each. -->
+                  <a [routerLink]="['/composer', r.post.id]" title="Choose the platforms, then submit" class="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#1F4068] px-3.5 text-[11px] font-bold text-white shadow-[0_6px_12px_#284b6920] transition hover:bg-[#315A86]"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-send"/></svg> Choose platforms</a>
+                } @else if (workspace.isAdmin()) {
                   <button type="button" (click)="schedule(r)" [disabled]="!!r.busy" title="Approve and schedule" class="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-bold text-[#6F85A1] transition hover:bg-[#F2F5FC] disabled:cursor-not-allowed disabled:opacity-55"><svg class="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]"><use href="#ic-calendar"/></svg> <span class="hidden sm:inline">Plan</span></button>
                 } @else {
                   @let sent = r.submitted || r.post.editorialState !== 'DRAFT';
@@ -203,7 +206,7 @@
     <div class="composer-halo relative">
       <div class="composer-inner relative flex min-h-[104px] flex-col justify-between px-4 pb-3 pt-3.5 sm:min-h-[107px] sm:px-5 sm:pb-3.5 sm:pt-4">
         <label for="postPrompt" class="sr-only">Describe your social media post idea</label>
-        <textarea id="postPrompt" rows="1" maxlength="2000" [(ngModel)]="prompt" (input)="autosize($any($event.target))" (keydown.enter)="onEnter($any($event))" class="max-h-[84px] min-h-[34px] w-full resize-none bg-transparent text-[13px] font-medium leading-[1.42] text-[#294361] placeholder:text-[#91A3B7] focus:outline-none sm:text-[15px]" placeholder="Describe your post idea..."></textarea>
+        <textarea id="postPrompt" rows="1" maxlength="2000" [(ngModel)]="prompt" (input)="autosize($any($event.target))" (keydown.enter)="onEnter($any($event))" class="max-h-[160px] min-h-[34px] w-full resize-none bg-transparent text-[13px] font-medium leading-[1.42] text-[#294361] placeholder:text-[#91A3B7] focus:outline-none sm:text-[15px]" placeholder="Describe your post idea..."></textarea>
         <div id="composerTools" class="mt-2 flex items-center justify-between gap-2">
           <div class="relative flex min-w-0 items-center gap-1 sm:gap-2">
             <button id="addButton" type="button" (click)="plusOpen.set(!plusOpen()); platOpen.set(false)" class="mini-control grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#EAF1FC] text-[#567CA9] transition duration-200 hover:bg-[#DCEBFB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#80B6DF]" aria-label="Add images or settings" aria-haspopup="menu" [attr.aria-expanded]="plusOpen()"><svg class="h-4.5 w-4.5 h-[18px] fill-none stroke-current stroke-2"><use href="#ic-plus"/></svg></button>
@@ -212,12 +215,18 @@
               @if (allPlatforms()) {
                 <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#477DAF,#9478C6,#E09EAE)] font-display text-[12px] font-extrabold text-white">✳</span><span id="platformText" class="max-w-[92px] truncate sm:max-w-none">All platforms</span>
               } @else {
-                @switch (selected()[0]) {
-                  @case ('LinkedIn') { <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[#1569B7] font-display text-[12px] font-extrabold text-white">in</span> }
-                  @case ('Facebook') { <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[#3079D8] font-display text-[12px] font-extrabold text-white">f</span> }
-                  @default { <span id="platformIcon" class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#B965B1,#EC8CA3)] font-display text-[12px] font-extrabold text-white">◎</span> }
+                <span id="platformIcon" class="flex shrink-0">
+                @for (sp of selected(); track sp; let first = $first) {
+                <span class="contents" [class.stacked]="!first">
+                @switch (sp) {
+                  @case ('LinkedIn') { <span class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[#1569B7] font-display text-[12px] font-extrabold text-white">in</span> }
+                  @case ('Facebook') { <span class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[#3079D8] font-display text-[12px] font-extrabold text-white">f</span> }
+                  @default { <span class="grid h-[23px] w-[23px] shrink-0 place-items-center rounded-[8px] bg-[linear-gradient(135deg,#B965B1,#EC8CA3)] text-white"><svg viewBox="0 0 24 24" class="h-[15px] w-[15px]" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="5"/><circle cx="12" cy="12" r="3.9"/><circle cx="17.4" cy="6.9" r="1" fill="currentColor" stroke="none"/></svg></span> }
                 }
-                <span id="platformText" class="max-w-[92px] truncate sm:max-w-none">{{ selected()[0] }}</span>
+                </span>
+                }
+                </span>
+                <span id="platformText" class="max-w-[92px] truncate sm:max-w-none">{{ selected().length > 1 ? selected().length + ' platforms' : selected()[0] }}</span>
               }
               <svg class="h-3.5 w-3.5 shrink-0 fill-none stroke-[#8197AD] stroke-2"><use href="#ic-chevron"/></svg>
             </button>
@@ -236,7 +245,6 @@
     <!-- Anchor menus, floated ABOVE the composer for visibility in a bottom dock -->
     @if (plusOpen()) {
     <div id="addMenu" role="menu" aria-label="Post options" class="studio-popover absolute bottom-[119px] left-0 z-[70] w-[274px] rounded-[22px] border border-[#E3EAF4] bg-white p-2.5">
-      <button id="uploadOption" type="button" role="menuitem" (click)="fileInput.click(); plusOpen.set(false)" [disabled]="uploading() || !caps().imageAnalysis || images().length >= maxImages" class="flex w-full items-center gap-3 rounded-[15px] px-3 py-3 text-left transition hover:bg-[#F2F7FE] disabled:cursor-not-allowed disabled:opacity-55"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#EDF3FE] text-[#6794BD]"><svg class="h-[19px] w-[19px] fill-none stroke-current stroke-2"><use href="#ic-upload"/></svg></span><span><span class="block text-[12px] font-extrabold text-[#243D5A]">{{ uploading() ? 'Uploading…' : 'Upload images' }}</span><span class="mt-0.5 block text-[10px] font-medium text-[#8C9FB4]">{{ caps().imageAnalysis ? 'Up to ' + maxImages + ' images · optional' : 'Image analysis unavailable' }}</span></span></button>
       <button id="generateImageOption" type="button" role="menuitemcheckbox" (click)="setOutput(!withImage()); plusOpen.set(false)" [disabled]="!imageOptionAvailable()" [attr.aria-checked]="withImage()" class="flex w-full items-center gap-3 rounded-[15px] px-3 py-3 text-left transition hover:bg-[#F2F7FE] disabled:cursor-not-allowed disabled:opacity-55"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#F2EDFF] text-[#9179C5]"><svg class="h-[19px] w-[19px] fill-none stroke-current stroke-2"><use href="#ic-image"/></svg></span><span class="flex-1"><span class="block text-[12px] font-extrabold text-[#243D5A]">{{ images().length ? 'Attach images' : 'Generate image' }}</span><span class="mt-0.5 block text-[10px] font-medium text-[#8C9FB4]">{{ !imageOptionAvailable() ? 'Not available right now' : images().length ? 'Use your uploads in the post' : 'Create an image post' }}</span></span>@if (withImage()) {<svg id="imageMenuCheck" class="h-4 w-4 fill-none stroke-[#5380BE] stroke-2"><use href="#ic-check"/></svg>}</button>
       <div class="mx-2 my-1 h-px bg-[#EDF1F7]"></div>
       <button id="settingsOption" type="button" role="menuitem" (click)="settingsOpen.set(true); plusOpen.set(false)" class="flex w-full items-center gap-3 rounded-[15px] px-3 py-3 text-left transition hover:bg-[#F2F7FE]"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#FFF0EB] text-[#C4868B]"><svg class="h-[19px] w-[19px] fill-none stroke-current stroke-2"><use href="#ic-sliders"/></svg></span><span><span class="block text-[12px] font-extrabold text-[#243D5A]">Tone, length &amp; more</span><span class="mt-0.5 block text-[10px] font-medium text-[#8C9FB4]">Customize your writing</span></span></button>
@@ -244,15 +252,15 @@
     }
     @if (platOpen()) {
     <div id="platformMenu" role="menu" aria-label="Choose platform" class="studio-popover absolute bottom-[119px] left-12 z-[70] w-[282px] rounded-[22px] border border-[#E3EAF4] bg-white p-2.5">
+      <p class="px-3 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[.14em] text-[#9AABC0]">Pick one or more</p>
       @for (p of [{ id: 'LinkedIn', label: 'in', sub: 'Professional audience', cls: 'bg-[#1368B4] text-[15px] font-bold' }, { id: 'Facebook', label: 'f', sub: 'Community-focused', cls: 'bg-[#3478D6] text-[18px] font-bold' }, { id: 'Instagram', label: '◎', sub: 'Visual-first storytelling', cls: 'bg-[linear-gradient(135deg,#C16EB6,#EE97AD)] text-[19px]' }]; track p.id) {
-        @let on = !allPlatforms() && selected()[0] === p.id;
-        <button type="button" role="menuitemradio" (click)="choosePlatform($any(p.id))" [attr.aria-checked]="on" class="menu-option flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition hover:bg-[#F3F7FD]"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] font-display text-white" [class]="p.cls">{{ p.label }}</span><span class="flex-1"><span class="block text-[12px] font-extrabold">{{ p.id }}</span><span class="mt-0.5 block text-[10px] text-[#8EA2B7]">{{ p.sub }}</span></span>@if (on) {<svg class="platform-check h-4 w-4 fill-none stroke-[#3677B8] stroke-2"><use href="#ic-check"/></svg>}</button>
+        @let on = !allPlatforms() && selected().includes($any(p.id));
+        <button type="button" role="menuitemcheckbox" (click)="choosePlatform($any(p.id))" [attr.aria-checked]="on" class="menu-option flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition hover:bg-[#F3F7FD]"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] font-display text-white" [class]="p.cls">@if (p.id === 'Instagram') {<svg viewBox="0 0 24 24" class="h-[19px] w-[19px]" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="5"/><circle cx="12" cy="12" r="3.9"/><circle cx="17.4" cy="6.9" r="1" fill="currentColor" stroke="none"/></svg>} @else {{{ p.label }}}</span><span class="flex-1"><span class="block text-[12px] font-extrabold">{{ p.id }}</span><span class="mt-0.5 block text-[10px] text-[#8EA2B7]">{{ p.sub }}</span></span>@if (on) {<svg class="platform-check h-4 w-4 fill-none stroke-[#3677B8] stroke-2"><use href="#ic-check"/></svg>}</button>
       }
       <div class="mx-2 my-1 h-px bg-[#EDF1F7]"></div>
       <button type="button" role="menuitemradio" (click)="choosePlatform('All')" [attr.aria-checked]="allPlatforms()" class="menu-option flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition hover:bg-[#F3F7FD]"><span class="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[linear-gradient(135deg,#477DAF,#9478C6,#E09EAE)] text-[17px] font-extrabold text-white">✳</span><span class="flex-1"><span class="block text-[12px] font-extrabold">All platforms</span><span class="mt-0.5 block text-[10px] text-[#8EA2B7]">One idea, three versions</span></span>@if (allPlatforms()) {<svg class="platform-check h-4 w-4 fill-none stroke-[#3677B8] stroke-2"><use href="#ic-check"/></svg>}</button>
     </div>
     }
-    <input #fileInput id="fileInput" type="file" accept="image/png,image/jpeg" multiple class="hidden" aria-label="Upload images for post" (change)="upload($event)" />
     <p id="composerNote" class="mt-2.5 text-center text-[10px] font-medium text-[#93A3B7]">
       @if (brandLoaded() && !brand()) {
         @if (workspace.isAdmin()) { Complete your <a routerLink="/brand" class="font-bold text-[#4F81BA] underline">Brand profile</a> first: AI writes with it. } @else { Your Admin needs to complete the Brand profile before AI can write posts. }
@@ -271,13 +279,19 @@
     <div class="view-shadow relative flex w-full max-w-[850px] flex-col overflow-hidden rounded-[26px] border border-white/80 bg-[#F8FBFF] sm:flex-row">
       <button type="button" (click)="preview.set(null)" class="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-[#667E9A] shadow-sm hover:bg-white" aria-label="Close preview"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-close"/></svg></button>
       <div id="modalVisual" class="flex min-h-[280px] w-full items-center justify-center bg-[#E4EEFA] p-6 sm:w-[43%] sm:p-8"><div class="w-full max-w-[280px] rounded-[22px] border border-white bg-white p-2.5 shadow-[0_18px_45px_#5576a438]"><div class="flex items-center gap-2 pb-2"><ng-container *ngTemplateOutlet="badge; context: { $implicit: p.post.platform }" /><span class="text-[11px] font-extrabold text-[#344D68]">{{ workspace.current()?.organizationName ?? 'Your brand' }}</span></div><div class="h-[230px] sm:h-[300px]">
-        @if (pv.images[0]; as m) {
-          <div class="relative h-full overflow-hidden rounded-[16px]"><img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image'" class="absolute inset-0 h-full w-full object-cover" />@if (pv.images.length > 1) {<span class="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-[#4F81BA]">+{{ pv.images.length - 1 }}</span>}</div>
+        @if (pv.images.length) {
+          <!-- Every image of the post, in the same frame: 1 fills it, 2 side by side, 3 = one wide over two, 4 = a 2x2 grid. -->
+          @let n = pv.images.length;
+          <div class="grid h-full gap-1 overflow-hidden rounded-[16px]" [class.grid-cols-2]="n > 1" [class.grid-rows-2]="n > 2">
+            @for (m of pv.images; track m.mediaAssetId; let i = $index) {
+              <img [src]="previewUrl(m.mediaAssetId)" [alt]="m.altText || 'Post image ' + (i + 1)" class="h-full min-h-0 w-full object-cover" [class.col-span-2]="n === 3 && i === 0" />
+            }
+          </div>
         } @else {
           <div class="flex h-full min-h-[120px] flex-col items-center justify-center rounded-[18px] bg-[#F2F5FC] text-[#9AACBF]"><svg class="h-9 w-9 fill-none stroke-current stroke-[1.8]"><use href="#ic-file"/></svg><span class="mt-2 text-[11px] font-bold">Caption draft</span></div>
         }
       </div><div class="flex gap-3 px-1 pb-1 pt-3 text-[#8197B1]"><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-message"/></svg><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-send"/></svg><svg class="h-4 w-4 fill-none stroke-current stroke-[1.8]"><use href="#ic-link"/></svg></div></div></div>
-      <div class="flex w-full flex-col p-6 sm:w-[57%] sm:p-8"><p class="text-[10px] font-bold uppercase tracking-[.2em] text-[#849AB7]">POST PREVIEW</p><h3 id="modalTitle" class="mt-1.5 font-display text-[22px] font-extrabold tracking-[-.05em]">{{ p.post.platform }} preview</h3><span id="modalStatus" class="mt-3 w-fit rounded-full bg-[#E8F0FB] px-3 py-1.5 text-[10px] font-bold text-[#5980AE]">{{ pc.tone === 'draft' ? 'Draft' : pc.tone === 'review' ? 'Awaiting human approval' : 'Approved' }} · Version {{ pad(pv.versionNumber) }}</span><p id="modalCaption" class="mt-5 flex-1 whitespace-pre-line text-[14px] font-medium leading-7 text-[#566D87]">{{ text(p.post) }}</p><div class="mt-5 flex flex-wrap gap-2"><a [routerLink]="['/composer', p.post.id]" id="modalEdit" class="rounded-full bg-[#1C375A] px-5 py-3 text-[12px] font-bold text-white hover:bg-[#2C547F]">Edit caption</a><button id="modalReview" type="button" (click)="submit(p); preview.set(null)" [disabled]="!!p.busy || p.submitted || p.post.editorialState !== 'DRAFT'" class="rounded-full border border-[#D7E3F0] bg-white px-5 py-3 text-[12px] font-bold text-[#607D9C] hover:bg-[#EDF4FC] disabled:cursor-not-allowed disabled:opacity-55">Send for review</button></div></div>
+      <div class="flex w-full flex-col p-6 sm:w-[57%] sm:p-8"><p class="text-[10px] font-bold uppercase tracking-[.2em] text-[#849AB7]">POST PREVIEW</p><h3 id="modalTitle" class="mt-1.5 font-display text-[22px] font-extrabold tracking-[-.05em]">{{ p.post.platform }} preview</h3><span id="modalStatus" class="mt-3 w-fit rounded-full bg-[#E8F0FB] px-3 py-1.5 text-[10px] font-bold text-[#5980AE]">{{ pc.tone === 'draft' ? 'Draft' : pc.tone === 'review' ? 'Awaiting human approval' : 'Approved' }} · Version {{ pad(pv.versionNumber) }}</span><p id="modalCaption" class="mt-5 flex-1 whitespace-pre-line text-[14px] font-medium leading-7 text-[#566D87]">{{ text(p.post) }}</p><div class="mt-5 flex flex-wrap gap-2"><a [routerLink]="['/composer', p.post.id]" id="modalEdit" class="rounded-full bg-[#1C375A] px-5 py-3 text-[12px] font-bold text-white hover:bg-[#2C547F]">Edit</a><button id="modalReview" type="button" (click)="submit(p); preview.set(null)" [disabled]="!!p.busy || p.submitted || p.post.editorialState !== 'DRAFT'" class="rounded-full border border-[#D7E3F0] bg-white px-5 py-3 text-[12px] font-bold text-[#607D9C] hover:bg-[#EDF4FC] disabled:cursor-not-allowed disabled:opacity-55">Send for review</button></div></div>
     </div>
   </div>
   }

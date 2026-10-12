@@ -32,7 +32,6 @@ button:not(:disabled){cursor:pointer}
 .art-title{position:absolute;left:9%;top:24%;color:#1e3c5f;font-family:Manrope,sans-serif;font-weight:800;font-size:clamp(24px,3vw,44px);line-height:.99;letter-spacing:-.07em;z-index:3}
 .art-title span{color:#707bac}
 .art-tag{position:absolute;bottom:9%;left:9%;font-size:9px;letter-spacing:.14em;color:#6283aa;font-weight:800;z-index:3}
-.uploaded-thumb{width:49px;height:49px;object-fit:cover;border-radius:12px;border:2px solid white;box-shadow:0 4px 11px #8da7c54d}
 #postCaption::placeholder,#aiPrompt::placeholder{color:#95a8bd}
 #postCaption{scrollbar-width:thin;scrollbar-color:#d4e3f3 transparent;resize:vertical}
 /* Long posts in the preview: about ten lines, then "See more". */
@@ -42,5 +41,5 @@ button:not(:disabled){cursor:pointer}
 @media(min-width:1024px) and (max-height:830px){.caption-wrap{min-height:218px!important}.edit-body{gap:12px!important;padding-block:14px!important}.media-box{min-height:68px!important}.preview-art{max-height:229px;aspect-ratio:1.72/1}.preview-inner{padding:12px!important}.header-space{margin-bottom:12px!important}}
 @media(min-width:1024px) and (max-height:710px){.caption-wrap{min-height:180px!important}.media-box{min-height:62px!important}.edit-body{gap:9px!important}}
 @media(max-width:1023px){.caption-wrap{min-height:215px!important}.preview-art{aspect-ratio:1.7/1}}
-@media(max-width:640px){.ai-compact{flex-wrap:nowrap;gap:7px}.ai-compact #aiPrompt{min-width:0}.ai-compact #generateButton{padding-inline:10px}.caption-wrap{min-height:194px!important}#postCaption{min-height:194px;height:194px}.art-title{font-size:clamp(27px,8vw,42px)}.preview-art{aspect-ratio:1.5/1}#captionToolbar{gap:7px}.toolbar-label{display:none}}
+@media(max-width:640px){.ai-compact{flex-wrap:nowrap;gap:7px}.ai-compact #aiPrompt{min-width:0}.ai-compact #generateButton{padding-inline:10px}.caption-wrap{min-height:194px!important}#postCaption{min-height:150px}.art-title{font-size:clamp(27px,8vw,42px)}.preview-art{aspect-ratio:1.5/1}#captionToolbar{gap:7px}.toolbar-label{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

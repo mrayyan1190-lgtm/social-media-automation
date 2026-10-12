@@ -287,26 +287,43 @@ public sealed class AiGenerationProcessor(
         var evaluations = await EvaluateAsync(request, snapshot, variants, connection, cancellationToken);
 
         var (platform, variant) = variants.Single();
+        var currentImageCount = (await posts.GetVersionAsync(request.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken))?.Images.Count ?? 0;
 
-        // The instruction asked for a new or changed image: render it and put it on the new version in place of the
-        // current images (alt text starts empty).
+        // The instruction asked for a new or changed image. "Add" (the model's imageMode) keeps the current images and
+        // appends the new ones, up to the per-post limit; otherwise the new images replace the current ones. New images
+        // start with empty alt text.
         IReadOnlyList<MediaAsset>? newImages = null;
+        var append = false;
         string? warning = null;
         if (snapshot.ImagePlan is { } plan && ImagePromptOf(raw) is { } imagePrompt)
         {
-            var (rendered, imageWarning) = await PlannedImagesAsync(request, snapshot, plan, imagePrompt, ImageCountOf(raw), variant, cancellationToken);
-            newImages = rendered.Where(image => Suits(image, platform)).ToList();
-            warning = imageWarning ?? (newImages.Count < rendered.Count ? $"A new image was not used because {platform} does not accept it." : null);
-            if (newImages.Count == 0)
-                newImages = null;
+            append = AddsImagesOf(raw) && currentImageCount > 0;
+            var room = append ? PlatformRules.MaxImages - currentImageCount : PlatformRules.MaxImages;
+            if (room <= 0)
+            {
+                warning = $"The post already has {PlatformRules.MaxImages} images, so no image was added. Remove one first, or ask to replace an image.";
+            }
+            else
+            {
+                var (rendered, imageWarning) = await PlannedImagesAsync(request, snapshot, plan, imagePrompt, Math.Min(ImageCountOf(raw), room), variant, cancellationToken);
+                newImages = rendered.Where(image => Suits(image, platform)).ToList();
+                warning = imageWarning ?? (newImages.Count < rendered.Count ? $"A new image was not used because {platform} does not accept it." : null);
+                if (newImages.Count == 0)
+                    newImages = null;
+            }
         }
 
         PostVersion version;
         try
         {
-            version = await ReviseWithAsync(request, post,
-                current => newImages is null ? Content(variant, current) : Content(variant, current) with { Images = ImagesOf(newImages) },
-                newImages, PostVersionSource.AiRewrite, cancellationToken);
+            version = await ReviseWithAsync(request, post, current =>
+                {
+                    var content = Content(variant, current);
+                    if (newImages is null)
+                        return content;
+                    return content with { Images = append ? [.. content.Images ?? [], .. ImagesOf(newImages)] : ImagesOf(newImages) };
+                },
+                newImages, PostVersionSource.AiRewrite, cancellationToken, appendImages: append);
         }
         catch (AiOutputInvalidException) when (warning is not null)
         {
@@ -315,6 +332,19 @@ public sealed class AiGenerationProcessor(
         }
         Record(request, snapshot, platform, variant, version, evaluations);
         return warning;
+    }
+
+    /// <summary>Whether the model read the instruction as adding images to the current ones (imageMode "add").</summary>
+    private static bool AddsImagesOf(string raw)
+    {
+        try
+        {
+            return OutputParser.ParseAddsImages(raw);
+        }
+        catch (AiOutputInvalidException)
+        {
+            return false;
+        }
     }
 
     /// <summary>How many images the user's words asked for, per the model; 1 when the output does not say.</summary>
@@ -348,15 +378,19 @@ public sealed class AiGenerationProcessor(
     /// other edit.
     /// </summary>
     /// <param name="contentFor">The next version's content, built from the current version.</param>
-    /// <param name="newImages">Replacement images (AI image generation); null keeps the current images.</param>
+    /// <param name="newImages">New images (AI image generation); null keeps the current images.</param>
+    /// <param name="appendImages">Add <paramref name="newImages"/> after the current images instead of replacing them.</param>
     private async Task<PostVersion> ReviseWithAsync(
         AiGenerationRequest request, Post post, Func<PostVersion, PostContent> contentFor, IReadOnlyList<MediaAsset>? newImages,
-        PostVersionSource source, CancellationToken cancellationToken)
+        PostVersionSource source, CancellationToken cancellationToken, bool appendImages = false)
     {
         var current = await posts.GetVersionAsync(request.OrganizationId, post.Id, post.CurrentVersionId!.Value, cancellationToken)
             ?? throw new InvalidOperationException($"Post {post.Id} has no current version row.");
-        var image = newImages ?? await media.GetImagesAsync(current, cancellationToken)
-            ?? throw new NonRetryableAiFailure(AiFailureCodes.TargetNotEditable, "An image of the post no longer exists.");
+        IReadOnlyList<MediaAsset> kept = newImages is null || appendImages
+            ? await media.GetImagesAsync(current, cancellationToken)
+                ?? throw new NonRetryableAiFailure(AiFailureCodes.TargetNotEditable, "An image of the post no longer exists.")
+            : [];
+        IReadOnlyList<MediaAsset> image = newImages is null ? kept : [.. kept, .. newImages];
         var destination = current.SocialAccountId is { } accountId ? await socialAccounts.GetAsync(accountId, cancellationToken) : null;
         var approvalBefore = post.ActiveApprovalId;
         try

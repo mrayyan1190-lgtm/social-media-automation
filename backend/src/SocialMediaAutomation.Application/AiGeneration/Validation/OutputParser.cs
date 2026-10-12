@@ -50,6 +50,10 @@ public static class OutputParser
     }
 
     /// <summary>How many images the user asked for, per the model (1 when missing), clamped to 1..MaxImages.</summary>
+    /// <summary>A rewrite's imageMode: "add" keeps the current images and appends the new ones; anything else replaces them.</summary>
+    public static bool ParseAddsImages(string raw) =>
+        string.Equals(Deserialize<GeneratedContent>(raw).ImageMode?.Trim(), "add", StringComparison.OrdinalIgnoreCase);
+
     public static int ParseImageCount(string raw) =>
         Math.Clamp(Deserialize<GeneratedContent>(raw).ImageCount ?? 1, 1, Domain.Common.PlatformRules.MaxImages);
 

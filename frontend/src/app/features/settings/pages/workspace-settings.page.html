@@ -2,7 +2,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" class="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
   <symbol id="ic-settings" viewBox="0 0 24 24"><path d="M12 3.5l1.5 1 2.1-.1 1 2 1.9 1 .1 2.2 1.3 1.6-1.3 1.7-.1 2.1-1.9 1-1 2-2.1-.1-1.5 1-1.6-1-2.1.1-1-2-1.9-1-.1-2.1-1.3-1.7 1.3-1.6.1-2.2 1.9-1 1-2 2.1.1 1.6-1Z"/><circle cx="12" cy="11.3" r="2.9"/></symbol>
   <symbol id="ic-building" viewBox="0 0 24 24"><path d="M4 21V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v15M16 11h2a2 2 0 0 1 2 2v8M3 21h18M8 8h1M12 8h1M8 12h1M12 12h1M8 16h1M12 16h1"/></symbol>
-  <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 2.5 20 6v5.5c0 5.4-3.2 8.9-8 10-4.8-1.1-8-4.6-8-10V6l8-3.5Z"/><path d="m9 12 2 2 4-4"/></symbol>
   <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13.5a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2M14 10.5a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2"/></symbol>
   <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
   <symbol id="ic-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-3 3-4.5 6-4.5 9S9 18 12 21M12 3c3 3 4.5 6 4.5 9s-1.5 6-4.5 9"/></symbol>
@@ -11,14 +10,13 @@
   <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="ic-save" viewBox="0 0 24 24"><path d="M5 3h12l4 4v14H3V3h2Zm2 0v7h10V4M7 21v-8h10v8"/></symbol>
   <symbol id="ic-x" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></symbol>
-  <symbol id="ic-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
   <symbol id="ic-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10.5V16M12 7.5h.01"/></symbol>
   <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></symbol>
 </svg>
 <div class="pointer-events-none fixed -left-[130px] top-[25%] h-[380px] w-[380px] rounded-full border border-white/55 opacity-50" aria-hidden="true"></div>
 <div class="pointer-events-none fixed -right-[160px] top-0 h-[450px] w-[450px] rounded-full border border-white/55 opacity-50" aria-hidden="true"></div>
 
-<main class="@container relative mx-auto max-w-[1410px] px-4 pb-5 pt-5 sm:px-7 lg:px-9 lg:pt-6">
+<main class="@container relative mx-auto w-full max-w-[1510px] px-3 pb-6 pt-4 sm:px-6 sm:pt-6 lg:px-7">
   <header class="mb-5 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3.5">
       <span class="grid h-[49px] w-[49px] shrink-0 place-items-center rounded-[17px] bg-[#193655] text-white shadow-[0_10px_23px_rgba(32,64,107,.2)]">
@@ -43,51 +41,39 @@
   }
 
   <form [formGroup]="form" (ngSubmit)="save()">
-    <!-- Two columns only when the area beside the sidebar is wide enough (container width, not screen width), and both
+    <!-- Two equal columns only when the area beside the sidebar is wide enough (container width, not screen width); both
          stretch to the same height so the cards end on one line. -->
-    <div class="grid items-stretch gap-4 @5xl:grid-cols-[1.08fr_.92fr] lg:gap-5">
-      <div class="flex min-w-0 flex-col gap-4">
-        <section class="glass-panel card-enter overflow-hidden rounded-[27px]" aria-labelledby="workspaceTitle">
-          <div class="panel-head relative flex items-center gap-3 overflow-hidden border-b border-white/80 bg-[linear-gradient(108deg,#DCECFB_0%,#EAE9FB_57%,#F9E9E5_100%)] px-5 py-4 sm:px-6">
-            <div class="float-shape -right-8 -top-16 h-[180px] w-[180px]" aria-hidden="true"></div>
-            <div class="relative grid h-[40px] w-[40px] shrink-0 place-items-center rounded-[14px] bg-white/85 text-[#5D8FBD] shadow-sm"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.75]"><use href="#ic-building"/></svg></div>
-            <div class="relative min-w-0"><h2 id="workspaceTitle" class="display-font text-[17px] font-extrabold tracking-[-.035em] text-[#23415F] sm:text-[19px]">Workspace profile</h2><p class="mt-0.5 text-[11px] font-medium text-[#6A84A2]">Your business and publishing defaults</p></div>
+    <div class="grid items-stretch gap-4 @5xl:grid-cols-2 lg:gap-5">
+      <section class="glass-panel card-enter flex min-w-0 flex-col overflow-hidden rounded-[27px]" aria-labelledby="workspaceTitle">
+        <div class="panel-head relative flex items-center gap-3 overflow-hidden border-b border-white/80 bg-[linear-gradient(108deg,#DCECFB_0%,#EAE9FB_57%,#F9E9E5_100%)] px-5 py-4 sm:px-6">
+          <div class="float-shape -right-8 -top-16 h-[180px] w-[180px]" aria-hidden="true"></div>
+          <div class="relative grid h-[40px] w-[40px] shrink-0 place-items-center rounded-[14px] bg-white/85 text-[#5D8FBD] shadow-sm"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.75]"><use href="#ic-building"/></svg></div>
+          <div class="relative min-w-0"><h2 id="workspaceTitle" class="display-font text-[17px] font-extrabold tracking-[-.035em] text-[#23415F] sm:text-[19px]">Workspace profile</h2><p class="mt-0.5 text-[11px] font-medium text-[#6A84A2]">Your business and publishing defaults</p></div>
+        </div>
+        <div class="flex-1 space-y-5 px-5 py-6 sm:px-6">
+          <div>
+            <label class="mb-1.5 flex items-center justify-between text-[12px] font-extrabold text-[#34506C]" for="workspaceName"><span>Workspace name</span><span class="text-[10px] font-bold text-[#A0B0C4]">Visible to your team</span></label>
+            <div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#90A4BD]"><svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.7]"><use href="#ic-building"/></svg></span><input id="workspaceName" formControlName="name" class="soft-field pl-[44px]" maxlength="200" required autocomplete="organization" [placeholder]="loading() ? 'Loading…' : 'Workspace name'" /></div>
+            @if (form.controls.name.invalid && form.controls.name.touched) { <p class="mt-1 text-[11px] font-bold text-[#CA6074]">A name is required.</p> }
           </div>
-          <div class="space-y-4 px-5 py-5 sm:px-6">
-            <div>
-              <label class="mb-1.5 flex items-center justify-between text-[12px] font-extrabold text-[#34506C]" for="workspaceName"><span>Workspace name</span><span class="text-[10px] font-bold text-[#A0B0C4]">Visible to your team</span></label>
-              <div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#90A4BD]"><svg class="h-[17px] w-[17px] fill-none stroke-current stroke-[1.7]"><use href="#ic-building"/></svg></span><input id="workspaceName" formControlName="name" class="soft-field pl-[44px]" maxlength="200" required autocomplete="organization" [placeholder]="loading() ? 'Loading…' : 'Workspace name'" /></div>
-              @if (form.controls.name.invalid && form.controls.name.touched) { <p class="mt-1 text-[11px] font-bold text-[#CA6074]">A name is required.</p> }
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-              <div><label class="mb-1.5 block text-[12px] font-extrabold text-[#34506C]" for="timeZone">Time zone</label><div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#90A4BD]"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.7]"><use href="#ic-clock"/></svg></span><select id="timeZone" formControlName="timeZoneId" class="soft-field select-field pl-[43px]">@for (z of zones; track z) { <option [value]="z">{{ z }}</option> }</select><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#8297B0]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-chevron"/></svg></span></div></div>
-              <div><label class="mb-1.5 block text-[12px] font-extrabold text-[#34506C]" for="language">Default language</label><div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#90A4BD]"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.7]"><use href="#ic-globe"/></svg></span><select id="language" formControlName="defaultLanguage" class="soft-field select-field pl-[43px]">@for (l of languages(); track l.code) { <option [value]="l.code">{{ l.name }} ({{ l.code }})</option> }</select><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#8297B0]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-chevron"/></svg></span></div></div>
-            </div>
-            <div class="flex items-start gap-2 rounded-[13px] bg-[#F4F7FC] px-3 py-2.5"><svg class="mt-0.5 h-[14px] w-[14px] shrink-0 fill-none stroke-[#8A9BB5] stroke-[1.8]"><use href="#ic-info"/></svg><p class="text-[11px] font-medium leading-[1.5] text-[#8295AD]">Your time zone controls how dates appear in the Planner.</p></div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div><label class="mb-1.5 block text-[12px] font-extrabold text-[#34506C]" for="timeZone">Time zone</label><div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#90A4BD]"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.7]"><use href="#ic-clock"/></svg></span><select id="timeZone" formControlName="timeZoneId" class="soft-field select-field pl-[43px]">@for (z of zones; track z) { <option [value]="z">{{ z }}</option> }</select><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#8297B0]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-chevron"/></svg></span></div></div>
+            <div><label class="mb-1.5 block text-[12px] font-extrabold text-[#34506C]" for="language">Default language</label><div class="relative"><span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[#90A4BD]"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.7]"><use href="#ic-globe"/></svg></span><select id="language" formControlName="defaultLanguage" class="soft-field select-field pl-[43px]">@for (l of languages(); track l.code) { <option [value]="l.code">{{ l.name }} ({{ l.code }})</option> }</select><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#8297B0]"><svg class="h-4 w-4 fill-none stroke-current stroke-2"><use href="#ic-chevron"/></svg></span></div></div>
           </div>
-        </section>
-
-        <section class="glass-panel card-enter flex flex-1 flex-col rounded-[27px] p-5 sm:p-6" aria-labelledby="approvalTitle">
-          <div class="mb-4 flex items-center gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[linear-gradient(145deg,#EEE8FF,#F7F2FF)] text-[#8879C4]"><svg class="h-5 w-5 fill-none stroke-current stroke-[1.75]"><use href="#ic-shield"/></svg></span><div><h2 id="approvalTitle" class="display-font text-[17px] font-extrabold tracking-[-.04em] text-[#23415F] sm:text-[18px]">Approval protection</h2><p class="mt-0.5 text-[11px] text-[#8297AF]">Keep every post under human control</p></div></div>
-          @let distinct = form.controls.requireDistinctReviewer;
-          <div class="flex items-center gap-4 rounded-[18px] border border-[#E8E5F7] bg-[linear-gradient(112deg,#FAFBFF,#F7F5FE)] px-4 py-4 sm:px-5">
-            <div class="min-w-0 flex-1"><p class="text-[12px] font-extrabold text-[#2E4A69]">Require a second approver</p><p class="mt-1 text-[11px] leading-[1.5] text-[#7E91AB]">The person who submitted or last edited a post cannot approve it themselves.</p></div>
-            <div class="flex shrink-0 items-center gap-2"><span class="min-w-[21px] text-right text-[10px] font-extrabold" [style.color]="distinct.value ? '#6E6AA9' : '#92A2B6'">{{ distinct.value ? 'On' : 'Off' }}</span><button type="button" role="switch" aria-label="Require a second approver" [attr.aria-checked]="distinct.value" [disabled]="distinct.disabled" (click)="toggleReviewer()" class="rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#83B5E8]"><span class="switch-track"><span class="switch-knob"></span></span></button></div>
-          </div>
-        </section>
-      </div>
+          <div class="flex items-start gap-2 rounded-[13px] bg-[#F4F7FC] px-3 py-2.5"><svg class="mt-0.5 h-[14px] w-[14px] shrink-0 fill-none stroke-[#8A9BB5] stroke-[1.8]"><use href="#ic-info"/></svg><p class="text-[11px] font-medium leading-[1.5] text-[#8295AD]">Your time zone controls how dates appear in the Planner.</p></div>
+        </div>
+        <footer class="flex flex-col items-stretch justify-between gap-3 border-t border-[#E7EDF6] bg-[linear-gradient(110deg,#F7FAFF,#FAF8FE)] px-5 py-4 sm:flex-row sm:items-center sm:px-6" aria-label="Settings actions">
+          <p class="text-[11px] font-semibold text-[#8798AE]">{{ !workspace.isAdmin() ? 'Only Admins can change workspace settings.' : savedOnce() ? 'Saved just now · applies to everyone in this workspace.' : 'Changes apply to everyone in this workspace.' }}</p>
+          @if (workspace.isAdmin()) {
+            <div class="flex items-center gap-2"><button type="button" (click)="reset()" [disabled]="busy() || form.pristine" class="secondary-button h-[42px] rounded-full px-4 text-[11px] font-extrabold">Reset</button><button type="submit" [disabled]="busy() || loading() || form.pristine" class="primary-button flex h-[42px] flex-1 items-center justify-center gap-2 rounded-full px-6 text-[12px] font-extrabold sm:flex-none"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.8]"><use href="#ic-save"/></svg>{{ busy() ? 'Saving…' : 'Save changes' }}</button></div>
+          }
+        </footer>
+      </section>
 
       @if (workspace.orgId(); as orgId) {
         <app-social-connections class="card-enter flex min-w-0" [orgId]="orgId" [allowDisconnect]="true" [canManage]="workspace.isAdmin()" (notice)="toast($event)" />
       }
     </div>
-
-    <footer class="glass-panel mt-4 flex flex-col items-stretch justify-between gap-3 rounded-[22px] px-4 py-3 sm:flex-row sm:items-center sm:px-5" aria-label="Settings actions">
-      <div class="flex items-center gap-2"><span class="grid h-8 w-8 shrink-0 place-items-center rounded-[12px] bg-[#EAF2FF] text-[#678EBE]"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.8]"><use href="#ic-info"/></svg></span><div><p class="text-[11px] font-bold text-[#5F7898]">These preferences are shared across your workspace</p><p class="text-[10px] text-[#9AABC0]">{{ !workspace.isAdmin() ? 'Only Admins can change workspace settings.' : savedOnce() ? 'Saved just now · applies to everyone in this workspace.' : 'Changes apply to everyone in this workspace.' }}</p></div></div>
-      @if (workspace.isAdmin()) {
-        <div class="flex items-center gap-2"><button type="button" (click)="reset()" [disabled]="busy() || form.pristine" class="secondary-button h-[42px] rounded-full px-4 text-[11px] font-extrabold">Reset</button><button type="submit" [disabled]="busy() || loading() || form.pristine" class="primary-button flex h-[42px] flex-1 items-center justify-center gap-2 rounded-full px-6 text-[12px] font-extrabold sm:flex-none"><svg class="h-[16px] w-[16px] fill-none stroke-current stroke-[1.8]"><use href="#ic-save"/></svg>{{ busy() ? 'Saving…' : 'Save changes' }} <svg class="h-[14px] w-[14px] fill-none stroke-current stroke-2"><use href="#ic-arrow"/></svg></button></div>
-      }
-    </footer>
   </form>
 </main>
 

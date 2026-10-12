@@ -1,4 +1,4 @@
-import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -14,8 +14,7 @@ import { MediaApiService } from '../content/services/media-api.service';
 import { PostApiService } from '../content/services/post-api.service';
 import { Dashboard, DashboardApiService } from '../dashboard/dashboard-api.service';
 import { formatInZone } from '../publications/models/time-zones';
-import { BRAND_TONES } from '../settings/models/brand-profile.model';
-import { Activity, art, fromAudit, utcMs } from './home.utils';
+import { Activity, art, fromAudit, ringFill, utcMs } from './home.utils';
 
 const DAY = 864e5;
 const ARTS = ['a', 'b', 'c', 'd', 'e'];
@@ -24,7 +23,6 @@ const PLATFORM_MARK: Record<SocialPlatform, string> = { LinkedIn: 'in', Facebook
 /** Avatar colours of the activity rows, in the design's order. */
 const AVATARS = [['#E1E4FE', '#6069B5'], ['#EADFFA', '#8463B7'], ['#F8E4DC', '#BD765D']];
 /** Donut circumference (r = 61). */
-const RING = 383.27;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 type Filter = 'all' | 'draft' | 'scheduled';
@@ -39,7 +37,6 @@ type Filter = 'all' | 'draft' | 'scheduled';
   imports: [ProblemBannerComponent, RouterLink, FormsModule],
   templateUrl: './admin-home.page.html',
   styleUrl: './admin-home.page.css',
-  host: { '(document:keydown.escape)': 'createOpen.set(false)' },
 })
 export class AdminHomePage {
   private readonly dashboardApi = inject(DashboardApiService);
@@ -57,14 +54,7 @@ export class AdminHomePage {
 
   protected readonly filter = signal<Filter>('all');
   protected readonly search = signal('');
-  protected readonly createOpen = signal(false);
-  protected readonly tones = BRAND_TONES;
   protected readonly platforms = SOCIAL_PLATFORMS;
-  protected readonly ring = RING;
-  protected idea = '';
-  protected platform: SocialPlatform = 'LinkedIn';
-  protected tone = BRAND_TONES[0] as string;
-  private readonly ideaInput = viewChild<ElementRef<HTMLTextAreaElement>>('ideaInput');
 
   private readonly zone = computed(() => this.workspace.timeZone());
   private readonly status = (p: PostListItem) => customerStatus(p.editorialState, p.latestDeliveryState);
@@ -83,7 +73,14 @@ export class AdminHomePage {
     const posts = this.posts();
     const drafts = posts.filter((p) => p.editorialState === 'DRAFT').length;
     const done = posts.filter((p) => p.latestDeliveryState === 'PUBLISHED' || PROBLEM_DELIVERY.includes(p.latestDeliveryState ?? ''));
+    const counts: [number, string][] = [
+      [drafts, '#8073D0'],
+      [posts.filter((p) => p.editorialState === 'IN_REVIEW').length, '#E8AC90'],
+      [posts.filter((p) => this.status(p) === 'Scheduled').length, '#65AFD7'],
+      [posts.filter((p) => p.latestDeliveryState === 'PUBLISHED').length, '#66BD9C'],
+    ];
     return {
+      fill: ringFill(counts),
       total: posts.length,
       drafts,
       review: posts.filter((p) => p.editorialState === 'IN_REVIEW').length,
@@ -91,8 +88,6 @@ export class AdminHomePage {
       published: posts.filter((p) => p.latestDeliveryState === 'PUBLISHED').length,
       // Published out of every publication that finished (failed ones count against it); none finished yet: "—".
       success: done.length ? `${Math.round((done.filter((p) => p.latestDeliveryState === 'PUBLISHED').length / done.length) * 100)}%` : '—',
-      // As in the design, the ring shows the share of posts that are still drafts.
-      offset: RING * (1 - drafts / Math.max(posts.length, 1)),
     };
   });
 
@@ -181,15 +176,9 @@ export class AdminHomePage {
     return this.mediaApi.previewUrl(this.workspace.orgId()!, mediaId);
   }
 
-  protected openCreate(): void {
-    this.createOpen.set(true);
-    setTimeout(() => this.ideaInput()?.nativeElement.focus());
-  }
-
-  /** The idea, platform and tone go to AI Studio, which generates the post and saves it as a draft for review. */
-  protected generate(formEl: HTMLFormElement): void {
-    if (!formEl.reportValidity()) return;
-    void this.router.navigate([this.ws('/ai-studio')], { queryParams: { prompt: this.idea.trim(), platform: this.platform, tone: this.tone } });
+  /** Start creating / Create with AI: straight to AI Studio. */
+  protected startCreating(): void {
+    void this.router.navigate([this.ws('/ai-studio')]);
   }
 
   protected scrollToActivity(target: HTMLElement): void {

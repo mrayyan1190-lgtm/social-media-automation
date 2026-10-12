@@ -5,6 +5,7 @@ import { ApiProblem, toApiProblem } from '../../../core/http/api-problem';
 import { ProblemBannerComponent } from '../../../shared/components/problem-banner.component';
 import { GoogleSignIn, HEALTH_LABELS, InternalApiService, SocialProvider, WorkspaceListItem, tone, when } from '../internal-api.service';
 import { NoticeComponent } from '../../../shared/components/notice.component';
+import { ThemeSelectComponent } from '../../../shared/components/theme-select.component';
 
 /** One provider app. The client secret is write-only: once saved it shows "Configured ✓" and can only be replaced. */
 @Component({
@@ -194,18 +195,18 @@ export class GoogleSignInCardComponent implements OnInit {
  */
 @Component({
   selector: 'app-page-token-card',
-  imports: [NoticeComponent, FormsModule, ProblemBannerComponent],
+  imports: [ThemeSelectComponent, NoticeComponent, FormsModule, ProblemBannerComponent],
   template: `
     <form class="card form-grid" (ngSubmit)="connect()">
       <div class="card-head"><h2><span class="head-ic peach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>Facebook Page token</h2></div>
       <app-problem-banner [problem]="problem()" />
       <app-notice [message]="notice()" />
       <label>Workspace *
-        <select name="org" [(ngModel)]="organizationId" required>
+        <app-theme-select name="org" [(ngModel)]="organizationId" required>
           <option value="" disabled>Choose a workspace</option>
           <option value="ALL">All active workspaces ({{ active().length }})</option>
           @for (w of workspaces(); track w.id) { <option [value]="w.id">{{ w.name }}{{ w.primaryAdminEmail ? " — " + w.primaryAdminEmail : "" }}</option> }
-        </select>
+        </app-theme-select>
       </label>
       <label>Page access token *
         <input name="token" type="password" autocomplete="new-password" spellcheck="false" [(ngModel)]="token" placeholder="EAA…" />

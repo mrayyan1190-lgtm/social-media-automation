@@ -7,7 +7,7 @@
   <symbol id="n-done" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
   <symbol id="n-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 </svg>
-<main class="relative mx-auto max-w-[1100px] px-4 pb-14 pt-7 sm:px-6 lg:px-9 lg:pt-8">
+<main class="relative mx-auto w-full max-w-[1510px] px-3 sm:px-6 lg:px-7 pb-14 pt-7 lg:pt-8">
   <header class="mb-5 flex flex-wrap items-center justify-between gap-4 lg:mb-6">
     <div class="flex items-center gap-3.5"><span class="grid h-[49px] w-[49px] shrink-0 place-items-center rounded-[17px] bg-[#1B3B5F] text-white shadow-[0_13px_26px_#284d7733]"><svg class="h-6 w-6 fill-none stroke-current stroke-[1.6]"><use href="#n-bell"/></svg></span><div><p class="text-[10px] font-extrabold uppercase tracking-[.20em] text-[#7389AA]">Your workspace</p><h1 class="heading-font text-[27px] font-extrabold leading-[1.15] tracking-[-.065em] text-[#193552] sm:text-[31px]">Notifications<span class="text-[#9D8CC6]">.</span></h1></div></div>
     <button type="button" (click)="markAllRead()" [disabled]="busy() || !unread()" class="primary-btn inline-flex h-[42px] items-center gap-2 rounded-full px-5 text-[12px] font-extrabold"><svg class="h-4 w-4 fill-none stroke-current stroke-[2.2]"><use href="#n-done"/></svg> Mark all as read</button>

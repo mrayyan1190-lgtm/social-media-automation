@@ -19,7 +19,7 @@
     @switch (p) {
       @case ('LinkedIn') { <span class="platform-icon linkedin">in</span> }
       @case ('Facebook') { <span class="platform-icon facebook">f</span> }
-      @default { <span class="platform-icon instagram">◎</span> }
+      @default { <span class="platform-icon instagram"><svg viewBox="0 0 24 24" class="h-[15px] w-[15px]" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="5"/><circle cx="12" cy="12" r="3.9"/><circle cx="17.4" cy="6.9" r="1" fill="currentColor" stroke="none"/></svg></span> }
     }
   </ng-template>
 
@@ -34,12 +34,12 @@
     </header>
     <div class="grid items-start gap-4 lg:items-stretch lg:grid-cols-[minmax(0,1.64fr)_minmax(330px,.92fr)] xl:gap-5">
       <!-- CAPTION EDITOR -->
-      <section class="panel fade-enter overflow-hidden rounded-[23px] sm:rounded-[26px]" aria-labelledby="editorTitle">
+      <section class="panel fade-enter flex flex-col overflow-hidden rounded-[23px] sm:rounded-[26px]" aria-labelledby="editorTitle">
         <div class="panel-top flex items-center justify-between gap-3 border-b border-white/70 px-4 py-3 sm:px-5">
           <div class="flex items-center gap-2.5"><span class="grid h-9 w-9 place-items-center rounded-[11px] bg-white/85 text-[#4579aa]"><svg class="icon"><use href="#ic-pen"/></svg></span><h2 id="editorTitle" class="headline text-[17px] font-extrabold sm:text-[18px]">Post editor</h2></div>
           <span class="inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/60 px-3 py-1.5 text-[10px] font-bold text-[#6e84a3]"><svg class="icon h-[13px] w-[13px]"><use href="#ic-spark"/></svg> {{ images().length ? 'Image post' : 'Text post' }}</span>
         </div>
-        <div class="edit-body flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
+        <div class="edit-body flex flex-1 flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
           @if (state() === 'IN_REVIEW') {
             <p class="rounded-[14px] border border-[#dbe6f2] bg-[#f2f8ff] px-3.5 py-3 text-[12px] font-semibold leading-[1.6] text-[#476581]" role="status">
               This post is waiting for review, so editing is locked.
@@ -51,7 +51,6 @@
             <div class="rounded-[14px] border border-[#f3dcd8] bg-[#fff6f4] px-3.5 py-3" role="status">
               <p class="text-[12px] font-extrabold text-[#9c5f5a]">Changes requested by {{ r.decidedByName ?? 'the reviewer' }}@if (r.decidedAtUtc) { <span class="font-semibold text-[#b9908b]"> · {{ r.decidedAtUtc | date: 'medium' }}</span> }</p>
               <p class="mt-1 whitespace-pre-line text-[12px] leading-[1.6] text-[#7a5d5a]">{{ r.decisionComment || 'No comment was added.' }}</p>
-              <p class="mt-1.5 text-[11px] text-[#a88783]">Edit the post (or use Improve / Ask AI), then submit it for review again.</p>
             </div>
           }
           <div id="captionToolbar" class="flex items-center justify-between gap-2">
@@ -90,9 +89,20 @@
               }
             </div>
           </div>
-          <div class="caption-wrap color-outline min-h-[274px] overflow-hidden rounded-[17px] transition sm:rounded-[19px]">
+          <!-- The editor box grows with the text (field-sizing) and fills the card; the post's images sit inside it, under the text. -->
+          <div class="caption-wrap color-outline flex min-h-[274px] flex-1 flex-col overflow-hidden rounded-[17px] transition sm:rounded-[19px]">
             <label class="sr-only" for="postCaption">Post caption</label>
-            <textarea id="postCaption" spellcheck="true" [ngModel]="text()" (ngModelChange)="text.set($event); expanded.set(false)" [disabled]="!canEdit()" class="block h-full min-h-[274px] w-full bg-transparent p-4 text-[13px] leading-[1.75] font-medium text-[#304b69] outline-none sm:p-5 sm:text-[14px] disabled:cursor-not-allowed" placeholder="Write your post here..."></textarea>
+            <textarea id="postCaption" spellcheck="true" [ngModel]="text()" (ngModelChange)="text.set($event); expanded.set(false)" [disabled]="!canEdit()" class="block min-h-[160px] w-full flex-1 bg-transparent p-4 [field-sizing:content] text-[13px] leading-[1.75] font-medium text-[#304b69] outline-none sm:p-5 sm:text-[14px] disabled:cursor-not-allowed" placeholder="Write your post here..."></textarea>
+            @if (images().length) {
+              <div id="captionImages" class="flex flex-wrap gap-2 px-4 pb-4 sm:px-5 sm:pb-5">
+                @for (img of images(); track img.asset.id; let i = $index) {
+                  <div class="group relative h-[84px] w-[84px] overflow-hidden rounded-[12px] sm:h-[96px] sm:w-[96px] border border-white shadow-[0_4px_12px_#8da7c540]">
+                    <button type="button" class="block h-full w-full cursor-zoom-in" [attr.aria-label]="'View image ' + (i + 1)" (click)="viewing.set(i)"><img class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]" [src]="previewUrl(img.asset.id)" [alt]="img.altText || 'Post image ' + (i + 1)" /></button>
+                    @if (canEdit()) { <button type="button" [attr.aria-label]="'Remove image ' + (i + 1)" (click)="removeImage(img.asset.id)" class="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-[#263f5e]/85 text-[13px] leading-none text-white transition hover:bg-[#263f5e]">×</button> }
+                  </div>
+                }
+              </div>
+            }
           </div>
           @if (workspace.canManageContent()) {
           <div class="ai-compact flex flex-wrap items-center gap-3 rounded-[14px] border border-[#dbe6f2] bg-[linear-gradient(104deg,#f2f8ff,#f7f5ff,#fff6f4)] p-2.5 sm:flex-nowrap sm:p-3">
@@ -110,16 +120,9 @@
               <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#e8f2fd] text-[#588dbe]">@if (busy() === 'upload') {<span class="spin h-[18px] w-[18px] rounded-full border-2 border-[#cfe0f2] border-t-[#588dbe]"></span>} @else {<svg class="icon h-[20px] w-[20px]"><use href="#ic-upload"/></svg>}</span>
               <div class="min-w-0"><p class="text-[12px] font-bold text-[#3a587a]">Add images <span id="fileCount" class="text-[#9aacc1]">· {{ images().length }}/{{ maxImages }}</span></p><p class="mt-0.5 text-[10px] font-medium text-[#91a2ba]">{{ !images().length && targets().includes('Instagram') ? 'Instagram needs at least one image' : 'Drag & drop, paste or browse · JPG/PNG' }}</p></div>
             </div>
-            <div id="fileThumbs" class="flex min-w-0 items-center gap-1.5">
-              @for (img of images(); track img.asset.id; let i = $index) {
-                <div class="relative"><img class="uploaded-thumb cursor-zoom-in" [src]="previewUrl(img.asset.id)" [alt]="img.altText || 'Uploaded image ' + (i + 1)" (click)="$event.preventDefault(); viewing.set(i)" /><button type="button" [attr.aria-label]="'Remove image ' + (i + 1)" (click)="$event.preventDefault(); removeImage(img.asset.id)" class="absolute -right-1 -top-1 grid h-[17px] w-[17px] place-items-center rounded-full bg-[#263f5e] text-[13px] leading-none text-white">×</button></div>
-              }
-            </div>
             <span id="browseButton" class="soft-btn shrink-0 rounded-[10px] px-3 py-2 text-[11px] font-bold transition">Browse</span>
             <input id="fileInput" type="file" accept="image/png,image/jpeg" multiple class="hidden" aria-label="Choose image files" (change)="upload($event)" [disabled]="!!busy() || images().length >= maxImages" />
           </label>
-          } @else if (images().length) {
-            <div class="flex items-center gap-1.5">@for (img of images(); track img.asset.id; let i = $index) {<img class="uploaded-thumb cursor-zoom-in" [src]="previewUrl(img.asset.id)" [alt]="img.altText || 'Post image ' + (i + 1)" (click)="viewing.set(i)" />}</div>
           }
         </div>
         <div class="flex flex-wrap items-center justify-between gap-2 border-t border-[#e6ecf4] bg-white/75 px-4 py-3 sm:px-5">

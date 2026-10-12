@@ -138,7 +138,13 @@ public static class PromptBuilder
         The post {(source.HasImage ? "currently has an image, which you cannot see" : "has no image yet")}.
         - If rewrite.customInstruction asks to create, add, change, edit, replace or improve the post's image, return
           "imagePrompt": a detailed English prompt for the NEW image that applies the requested change to the post's
-          topic (follow the IMAGE PROMPT rules). It replaces the current image as a whole.
+          topic (follow the IMAGE PROMPT rules), and "imageCount": how many NEW images the instruction asks for.
+        - Also return "imageMode":
+          "add" when the user wants more images next to the current ones ("add one more image", "another image",
+          "add 2 images in a different style"); the current images are kept and the new ones appended (a post holds at
+          most 4 images);
+          "replace" when the user wants the current image(s) changed, replaced, redone or improved, or the post has no
+          image yet. Decide from meaning, in any language; when unclear, use "replace".
         - If the instruction asks ONLY about the image, return hook, body, cta and hashtags exactly as they are in
           rewrite.sourceVersion. Change the text only if the instruction also asks for text changes.
         - If the instruction does not concern the image, return "imagePrompt": "".
@@ -166,7 +172,14 @@ public static class PromptBuilder
             professional but human;
             lead with useful business relevance;
             write for decision makers without sounding corporate or robotic;
-            use short readable paragraphs;
+            structure the body, never one or two long paragraphs:
+              1. one or two short context sentences;
+              2. a blank line, then the key points (requirements, skills, benefits, steps or takeaways from the brief),
+                 one point per line, each starting with "• " or one restrained relevant emoji, kept to one short line;
+              3. a blank line, then one short closing sentence that leads into the CTA;
+            separate every block with an empty line and put each list item on its own line;
+            when the brief has no natural list (for example a short announcement), use 2-3 short paragraphs of 1-2 sentences each;
+            never use Markdown emphasis such as **bold** or *italics*, because LinkedIn shows the asterisks literally;
             use restrained emojis;
             when hashtags are enabled, normally use no more than 3-5 focused hashtags.
             """,
@@ -613,7 +626,7 @@ public static class PromptBuilder
 
                 Schema {{AiVersions.ContentSchema}}:
 
-                {"schemaVersion":"{{AiVersions.ContentSchema}}",{{(snapshot.ImagePlan is null ? "" : "\"imagePrompt\":\"<image prompt or empty string>\",\"imageCount\":<1-4>,")}}"variants":[{"platform":"{{rewrite.Platform}}","language":"<BCP-47 tag>","hook":"<opening line>","body":"<body only>","cta":"<CTA or empty string>","hashtags":["ExampleHashtag"]}]}
+                {"schemaVersion":"{{AiVersions.ContentSchema}}",{{(snapshot.ImagePlan is null ? "" : "\"imagePrompt\":\"<image prompt or empty string>\",\"imageCount\":<1-4>,\"imageMode\":\"add|replace\",")}}"variants":[{"platform":"{{rewrite.Platform}}","language":"<BCP-47 tag>","hook":"<opening line>","body":"<body only>","cta":"<CTA or empty string>","hashtags":["ExampleHashtag"]}]}
 
                 Return exactly one variant.
                 platform must be exactly "{{rewrite.Platform}}".

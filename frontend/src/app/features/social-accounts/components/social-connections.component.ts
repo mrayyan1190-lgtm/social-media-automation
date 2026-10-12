@@ -85,7 +85,7 @@ interface PlatformCard {
                 @switch (card.platform) {
                   @case ('LinkedIn') { <span class="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-[#116FB7] text-[13px] font-extrabold text-white shadow-[0_7px_14px_rgba(64,108,158,.13)]" aria-hidden="true">in</span> }
                   @case ('Facebook') { <span class="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-[#257CE1] text-[19px] font-extrabold text-white shadow-[0_7px_14px_rgba(64,108,158,.13)]" aria-hidden="true">f</span> }
-                  @default { <span class="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-[linear-gradient(140deg,#956FC6,#D36BA4,#E8A5A0)] text-[22px] font-extrabold text-white shadow-[0_7px_14px_rgba(64,108,158,.13)]" aria-hidden="true">◎</span> }
+                  @default { <span class="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-[linear-gradient(140deg,#956FC6,#D36BA4,#E8A5A0)] text-white shadow-[0_7px_14px_rgba(64,108,158,.13)]" aria-hidden="true"><svg viewBox="0 0 24 24" class="h-[22px] w-[22px]" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.4" y="3.4" width="17.2" height="17.2" rx="5"/><circle cx="12" cy="12" r="3.9"/><circle cx="17.4" cy="6.9" r="1" fill="currentColor" stroke="none"/></svg></span> }
                 }
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2"><h3 class="text-[13px] font-extrabold text-[#2B4868]">{{ card.platform }}</h3>

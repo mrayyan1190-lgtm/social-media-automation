@@ -43,3 +43,9 @@
 @media(max-width:639px){.creator-hero{min-height:510px!important}.hero-copy{max-width:100%!important}.hero-graphics{height:224px!important;top:auto!important;bottom:0!important;width:100%!important}.hero-poster{right:20%!important;top:7px!important;width:174px!important}.hero-mini{right:2%!important;top:36px!important}.hero-pill{right:9%!important;bottom:13px!important}}
 @media(max-width:359px){.hero-poster{right:15%!important}.hero-mini{right:0!important}.stat-donut{width:120px!important;height:120px!important}.status-legend{min-width:108px!important;gap:6px!important}.workflow-panel>div:nth-child(2){gap:8px!important}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+
+/* Content-flow ring, as the Admin home's overview ring: one smooth gradient (fill from ringFill), cut into a ring. */
+@keyframes ring-in{from{opacity:0;transform:rotate(-70deg) scale(.94)}to{opacity:1;transform:none}}
+.donut-fill{mask:radial-gradient(closest-side,transparent 72.5%,#000 73.5%);-webkit-mask:radial-gradient(closest-side,transparent 72.5%,#000 73.5%);animation:ring-in 1.1s ease-out both}
+.stat-donut{filter:drop-shadow(0 9px 10px rgba(91,93,184,.11))}
+@media(prefers-reduced-motion:reduce){.donut-fill{animation:none}}

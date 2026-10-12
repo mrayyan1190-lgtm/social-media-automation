@@ -28,6 +28,12 @@
 #composer #sendButton:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 11px 25px #415fbd6c,0 0 0 3px #e6ebff}
 #composer #sendButton svg{width:21px;height:21px;stroke-width:2.3}
 @media(max-width:680px){#composer .composer-inner{grid-template-columns:minmax(0,1fr) 42px;column-gap:8px;row-gap:8px;min-height:106px;padding:15px 14px 14px 18px;border-radius:28px}#composer .composer-halo{border-radius:30px}#composer #sendButton{width:42px;height:42px}}
+/* Docked under the conversation: a compact bar when empty; the text area grows upward (the dock is sticky to the bottom). */
+#threadComposerMount #composer .composer-inner{grid-template-rows:minmax(24px,auto) 36px;row-gap:6px;min-height:0;padding:12px 14px 10px 20px;border-radius:28px}
+#threadComposerMount #composer .composer-halo{border-radius:30px}
+#threadComposerMount #composer #postPrompt{min-height:24px;font-size:14px}
+#threadComposerMount #composer #sendButton{width:40px;height:40px}
+#threadComposerMount #composer #sendButton svg{width:18px;height:18px}
 @media(max-width:370px){#composer #imageToggle span{display:none}#composer #imageToggle{padding-inline:10px}#composer #platformText{max-width:66px}#composerTools>div{gap:3px}}
 
 .studio-popover{box-shadow:0 22px 65px rgba(37,66,111,.16),0 2px 9px rgba(37,66,111,.04);animation:popin .17s ease-out both;max-width:calc(100vw - 32px)}
@@ -63,3 +69,5 @@
 
 /* The AI's answer (status line and draft cards) takes 80% of the conversation width on wide screens; the prompt bubble keeps its own width. */
 @media (min-width:1024px){.answer > :not(.ask){width:80%}}
+/* Two picked platforms: their icons overlap in the trigger. */
+.stacked>*{margin-left:-7px;box-shadow:0 0 0 2px #fff}

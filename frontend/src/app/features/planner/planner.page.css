@@ -49,7 +49,8 @@ button:disabled{opacity:.6;cursor:not-allowed}
 select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237185A4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-size:15px;background-repeat:no-repeat;background-position:right 13px center}
 .entry{transition:transform .18s,box-shadow .18s}.entry:hover{transform:translateY(-2px);box-shadow:0 12px 28px #466c921b}
 .pop-in{animation:enter .26s cubic-bezier(.18,1,.32,1) both}@keyframes enter{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
-.modal-backdrop{backdrop-filter:blur(7px);background:#102b4b8a}
+/* The details drawer keeps the calendar visible: a light tint, no blur; clicking it still closes the drawer. */
+.drawer-backdrop{background:rgba(20,40,74,.08)}
 .problem{color:#B76172;background:#FFF0F0;border:1px solid #F5D6DB}
 .week-strip button{transition:background .2s,transform .2s}.week-strip button:active{transform:scale(.97)}
 input,textarea,select{outline-offset:2px}
